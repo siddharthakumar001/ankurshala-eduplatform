@@ -1,0 +1,385 @@
+openapi: 3.0.3
+info:
+  title: AnkurShala API
+  version: 1.0.0
+  description: Stage-1 API for AnkurShala educational platform
+  contact:
+    name: AnkurShala Team
+    email: support@ankurshala.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+servers:
+  - url: http://localhost:8080/api
+    description: Development Server
+  - url: https://api.ankurshala.com
+    description: Production Server
+paths:
+  /auth/signup/student:
+    post:
+      summary: Student registration
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+      responses:
+        '200':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+  /auth/signup/teacher:
+    post:
+      summary: Teacher registration
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+      responses:
+        '200':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+  /auth/signin:
+    post:
+      summary: User login
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SigninRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+  /auth/refresh:
+    post:
+      summary: Token refresh
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Token refresh successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+  /auth/logout:
+    post:
+      summary: User logout
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Logout successful
+  /user/me:
+    get:
+      summary: Get current user info
+      tags: [User]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User info retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  email:
+                    type: string
+                  name:
+                    type: string
+                  role:
+                    type: string
+                  enabled:
+                    type: boolean
+  /student/profile:
+    get:
+      summary: Get student profile
+      tags: [Student]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Student profile retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentProfileDto'
+    put:
+      summary: Update student profile
+      tags: [Student]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentProfileDto'
+      responses:
+        '200':
+          description: Student profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentProfileDto'
+  /student/profile/documents:
+    get:
+      summary: Get student documents
+      tags: [Student]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Student documents retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StudentDocumentDto'
+    post:
+      summary: Add student document
+      tags: [Student]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentDocumentDto'
+      responses:
+        '200':
+          description: Document added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentDocumentDto'
+  /student/profile/documents/{documentId}:
+    delete:
+      summary: Delete student document
+      tags: [Student]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Document deleted
+  /teacher/profile:
+    get:
+      summary: Get teacher profile
+      tags: [Teacher]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Teacher profile retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherProfileDto'
+    put:
+      summary: Update teacher profile
+      tags: [Teacher]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeacherProfileDto'
+      responses:
+        '200':
+          description: Teacher profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherProfileDto'
+  /admin/profile:
+    get:
+      summary: Get admin profile
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Admin profile retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminProfileDto'
+    put:
+      summary: Update admin profile
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminProfileDto'
+      responses:
+        '200':
+          description: Admin profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminProfileDto'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT Authorization header using the Bearer scheme
+  schemas:
+    SignupRequest:
+      type: object
+      required:
+        - email
+        - password
+        - firstName
+        - lastName
+        - mobileNumber
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        firstName:
+          type: string
+        lastName:
+          type: string
+        mobileNumber:
+          type: string
+    SigninRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+    AuthResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        user:
+          type: object
+          properties:
+            id:
+              type: integer
+            email:
+              type: string
+            name:
+              type: string
+            role:
+              type: string
+    StudentProfileDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        firstName:
+          type: string
+        lastName:
+          type: string
+        mobileNumber:
+          type: string
+        schoolName:
+          type: string
+        classLevel:
+          type: string
+          enum: [GRADE_7, GRADE_8, GRADE_9, GRADE_10, GRADE_11, GRADE_12]
+        educationalBoard:
+          type: string
+          enum: [CBSE, ICSE, STATE_BOARD, IB, CAMBRIDGE, OTHER]
+    StudentDocumentDto:
+      type: object
+      required:
+        - documentName
+        - documentUrl
+      properties:
+        id:
+          type: integer
+        documentName:
+          type: string
+        documentUrl:
+          type: string
+          format: uri
+        uploadDate:
+          type: string
+          format: date-time
+    TeacherProfileDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        firstName:
+          type: string
+        lastName:
+          type: string
+        mobileNumber:
+          type: string
+        email:
+          type: string
+    AdminProfileDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        phoneNumber:
+          type: string
+        department:
+          type: string
