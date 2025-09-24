@@ -10,8 +10,10 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+// NOTE: server.servlet.context-path=/api is set for the app.
+// Therefore controller @RequestMapping must NOT start with "/api".
 @RestController
-@RequestMapping("/api/admin/dashboard")
+@RequestMapping("/admin/dashboard")
 @CrossOrigin(origins = "http://localhost:3000", maxAge = 3600)
 public class AdminDashboardController {
 

@@ -49,15 +49,12 @@ public class SecurityConfig {
             .exceptionHandling(exception -> exception.authenticationEntryPoint(jwtAuthenticationEntryPoint))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/api/health/**").permitAll()
-                .requestMatchers("/api/actuator/**").permitAll()
-                .requestMatchers("/api/test/**").permitAll()
+                .requestMatchers("/auth/**", "/actuator/**").permitAll()
                 .requestMatchers("/test/**").permitAll()
-                .requestMatchers("/api/user/**").authenticated()
-                .requestMatchers("/api/student/**").hasRole("STUDENT")
-                .requestMatchers("/api/teacher/**").hasRole("TEACHER")
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers("/user/**").authenticated()
+                .requestMatchers("/student/**").hasRole("STUDENT")
+                .requestMatchers("/teacher/**").hasRole("TEACHER")
+                .requestMatchers("/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             );
 

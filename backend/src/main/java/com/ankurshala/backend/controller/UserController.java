@@ -7,9 +7,11 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
+// NOTE: server.servlet.context-path=/api is set for the app.
+// Therefore controller @RequestMapping must NOT start with "/api".
 // Stage-1 FE complete: User context endpoint for navbar and guards
 @RestController
-@RequestMapping("/api/user")
+@RequestMapping("/user")
 @CrossOrigin(origins = "http://localhost:3000", maxAge = 3600)
 public class UserController {
 
