@@ -11,7 +11,9 @@ volumes:
     driver_opts:
       type: none
       o: bind
-      device: /mnt/azurefiles/pgdata
+      device: /opt/ankurshala/runtime/pgdata
+
+  # keep others on Azure Files as you had
   redis_data:
     driver: local
     driver_opts:
@@ -36,7 +38,7 @@ volumes:
       type: none
       o: bind
       device: /mnt/azurefiles/certbot/www
-
+      
 services:
   # ---------------- Database ----------------
   postgres:
