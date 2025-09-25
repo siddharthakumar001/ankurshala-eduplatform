@@ -186,6 +186,7 @@ services:
       - nginx_logs:/var/log/nginx
       - certbot_certs:/etc/letsencrypt:ro
       - certbot_www:/var/www/certbot:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
     networks: [ankurshala-network]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/health"]
