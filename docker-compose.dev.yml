@@ -153,6 +153,7 @@ services:
       SERVER_PORT: 8080
       DEMO_SEED_ON_START: ${DEMO_SEED_ON_START:-true}
       DEMO_ENV: ${DEMO_ENV:-local}
+      DEMO_BULK_SEED: ${DEMO_BULK_SEED:-true}
     networks:
       - ankurshala-network
     healthcheck:

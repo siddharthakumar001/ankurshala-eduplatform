@@ -9,7 +9,7 @@ export default function Home() {
       <section className="container mx-auto px-4 py-16 text-center">
         <div className="flex justify-center mb-8">
           <Image
-            src="/ankurshala.png"
+            src="/ankurshala.svg"
             alt="Ankurshala Logo"
             width={200}
             height={200}
@@ -197,7 +197,7 @@ export default function Home() {
         <div className="container mx-auto px-4 text-center">
           <div className="flex justify-center mb-4">
             <Image
-              src="/ankurshala.png"
+              src="/ankurshala.svg"
               alt="Ankurshala Logo"
               width={60}
               height={60}

@@ -56,3 +56,11 @@ assert:
 db.reset:
 	@echo "Dropping and recreating public schema (dev only)..."
 	docker exec -i ankur_db psql -U ankur -d ankurshala -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+
+# Bulk seed demo data (15 students, 15 teachers, 3 admins)
+seed-bulk:
+	@echo "Seeding 15 students, 15 teachers, 3 admins..."
+	@curl -s -X POST http://localhost:8080/api/admin/dev-seed/bulk \
+	  -H "Authorization: Bearer $${ADMIN_TOKEN}" \
+	  -H "Content-Type: application/json" \
+	  -d '{}' | jq .

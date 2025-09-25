@@ -13,5 +13,6 @@ public interface TeacherProfileRepository extends JpaRepository<TeacherProfile, 
     Optional<TeacherProfile> findByUser(User user);
     Optional<TeacherProfile> findByUserId(Long userId);
     long countByUserEnabledTrue();
+    long countByUserEnabledFalse();
     long countByUserCreatedAtBetween(LocalDateTime start, LocalDateTime end);
 }

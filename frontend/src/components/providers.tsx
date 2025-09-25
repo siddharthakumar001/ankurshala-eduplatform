@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState, useEffect } from 'react'
 import { Toaster } from 'sonner'
 import { useAuthStore } from '@/store/auth'
+import { ThemeProvider } from '@/components/theme-provider'
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
@@ -23,8 +24,13 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {children}
-      <Toaster position="top-right" richColors />
+      <ThemeProvider
+        defaultTheme="system"
+        storageKey="ankurshala-ui-theme"
+      >
+        {children}
+        <Toaster position="top-right" richColors />
+      </ThemeProvider>
     </QueryClientProvider>
   )
 }

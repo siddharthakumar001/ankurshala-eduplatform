@@ -76,7 +76,7 @@ export default function LoginPage() {
         <div className="text-center">
           <div className="flex justify-center mb-4">
             <Image
-              src="/ankurshala.png"
+              src="/ankurshala.svg"
               alt="Ankurshala Logo"
               width={80}
               height={80}

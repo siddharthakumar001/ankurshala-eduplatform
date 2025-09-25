@@ -26,30 +26,60 @@ public class AdminDashboardService {
     @Autowired
     private TeacherProfileRepository teacherProfileRepository;
 
-    @Cacheable(value = "dashboardMetrics", unless = "#result == null")
+    // @Cacheable(value = "dashboardMetrics", unless = "#result == null")
     public DashboardMetricsDto getDashboardMetrics() {
+        // Total counts
         long totalStudents = studentProfileRepository.countByUserEnabledTrue();
         long totalTeachers = teacherProfileRepository.countByUserEnabledTrue();
+        
+        // Active/Inactive counts
+        long activeStudents = studentProfileRepository.countByUserEnabledTrue();
+        long activeTeachers = teacherProfileRepository.countByUserEnabledTrue();
+        long inactiveStudents = studentProfileRepository.countByUserEnabledFalse();
+        long inactiveTeachers = teacherProfileRepository.countByUserEnabledFalse();
 
+        // Registration trends
+        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
         LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
+        
+        long newStudentsLast7Days = studentProfileRepository.countByUserCreatedAtBetween(sevenDaysAgo, LocalDateTime.now());
         long newStudentsLast30Days = studentProfileRepository.countByUserCreatedAtBetween(thirtyDaysAgo, LocalDateTime.now());
+        long newTeachersLast7Days = teacherProfileRepository.countByUserCreatedAtBetween(sevenDaysAgo, LocalDateTime.now());
         long newTeachersLast30Days = teacherProfileRepository.countByUserCreatedAtBetween(thirtyDaysAgo, LocalDateTime.now());
 
-        // Placeholder for active/completed courses as these entities are not yet implemented
+        // Content counts (placeholders for now - will be implemented in content management stages)
+        long totalBoards = 0;
+        long totalGrades = 0;
+        long totalSubjects = 0;
+        long totalChapters = 0;
+        long totalTopics = 0;
+
+        // Course counts (placeholders for now)
         long activeCourses = 0;
         long completedCourses = 0;
 
         return new DashboardMetricsDto(
                 totalStudents,
                 totalTeachers,
+                activeStudents,
+                activeTeachers,
+                inactiveStudents,
+                inactiveTeachers,
+                newStudentsLast7Days,
                 newStudentsLast30Days,
+                newTeachersLast7Days,
                 newTeachersLast30Days,
+                totalBoards,
+                totalGrades,
+                totalSubjects,
+                totalChapters,
+                totalTopics,
                 activeCourses,
                 completedCourses
         );
     }
 
-    @Cacheable(value = "dashboardSeries", unless = "#result == null")
+    // @Cacheable(value = "dashboardSeries", unless = "#result == null")
     public List<DashboardSeriesDto> getDashboardSeries() {
         List<DashboardSeriesDto> series = new ArrayList<>();
         

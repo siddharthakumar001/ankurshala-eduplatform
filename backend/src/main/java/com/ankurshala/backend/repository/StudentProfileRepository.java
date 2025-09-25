@@ -13,5 +13,6 @@ public interface StudentProfileRepository extends JpaRepository<StudentProfile, 
     Optional<StudentProfile> findByUser(User user);
     Optional<StudentProfile> findByUserId(Long userId);
     long countByUserEnabledTrue();
+    long countByUserEnabledFalse();
     long countByUserCreatedAtBetween(LocalDateTime start, LocalDateTime end);
 }

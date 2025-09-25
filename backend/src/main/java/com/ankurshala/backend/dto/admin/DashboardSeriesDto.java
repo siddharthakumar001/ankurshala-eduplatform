@@ -1,26 +1,21 @@
 package com.ankurshala.backend.dto.admin;
 
-public class DashboardSeriesDto {
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.io.Serializable;
+
+@Data
+@NoArgsConstructor
+public class DashboardSeriesDto implements Serializable {
     private String date;
     private long students;
     private long teachers;
 
-    // Constructors
-    public DashboardSeriesDto() {}
-
+    // Explicit constructor for all fields
     public DashboardSeriesDto(String date, long students, long teachers) {
         this.date = date;
         this.students = students;
         this.teachers = teachers;
     }
-
-    // Getters and Setters
-    public String getDate() { return date; }
-    public void setDate(String date) { this.date = date; }
-
-    public long getStudents() { return students; }
-    public void setStudents(long students) { this.students = students; }
-
-    public long getTeachers() { return teachers; }
-    public void setTeachers(long teachers) { this.teachers = teachers; }
 }

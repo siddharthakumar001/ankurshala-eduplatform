@@ -17,10 +17,28 @@ import {
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 interface DashboardMetrics {
+  // User counts
   totalStudents: number
   totalTeachers: number
+  activeStudents: number
+  activeTeachers: number
+  inactiveStudents: number
+  inactiveTeachers: number
+  
+  // Registration trends
+  newStudentsLast7Days: number
   newStudentsLast30Days: number
+  newTeachersLast7Days: number
   newTeachersLast30Days: number
+  
+  // Content counts (placeholders for now)
+  totalBoards: number
+  totalGrades: number
+  totalSubjects: number
+  totalChapters: number
+  totalTopics: number
+  
+  // Course counts (placeholders for now)
   activeCourses: number
   completedCourses: number
 }
@@ -161,15 +179,15 @@ export default function AdminDashboard() {
       bgColor: 'bg-green-100 dark:bg-green-900'
     },
     {
-      title: 'New Students (30 days)',
-      value: metrics.newStudentsLast30Days,
+      title: 'New Students (7 days)',
+      value: metrics.newStudentsLast7Days,
       icon: TrendingUp,
       color: 'text-emerald-600 dark:text-emerald-400',
       bgColor: 'bg-emerald-100 dark:bg-emerald-900'
     },
     {
-      title: 'New Teachers (30 days)',
-      value: metrics.newTeachersLast30Days,
+      title: 'New Teachers (7 days)',
+      value: metrics.newTeachersLast7Days,
       icon: CheckCircle,
       color: 'text-purple-600 dark:text-purple-400',
       bgColor: 'bg-purple-100 dark:bg-purple-900'
@@ -223,11 +241,11 @@ export default function AdminDashboard() {
                     <TrendingUp className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">New Students (30 days)</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">New Students (7 days)</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">Recent registrations</p>
                   </div>
                 </div>
-                <span className="text-lg font-bold text-gray-900 dark:text-white">{metrics.newStudentsLast30Days}</span>
+                <span className="text-lg font-bold text-gray-900 dark:text-white">{metrics.newStudentsLast7Days}</span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -235,11 +253,11 @@ export default function AdminDashboard() {
                     <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">New Teachers (30 days)</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">New Teachers (7 days)</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">Recent registrations</p>
                   </div>
                 </div>
-                <span className="text-lg font-bold text-gray-900 dark:text-white">{metrics.newTeachersLast30Days}</span>
+                <span className="text-lg font-bold text-gray-900 dark:text-white">{metrics.newTeachersLast7Days}</span>
               </div>
             </div>
           </Card>

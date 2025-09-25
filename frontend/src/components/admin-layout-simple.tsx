@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/auth'
 import { authAPI } from '@/lib/apiClient'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
+import { useTheme } from '@/components/theme-provider'
 import { 
   LayoutDashboard, 
   Users, 
@@ -30,11 +31,11 @@ export default function AdminLayoutSimple({ children }: AdminLayoutProps) {
   const router = useRouter()
   const pathname = usePathname()
   const { logout } = useAuthStore()
+  const { theme, setTheme } = useTheme()
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [darkMode, setDarkMode] = useState(false)
 
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode)
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark')
   }
 
   const handleLogout = async () => {
@@ -67,7 +68,7 @@ export default function AdminLayoutSimple({ children }: AdminLayoutProps) {
   ]
 
   return (
-    <div className={`flex min-h-screen ${darkMode ? 'dark' : ''}`}>
+    <div className="flex min-h-screen">
       {/* Sidebar */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 w-64 bg-gray-800 text-white transform ${
@@ -130,16 +131,10 @@ export default function AdminLayoutSimple({ children }: AdminLayoutProps) {
             <Button
               variant="ghost"
               size="icon"
-              onClick={toggleDarkMode}
+              onClick={toggleTheme}
               className="text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
             >
-              {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            </Button>
-            <div className="text-sm text-gray-700 dark:text-gray-300">
-              Admin User (admin)
-            </div>
-            <Button variant="outline" size="sm" onClick={handleLogout}>
-              Logout
+              {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </Button>
           </div>
         </header>

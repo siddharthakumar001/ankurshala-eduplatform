@@ -1,43 +1,60 @@
 package com.ankurshala.backend.dto.admin;
 
-public class DashboardMetricsDto {
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.io.Serializable;
+
+@Data
+@NoArgsConstructor
+public class DashboardMetricsDto implements Serializable {
+    // User counts
     private long totalStudents;
     private long totalTeachers;
+    private long activeStudents;
+    private long activeTeachers;
+    private long inactiveStudents;
+    private long inactiveTeachers;
+    
+    // Registration trends
+    private long newStudentsLast7Days;
     private long newStudentsLast30Days;
+    private long newTeachersLast7Days;
     private long newTeachersLast30Days;
+    
+    // Content counts (placeholders for now)
+    private long totalBoards;
+    private long totalGrades;
+    private long totalSubjects;
+    private long totalChapters;
+    private long totalTopics;
+    
+    // Course counts (placeholders for now)
     private long activeCourses;
     private long completedCourses;
 
-    // Constructors
-    public DashboardMetricsDto() {}
-
-    public DashboardMetricsDto(long totalStudents, long totalTeachers, 
-                              long newStudentsLast30Days, long newTeachersLast30Days,
-                              long activeCourses, long completedCourses) {
+    // Explicit constructor for all fields
+    public DashboardMetricsDto(long totalStudents, long totalTeachers, long activeStudents, long activeTeachers,
+                               long inactiveStudents, long inactiveTeachers, long newStudentsLast7Days,
+                               long newStudentsLast30Days, long newTeachersLast7Days, long newTeachersLast30Days,
+                               long totalBoards, long totalGrades, long totalSubjects, long totalChapters,
+                               long totalTopics, long activeCourses, long completedCourses) {
         this.totalStudents = totalStudents;
         this.totalTeachers = totalTeachers;
+        this.activeStudents = activeStudents;
+        this.activeTeachers = activeTeachers;
+        this.inactiveStudents = inactiveStudents;
+        this.inactiveTeachers = inactiveTeachers;
+        this.newStudentsLast7Days = newStudentsLast7Days;
         this.newStudentsLast30Days = newStudentsLast30Days;
+        this.newTeachersLast7Days = newTeachersLast7Days;
         this.newTeachersLast30Days = newTeachersLast30Days;
+        this.totalBoards = totalBoards;
+        this.totalGrades = totalGrades;
+        this.totalSubjects = totalSubjects;
+        this.totalChapters = totalChapters;
+        this.totalTopics = totalTopics;
         this.activeCourses = activeCourses;
         this.completedCourses = completedCourses;
     }
-
-    // Getters and Setters
-    public long getTotalStudents() { return totalStudents; }
-    public void setTotalStudents(long totalStudents) { this.totalStudents = totalStudents; }
-
-    public long getTotalTeachers() { return totalTeachers; }
-    public void setTotalTeachers(long totalTeachers) { this.totalTeachers = totalTeachers; }
-
-    public long getNewStudentsLast30Days() { return newStudentsLast30Days; }
-    public void setNewStudentsLast30Days(long newStudentsLast30Days) { this.newStudentsLast30Days = newStudentsLast30Days; }
-
-    public long getNewTeachersLast30Days() { return newTeachersLast30Days; }
-    public void setNewTeachersLast30Days(long newTeachersLast30Days) { this.newTeachersLast30Days = newTeachersLast30Days; }
-
-    public long getActiveCourses() { return activeCourses; }
-    public void setActiveCourses(long activeCourses) { this.activeCourses = activeCourses; }
-
-    public long getCompletedCourses() { return completedCourses; }
-    public void setCompletedCourses(long completedCourses) { this.completedCourses = completedCourses; }
 }
