@@ -8,11 +8,20 @@ test.describe('Admin Students Management', () => {
     await page.fill('input[type="email"]', 'siddhartha@ankurshala.com')
     await page.fill('input[type="password"]', 'Maza@123')
     await page.click('button[type="submit"]')
-    await page.waitForURL('/admin')
+    
+    // Wait for login to complete and redirect (could be /admin or /admin/profile)
+    await page.waitForURL(/\/admin/, { timeout: 10000 })
     
     // Navigate to students page
     await page.click('a[href="/admin/users/students"]')
     await page.waitForURL('/admin/users/students')
+    
+    // Wait for the page to load completely
+    await page.waitForLoadState('networkidle')
+    
+    // Wait for loading to complete
+    await page.waitForSelector('.animate-pulse', { state: 'hidden', timeout: 10000 })
+    
     await expect(page.locator('h1')).toContainText('Manage Students')
   })
 
@@ -25,14 +34,14 @@ test.describe('Admin Students Management', () => {
     await page.waitForSelector('.animate-pulse', { state: 'hidden', timeout: 10000 })
     
     // Check action buttons
-    await expect(page.locator('button', { hasText: 'Export' })).toBeVisible()
-    await expect(page.locator('button', { hasText: 'Add Student' })).toBeVisible()
+    await expect(page.locator('button').filter({ hasText: 'Export' })).toBeVisible()
+    await expect(page.locator('button').filter({ hasText: 'Add Student' })).toBeVisible()
     
     // Check search and filter components
     await expect(page.locator('input[placeholder*="Search"]')).toBeVisible()
-    await expect(page.locator('text=Status')).toBeVisible()
-    await expect(page.locator('text=Board')).toBeVisible()
-    await expect(page.locator('text=Class')).toBeVisible()
+    await expect(page.locator('button').filter({ hasText: 'Status' })).toBeVisible()
+    await expect(page.locator('button').filter({ hasText: 'Board' })).toBeVisible()
+    await expect(page.locator('button').filter({ hasText: 'Class' })).toBeVisible()
   })
 
   test('should display students table with proper headers', async ({ page }) => {
@@ -43,12 +52,12 @@ test.describe('Admin Students Management', () => {
     await expect(page.locator('table')).toBeVisible()
     
     // Check table headers
-    await expect(page.locator('th', { hasText: 'Student' })).toBeVisible()
-    await expect(page.locator('th', { hasText: 'School' })).toBeVisible()
-    await expect(page.locator('th', { hasText: 'Class/Board' })).toBeVisible()
-    await expect(page.locator('th', { hasText: 'Status' })).toBeVisible()
-    await expect(page.locator('th', { hasText: 'Joined' })).toBeVisible()
-    await expect(page.locator('th', { hasText: 'Actions' })).toBeVisible()
+    await expect(page.locator('th').filter({ hasText: 'Student' })).toBeVisible()
+    await expect(page.locator('th').filter({ hasText: 'School' })).toBeVisible()
+    await expect(page.locator('th').filter({ hasText: 'Class/Board' })).toBeVisible()
+    await expect(page.locator('th').filter({ hasText: 'Status' })).toBeVisible()
+    await expect(page.locator('th').filter({ hasText: 'Joined' })).toBeVisible()
+    await expect(page.locator('th').filter({ hasText: 'Actions' })).toBeVisible()
   })
 
   test('should handle search functionality', async ({ page }) => {
@@ -71,36 +80,39 @@ test.describe('Admin Students Management', () => {
   })
 
   test('should handle status filter', async ({ page }) => {
-    // Click on status filter
+    // Click on status filter dropdown
     await page.click('button:has-text("Status")')
     
-    // Select active status
-    await page.click('text=Active')
+    // Wait for dropdown to open and select active status
+    await page.waitForSelector('[role="option"]:has-text("Active")', { timeout: 5000 })
+    await page.click('[role="option"]:has-text("Active")')
     
     // The filter should be applied (we can verify the button text changes)
-    await expect(page.locator('button', { hasText: 'Active' })).toBeVisible()
+    await expect(page.locator('button').filter({ hasText: 'Active' })).toBeVisible()
   })
 
   test('should handle educational board filter', async ({ page }) => {
-    // Click on board filter
+    // Click on board filter dropdown
     await page.click('button:has-text("Board")')
     
-    // Select CBSE
-    await page.click('text=CBSE')
+    // Wait for dropdown to open and select CBSE
+    await page.waitForSelector('[role="option"]:has-text("CBSE")', { timeout: 5000 })
+    await page.click('[role="option"]:has-text("CBSE")')
     
     // The filter should be applied
-    await expect(page.locator('button', { hasText: 'CBSE' })).toBeVisible()
+    await expect(page.locator('button').filter({ hasText: 'CBSE' })).toBeVisible()
   })
 
   test('should handle class level filter', async ({ page }) => {
-    // Click on class filter
+    // Click on class filter dropdown
     await page.click('button:has-text("Class")')
     
-    // Select Grade 8
-    await page.click('text=Grade 8')
+    // Wait for dropdown to open and select Grade 8
+    await page.waitForSelector('[role="option"]:has-text("Grade 8")', { timeout: 5000 })
+    await page.click('[role="option"]:has-text("Grade 8")')
     
     // The filter should be applied
-    await expect(page.locator('button', { hasText: 'Grade 8' })).toBeVisible()
+    await expect(page.locator('button').filter({ hasText: 'Grade 8' })).toBeVisible()
   })
 
   test('should clear all filters when clear button is clicked', async ({ page }) => {
@@ -114,14 +126,14 @@ test.describe('Admin Students Management', () => {
     
     // Verify filters are cleared
     await expect(page.locator('input[placeholder*="Search"]')).toHaveValue('')
-    await expect(page.locator('button', { hasText: 'Status' })).toBeVisible()
+    await expect(page.locator('button').filter({ hasText: 'Status' })).toBeVisible()
   })
 
   test('should display pagination controls', async ({ page }) => {
     // Check pagination elements
     await expect(page.locator('text=Page')).toBeVisible()
-    await expect(page.locator('button', { hasText: 'Previous' })).toBeVisible()
-    await expect(page.locator('button', { hasText: 'Next' })).toBeVisible()
+    await expect(page.locator('button').filter({ hasText: 'Previous' })).toBeVisible()
+    await expect(page.locator('button').filter({ hasText: 'Next' })).toBeVisible()
   })
 
   test('should handle responsive design on mobile', async ({ page }) => {

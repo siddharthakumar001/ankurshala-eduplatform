@@ -7,7 +7,6 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.containers.RedisContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
@@ -31,12 +30,6 @@ public abstract class BaseIntegrationTest {
             .withPassword("password");
 
     @Container
-    @ServiceConnection
-    static RedisContainer redis = new RedisContainer(
-            DockerImageName.parse("redis:7-alpine"))
-            .withExposedPorts(6379);
-
-    @Container
     static KafkaContainer kafka = new KafkaContainer(
             DockerImageName.parse("confluentinc/cp-kafka:7.4.0"))
             .withExposedPorts(9092);
@@ -48,9 +41,9 @@ public abstract class BaseIntegrationTest {
         registry.add("spring.kafka.consumer.group-id", () -> "ankurshala-test-group");
         registry.add("spring.kafka.consumer.auto-offset-reset", () -> "earliest");
         
-        // Configure Redis properties
-        registry.add("spring.data.redis.host", redis::getHost);
-        registry.add("spring.data.redis.port", redis::getFirstMappedPort);
+        // Configure Redis properties (using localhost for tests)
+        registry.add("spring.data.redis.host", () -> "localhost");
+        registry.add("spring.data.redis.port", () -> 6379);
         
         // Configure JWT secret for tests
         registry.add("app.jwt.secret", () -> "test-jwt-secret-key-for-testing-purposes-only-must-be-at-least-64-characters-long");

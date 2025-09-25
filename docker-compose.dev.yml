@@ -152,6 +152,8 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       target: runner
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8080/api
     image: ankurshala/frontend:dev
     container_name: ankur_frontend
     depends_on:
@@ -160,7 +162,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://backend:8080/api
+      NEXT_PUBLIC_API_URL: http://localhost:8080/api
       NODE_ENV: production
     networks:
       - ankurshala-network

@@ -91,9 +91,9 @@ export default function AdminStudentsPage() {
   const [totalPages, setTotalPages] = useState(0)
   const [totalElements, setTotalElements] = useState(0)
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('')
-  const [boardFilter, setBoardFilter] = useState<string>('')
-  const [classFilter, setClassFilter] = useState<string>('')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [boardFilter, setBoardFilter] = useState<string>('all')
+  const [classFilter, setClassFilter] = useState<string>('all')
   const [sortBy, setSortBy] = useState('createdAt')
   const [sortDir, setSortDir] = useState('desc')
   const [selectedStudent, setSelectedStudent] = useState<StudentDetail | null>(null)
@@ -109,7 +109,7 @@ export default function AdminStudentsPage() {
   const fetchStudents = async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('accessToken')
       const params = new URLSearchParams({
         page: currentPage.toString(),
         size: pageSize.toString(),
@@ -118,9 +118,9 @@ export default function AdminStudentsPage() {
       })
       
       if (search) params.append('search', search)
-      if (statusFilter) params.append('enabled', statusFilter)
-      if (boardFilter) params.append('educationalBoard', boardFilter)
-      if (classFilter) params.append('classLevel', classFilter)
+      if (statusFilter && statusFilter !== 'all') params.append('enabled', statusFilter)
+      if (boardFilter && boardFilter !== 'all') params.append('educationalBoard', boardFilter)
+      if (classFilter && classFilter !== 'all') params.append('classLevel', classFilter)
 
       const response = await fetch(`http://localhost:8080/api/admin/students?${params}`, {
         headers: {
@@ -147,7 +147,7 @@ export default function AdminStudentsPage() {
 
   const fetchStudentDetail = async (id: number) => {
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('accessToken')
       const response = await fetch(`http://localhost:8080/api/admin/students/${id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -170,7 +170,7 @@ export default function AdminStudentsPage() {
 
   const toggleStudentStatus = async (id: number) => {
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('accessToken')
       const response = await fetch(`http://localhost:8080/api/admin/students/${id}/toggle-status`, {
         method: 'PATCH',
         headers: {
@@ -200,7 +200,7 @@ export default function AdminStudentsPage() {
 
   const updateStudent = async (id: number, updateData: Partial<StudentDetail>) => {
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('accessToken')
       const response = await fetch(`http://localhost:8080/api/admin/students/${id}`, {
         method: 'PUT',
         headers: {
@@ -248,9 +248,9 @@ export default function AdminStudentsPage() {
 
   const clearFilters = () => {
     setSearch('')
-    setStatusFilter('')
-    setBoardFilter('')
-    setClassFilter('')
+    setStatusFilter('all')
+    setBoardFilter('all')
+    setClassFilter('all')
     setCurrentPage(0)
   }
 
@@ -332,7 +332,7 @@ export default function AdminStudentsPage() {
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Status</SelectItem>
+                    <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="true">Active</SelectItem>
                     <SelectItem value="false">Inactive</SelectItem>
                   </SelectContent>
@@ -342,7 +342,7 @@ export default function AdminStudentsPage() {
                     <SelectValue placeholder="Board" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Boards</SelectItem>
+                    <SelectItem value="all">All Boards</SelectItem>
                     {EDUCATIONAL_BOARDS.map(board => (
                       <SelectItem key={board.value} value={board.value}>{board.label}</SelectItem>
                     ))}
@@ -353,13 +353,13 @@ export default function AdminStudentsPage() {
                     <SelectValue placeholder="Class" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Classes</SelectItem>
+                    <SelectItem value="all">All Classes</SelectItem>
                     {CLASS_LEVELS.map(level => (
                       <SelectItem key={level.value} value={level.value}>{level.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {(search || statusFilter || boardFilter || classFilter) && (
+                {(search || (statusFilter && statusFilter !== 'all') || (boardFilter && boardFilter !== 'all') || (classFilter && classFilter !== 'all')) && (
                   <Button variant="outline" onClick={clearFilters}>
                     Clear
                   </Button>
@@ -384,7 +384,7 @@ export default function AdminStudentsPage() {
                 <GraduationCap className="mx-auto h-12 w-12 text-gray-400" />
                 <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No students found</h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  {search || statusFilter || boardFilter || classFilter 
+                  {(search || (statusFilter && statusFilter !== 'all') || (boardFilter && boardFilter !== 'all') || (classFilter && classFilter !== 'all'))
                     ? 'Try adjusting your search criteria or filters.'
                     : 'Get started by adding a new student.'}
                 </p>
