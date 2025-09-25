@@ -10,7 +10,7 @@ LABEL com.ankurshala=1
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --only=production
+    npm ci --only=production && npm cache clean --force
 
 ############################
 # Stage 2: Builder
@@ -20,31 +20,26 @@ LABEL com.ankurshala=1
 
 WORKDIR /app
 
-# Copy package files and install dependencies
+# Copy package files and install all dependencies
 COPY package.json package-lock.json* ./
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci
+    npm ci && npm cache clean --force
 
 # Copy source code
 COPY . .
+
+# Ensure public directory exists
+RUN mkdir -p public
 
 # Set build-time environment variables
 ARG NEXT_PUBLIC_API_URL=http://localhost:8080/api
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
-# Ensure public directory exists before build
-RUN mkdir -p public
-
-# Create basic files if they don't exist
-RUN if [ ! -f "public/favicon.ico" ]; then \
-        touch public/favicon.ico; \
-    fi
-
 # Build the application
 RUN npm run build
 
 ############################
-# Stage 3: Runner (Minimal)
+# Stage 3: Runner (Production)
 ############################
 FROM node:20-alpine AS runner
 LABEL com.ankurshala=1
@@ -62,10 +57,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
-# Create public directory
-RUN mkdir -p public
-
-# Copy public files if they exist
+# Handle public directory safely
+RUN mkdir -p ./public
 COPY --from=builder /app/public ./public
 
 # Change ownership to non-root user
