@@ -10,14 +10,14 @@ test.describe('Admin Debug', () => {
     await page.fill('input[type="password"]', 'Maza@123')
     await page.click('button[type="submit"]')
     
-    // Wait for redirect to admin profile
-    await page.waitForURL('/admin/profile')
+    // Wait for redirect to admin dashboard (not profile)
+    await page.waitForURL('/admin')
     
-    // Check what's on the profile page
-    console.log('Profile page loaded')
-    const profileContent = await page.content()
-    console.log('Profile page has aside:', await page.locator('aside').count())
-    console.log('Profile page has header:', await page.locator('header').count())
+    // Check what's on the admin dashboard page
+    console.log('Admin dashboard page loaded')
+    const dashboardContent = await page.content()
+    console.log('Dashboard page has aside:', await page.locator('aside').count())
+    console.log('Dashboard page has header:', await page.locator('header').count())
     
     // Navigate to admin dashboard
     await page.goto('/admin')
