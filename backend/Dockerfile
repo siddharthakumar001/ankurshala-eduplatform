@@ -7,24 +7,17 @@
 FROM maven:3.9.6-eclipse-temurin-17 AS build
 LABEL com.ankurshala=1
 
-# Set working directory
 WORKDIR /app
 
-# Copy only pom.xml first for better layer caching
+# Cache deps
 COPY pom.xml ./
 COPY .mvn ./.mvn
 COPY mvnw ./
+RUN --mount=type=cache,target=/root/.m2 ./mvnw dependency:go-offline -B
 
-# Download dependencies (this layer will be cached unless pom.xml changes)
-RUN --mount=type=cache,target=/root/.m2 \
-    ./mvnw dependency:go-offline -B
-
-# Copy source code
+# Build
 COPY src ./src
-
-# Build the application (skip tests for faster builds)
-RUN --mount=type=cache,target=/root/.m2 \
-    ./mvnw clean package -DskipTests -Dmaven.test.skip=true -B
+RUN --mount=type=cache,target=/root/.m2 ./mvnw clean package -DskipTests -Dmaven.test.skip=true -B
 
 ############################
 # Stage 2: Runtime (Minimal JRE)
@@ -32,33 +25,25 @@ RUN --mount=type=cache,target=/root/.m2 \
 FROM eclipse-temurin:17-jre AS runtime
 LABEL com.ankurshala=1
 
-# Create non-root user for security
-RUN groupadd -g 1001 appgroup && \
-    useradd -u 1001 -g appgroup -s /bin/bash appuser
+# Non-root user
+RUN groupadd -g 1001 appgroup && useradd -u 1001 -g appgroup -s /bin/bash appuser
 
-# Set working directory
 WORKDIR /app
-
-# Copy the JAR from build stage
 COPY --from=build /app/target/*.jar app.jar
-
-# Change ownership to non-root user
 RUN chown -R appuser:appgroup /app
 
-# Switch to non-root user
+# Install wget for healthcheck
+USER root
+RUN apt-get update && apt-get install -y wget && rm -rf /var/lib/apt/lists/*
 USER appuser
 
-# Environment variables for production
+# Runtime config
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -XX:+UseStringDeduplication -Dfile.encoding=UTF-8" \
     SPRING_PROFILES_ACTIVE=production \
     SERVER_PORT=8080
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/api/actuator/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/api/actuator/health || exit 1
 
-# Expose port
 EXPOSE 8080
-
-# Run the application
 ENTRYPOINT ["java", "-jar", "app.jar"]
