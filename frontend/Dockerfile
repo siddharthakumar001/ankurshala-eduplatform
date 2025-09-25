@@ -32,6 +32,14 @@ COPY . .
 ARG NEXT_PUBLIC_API_URL=http://localhost:8080/api
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
+# Ensure public directory exists before build
+RUN mkdir -p public
+
+# Create basic files if they don't exist
+RUN if [ ! -f "public/favicon.ico" ]; then \
+        touch public/favicon.ico; \
+    fi
+
 # Build the application
 RUN npm run build
 
@@ -54,9 +62,11 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
-# Handle public directory safely - copy if exists, create if not
+# Create public directory
 RUN mkdir -p public
-COPY --from=builder /app/public/* ./public/ 2>/dev/null || true
+
+# Copy public files if they exist
+COPY --from=builder /app/public ./public
 
 # Change ownership to non-root user
 RUN chown -R nextjs:nodejs /app
