@@ -187,6 +187,7 @@ services:
       - certbot_certs:/etc/letsencrypt:ro
       - certbot_www:/var/www/certbot
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - /opt/ankurshala/nginx/empty-templates:/etc/nginx/templates:ro
     networks: [ankurshala-network]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/health"]
