@@ -1,4 +1,4 @@
-version: '3.8'
+# Remove the version line completely - it's obsolete in newer Docker Compose versions
 
 networks:
   ankurshala-network:
