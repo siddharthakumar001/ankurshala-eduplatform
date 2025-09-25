@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080/api',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -45,7 +45,7 @@ apiClient.interceptors.response.use(
         
         if (refreshToken) {
           const response = await axios.post(
-            `${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080/api'}/auth/refresh`,
+            `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'}/auth/refresh`,
             { refreshToken }
           )
 
