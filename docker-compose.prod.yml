@@ -1,21 +1,44 @@
+name: ankurshala
+
 networks:
   ankurshala-network:
     driver: bridge
 
+# ---- Persisted volumes bound to your VM paths (ideally Azure Files) ----
 volumes:
   postgres_data:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/azurefiles/pgdata
   redis_data:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/azurefiles/redisdata
   nginx_logs:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/azurefiles/nginxlogs
   certbot_certs:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/azurefiles/certbot/letsencrypt
   certbot_www:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/azurefiles/certbot/www
 
 services:
-  # Database
+  # ---------------- Database ----------------
   postgres:
     image: postgres:15-alpine
     container_name: ankur_db_prod
@@ -26,8 +49,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks:
-      - ankurshala-network
+    networks: [ankurshala-network]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-ankur} -d ${DB_NAME:-ankurshala}"]
       interval: 30s
@@ -40,16 +62,15 @@ services:
         reservations:
           memory: 256M
 
-  # Redis Cache
+  # ---------------- Redis ----------------
   redis:
     image: redis:7-alpine
     container_name: ankur_redis_prod
     restart: unless-stopped
-    command: redis-server --requirepass ${REDIS_PASSWORD:-password} --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: redis-server --requirepass ${REDIS_PASSWORD:-password} --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
-    networks:
-      - ankurshala-network
+    networks: [ankurshala-network]
     healthcheck:
       test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-password}", "ping"]
       interval: 30s
@@ -62,37 +83,40 @@ services:
         reservations:
           memory: 128M
 
-  # Backend API
+  # ---------------- Backend API ----------------
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
       target: runtime
+    image: ankurshala/backend:prod
     container_name: ankur_backend_prod
     restart: unless-stopped
     environment:
-      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
-      - DB_HOST=postgres
-      - DB_PORT=${DB_PORT:-5432}
-      - DB_NAME=${DB_NAME:-ankurshala}
-      - DB_USERNAME=${DB_USERNAME:-ankur}
-      - DB_PASSWORD=${DB_PASSWORD:-password}
-      - REDIS_HOST=redis
-      - REDIS_PORT=${REDIS_PORT:-6379}
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-password}
-      - JWT_SECRET=${JWT_SECRET}
-      - BANK_ENC_KEY=${BANK_ENC_KEY}
-      - SERVER_PORT=${SERVER_PORT:-8080}
-      - DEMO_SEED_ON_START=false
-      - DEMO_ENV=prod
-      - DEMO_FORCE=false
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-production}
+      DB_HOST: postgres
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-ankurshala}
+      DB_USERNAME: ${DB_USERNAME:-ankur}
+      DB_PASSWORD: ${DB_PASSWORD:-password}
+      REDIS_HOST: redis
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-password}
+      JWT_SECRET: ${JWT_SECRET}
+      BANK_ENC_KEY: ${BANK_ENC_KEY}
+      SERVER_PORT: ${SERVER_PORT:-8080}
+      DEMO_SEED_ON_START: "false"
+      DEMO_ENV: "prod"
+      DEMO_FORCE: "false"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    networks:
-      - ankurshala-network
+    # keep backend private; only nginx reaches it
+    ports:
+      - "127.0.0.1:8080:8080"
+    networks: [ankurshala-network]
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/actuator/health"]
       interval: 30s
@@ -106,29 +130,33 @@ services:
         reservations:
           memory: 512M
 
-  # Frontend
+  # ---------------- Frontend ----------------
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       target: runner
       args:
+        # baked at build time
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://ankurshala.com/api}
+    image: ankurshala/frontend:prod
     container_name: ankur_frontend_prod
     restart: unless-stopped
     environment:
-      - NODE_ENV=${NODE_ENV:-production}
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://ankurshala.com/api}
+      NODE_ENV: ${NODE_ENV:-production}
     depends_on:
       backend:
         condition: service_healthy
-    networks:
-      - ankurshala-network
+    # keep frontend private; only nginx reaches it
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks: [ankurshala-network]
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
       interval: 30s
       timeout: 10s
       retries: 5
+      start_period: 30s
     deploy:
       resources:
         limits:
@@ -136,25 +164,27 @@ services:
         reservations:
           memory: 256M
 
-  # Nginx Reverse Proxy
+  # ---------------- Nginx reverse proxy ----------------
   nginx:
     build:
       context: ./nginx
       dockerfile: Dockerfile
+    image: ankurshala/nginx:prod
     container_name: ankur_nginx_prod
     restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - nginx_logs:/var/log/nginx
-      - certbot_certs:/etc/nginx/ssl:ro
+      - certbot_certs:/etc/letsencrypt:ro
       - certbot_www:/var/www/certbot:ro
-    depends_on:
-      - backend
-      - frontend
-    networks:
-      - ankurshala-network
+    networks: [ankurshala-network]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/health"]
       interval: 30s
@@ -167,7 +197,7 @@ services:
         reservations:
           memory: 64M
 
-  # Certbot for SSL certificates
+  # ---------------- Certbot (one-shot issuance) ----------------
   certbot:
     image: certbot/certbot
     container_name: ankur_certbot_prod
@@ -175,4 +205,11 @@ services:
     volumes:
       - certbot_certs:/etc/letsencrypt
       - certbot_www:/var/www/certbot
-    command: certonly --webroot --webroot-path=/var/www/certbot --email your-email@example.com --agree-tos --no-eff-email -d ankurshala.com -d www.ankurshala.com
+    # Update your email below
+    command: >
+      certonly --webroot
+      --webroot-path=/var/www/certbot
+      --email your-email@example.com
+      --agree-tos --no-eff-email
+      -d ankurshala.com -d www.ankurshala.com
+    networks: [ankurshala-network]
