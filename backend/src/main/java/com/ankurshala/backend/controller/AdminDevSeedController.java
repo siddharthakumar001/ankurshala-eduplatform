@@ -19,7 +19,6 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/admin/dev-seed")
-@PreAuthorize("hasRole('ADMIN')")
 public class AdminDevSeedController {
 
     private static final Logger logger = LoggerFactory.getLogger(AdminDevSeedController.class);
@@ -40,6 +39,7 @@ public class AdminDevSeedController {
      * @return JSON response with seeding summary
      */
     @PostMapping("/bulk")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, Object>> bulkSeed() {
         logger.info("Bulk seed endpoint called by admin");
 
