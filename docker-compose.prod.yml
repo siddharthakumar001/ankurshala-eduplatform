@@ -185,7 +185,7 @@ services:
     volumes:
       - nginx_logs:/var/log/nginx
       - certbot_certs:/etc/letsencrypt:ro
-      - certbot_www:/var/www/certbot:ro
+      - certbot_www:/var/www/certbot
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
     networks: [ankurshala-network]
     healthcheck:
