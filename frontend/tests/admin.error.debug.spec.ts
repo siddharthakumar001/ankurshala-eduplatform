@@ -19,8 +19,8 @@ test.describe('Admin Error Debug', () => {
     await page.fill('input[type="password"]', 'Maza@123')
     await page.click('button[type="submit"]')
     
-    // Wait for redirect to admin profile
-    await page.waitForURL('/admin/profile')
+    // Wait for redirect to admin dashboard (not profile)
+    await page.waitForURL('/admin')
     
     // Navigate to admin dashboard
     await page.goto('/admin')

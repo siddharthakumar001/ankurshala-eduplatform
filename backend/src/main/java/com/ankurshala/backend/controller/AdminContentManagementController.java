@@ -1,0 +1,320 @@
+package com.ankurshala.backend.controller;
+
+import com.ankurshala.backend.dto.content.*;
+import com.ankurshala.backend.entity.*;
+import com.ankurshala.backend.service.ContentManagementService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
+
+@RestController
+@RequestMapping("/admin/content")
+@CrossOrigin(origins = "http://localhost:3000", maxAge = 3600)
+@PreAuthorize("hasRole('ADMIN')")
+@RequiredArgsConstructor
+@Slf4j
+public class AdminContentManagementController {
+
+    private final ContentManagementService contentManagementService;
+
+    // ============ BOARDS CRUD ============
+    
+    @GetMapping("/boards")
+    public ResponseEntity<Page<BoardDto>> getBoards(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(defaultValue = "name") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir) {
+        
+        Sort sort = sortDir.equalsIgnoreCase("desc") ? 
+            Sort.by(sortBy).descending() : 
+            Sort.by(sortBy).ascending();
+        
+        Pageable pageable = PageRequest.of(page, size, sort);
+        Page<BoardDto> boards = contentManagementService.getBoards(pageable, search, active);
+        
+        return ResponseEntity.ok(boards);
+    }
+
+    @PostMapping("/boards")
+    public ResponseEntity<BoardDto> createBoard(@Valid @RequestBody CreateBoardRequest request) {
+        BoardDto board = contentManagementService.createBoard(request);
+        return ResponseEntity.ok(board);
+    }
+
+    @PutMapping("/boards/{id}")
+    public ResponseEntity<BoardDto> updateBoard(
+            @PathVariable Long id, 
+            @Valid @RequestBody UpdateBoardRequest request) {
+        BoardDto board = contentManagementService.updateBoard(id, request);
+        return ResponseEntity.ok(board);
+    }
+
+    @PatchMapping("/boards/{id}/active")
+    public ResponseEntity<BoardDto> updateBoardStatus(
+            @PathVariable Long id, 
+            @RequestBody Map<String, Boolean> statusUpdate) {
+        Boolean active = statusUpdate.get("active");
+        BoardDto board = contentManagementService.updateBoardStatus(id, active);
+        return ResponseEntity.ok(board);
+    }
+
+    @DeleteMapping("/boards/{id}")
+    public ResponseEntity<Map<String, Object>> deleteBoard(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "false") boolean force) {
+        Map<String, Object> result = contentManagementService.deleteBoard(id, force);
+        return ResponseEntity.ok(result);
+    }
+
+    // ============ SUBJECTS CRUD ============
+    
+    @GetMapping("/subjects")
+    public ResponseEntity<Page<SubjectDto>> getSubjects(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(defaultValue = "name") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir) {
+        
+        Sort sort = sortDir.equalsIgnoreCase("desc") ? 
+            Sort.by(sortBy).descending() : 
+            Sort.by(sortBy).ascending();
+        
+        Pageable pageable = PageRequest.of(page, size, sort);
+        Page<SubjectDto> subjects = contentManagementService.getSubjects(pageable, search, active);
+        
+        return ResponseEntity.ok(subjects);
+    }
+
+    @PostMapping("/subjects")
+    public ResponseEntity<SubjectDto> createSubject(@Valid @RequestBody CreateSubjectRequest request) {
+        SubjectDto subject = contentManagementService.createSubject(request);
+        return ResponseEntity.ok(subject);
+    }
+
+    @PutMapping("/subjects/{id}")
+    public ResponseEntity<SubjectDto> updateSubject(
+            @PathVariable Long id, 
+            @Valid @RequestBody UpdateSubjectRequest request) {
+        SubjectDto subject = contentManagementService.updateSubject(id, request);
+        return ResponseEntity.ok(subject);
+    }
+
+    @PatchMapping("/subjects/{id}/active")
+    public ResponseEntity<SubjectDto> updateSubjectStatus(
+            @PathVariable Long id, 
+            @RequestBody Map<String, Boolean> statusUpdate) {
+        Boolean active = statusUpdate.get("active");
+        SubjectDto subject = contentManagementService.updateSubjectStatus(id, active);
+        return ResponseEntity.ok(subject);
+    }
+
+    @DeleteMapping("/subjects/{id}")
+    public ResponseEntity<Map<String, Object>> deleteSubject(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "false") boolean force) {
+        Map<String, Object> result = contentManagementService.deleteSubject(id, force);
+        return ResponseEntity.ok(result);
+    }
+
+    // ============ CHAPTERS CRUD ============
+    
+    @GetMapping("/chapters")
+    public ResponseEntity<Page<ChapterDto>> getChapters(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) Long subjectId,
+            @RequestParam(defaultValue = "name") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir) {
+        
+        Sort sort = sortDir.equalsIgnoreCase("desc") ? 
+            Sort.by(sortBy).descending() : 
+            Sort.by(sortBy).ascending();
+        
+        Pageable pageable = PageRequest.of(page, size, sort);
+        Page<ChapterDto> chapters = contentManagementService.getChapters(pageable, search, active, subjectId);
+        
+        return ResponseEntity.ok(chapters);
+    }
+
+    @PostMapping("/chapters")
+    public ResponseEntity<ChapterDto> createChapter(@Valid @RequestBody CreateChapterRequest request) {
+        ChapterDto chapter = contentManagementService.createChapter(request);
+        return ResponseEntity.ok(chapter);
+    }
+
+    @PutMapping("/chapters/{id}")
+    public ResponseEntity<ChapterDto> updateChapter(
+            @PathVariable Long id, 
+            @Valid @RequestBody UpdateChapterRequest request) {
+        ChapterDto chapter = contentManagementService.updateChapter(id, request);
+        return ResponseEntity.ok(chapter);
+    }
+
+    @PatchMapping("/chapters/{id}/active")
+    public ResponseEntity<ChapterDto> updateChapterStatus(
+            @PathVariable Long id, 
+            @RequestBody Map<String, Boolean> statusUpdate) {
+        Boolean active = statusUpdate.get("active");
+        ChapterDto chapter = contentManagementService.updateChapterStatus(id, active);
+        return ResponseEntity.ok(chapter);
+    }
+
+    @DeleteMapping("/chapters/{id}")
+    public ResponseEntity<Map<String, Object>> deleteChapter(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "false") boolean force) {
+        Map<String, Object> result = contentManagementService.deleteChapter(id, force);
+        return ResponseEntity.ok(result);
+    }
+
+    // ============ TOPICS CRUD ============
+    
+    @GetMapping("/topics")
+    public ResponseEntity<Page<TopicDto>> getTopics(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) Long chapterId,
+            @RequestParam(required = false) Long subjectId,
+            @RequestParam(defaultValue = "title") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir) {
+        
+        Sort sort = sortDir.equalsIgnoreCase("desc") ? 
+            Sort.by(sortBy).descending() : 
+            Sort.by(sortBy).ascending();
+        
+        Pageable pageable = PageRequest.of(page, size, sort);
+        Page<TopicDto> topics = contentManagementService.getTopics(pageable, search, active, chapterId, subjectId);
+        
+        return ResponseEntity.ok(topics);
+    }
+
+    @PostMapping("/topics")
+    public ResponseEntity<TopicDto> createTopic(@Valid @RequestBody CreateTopicRequest request) {
+        TopicDto topic = contentManagementService.createTopic(request);
+        return ResponseEntity.ok(topic);
+    }
+
+    @PutMapping("/topics/{id}")
+    public ResponseEntity<TopicDto> updateTopic(
+            @PathVariable Long id, 
+            @Valid @RequestBody UpdateTopicRequest request) {
+        TopicDto topic = contentManagementService.updateTopic(id, request);
+        return ResponseEntity.ok(topic);
+    }
+
+    @PatchMapping("/topics/{id}/active")
+    public ResponseEntity<TopicDto> updateTopicStatus(
+            @PathVariable Long id, 
+            @RequestBody Map<String, Boolean> statusUpdate) {
+        Boolean active = statusUpdate.get("active");
+        TopicDto topic = contentManagementService.updateTopicStatus(id, active);
+        return ResponseEntity.ok(topic);
+    }
+
+    @DeleteMapping("/topics/{id}")
+    public ResponseEntity<Map<String, Object>> deleteTopic(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "false") boolean force) {
+        Map<String, Object> result = contentManagementService.deleteTopic(id, force);
+        return ResponseEntity.ok(result);
+    }
+
+    // ============ TOPIC NOTES CRUD ============
+    
+    @GetMapping("/topics/{topicId}/notes")
+    public ResponseEntity<Page<TopicNoteDto>> getTopicNotes(
+            @PathVariable Long topicId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(defaultValue = "title") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir) {
+        
+        Sort sort = sortDir.equalsIgnoreCase("desc") ? 
+            Sort.by(sortBy).descending() : 
+            Sort.by(sortBy).ascending();
+        
+        Pageable pageable = PageRequest.of(page, size, sort);
+        Page<TopicNoteDto> notes = contentManagementService.getTopicNotes(topicId, pageable, search, active);
+        
+        return ResponseEntity.ok(notes);
+    }
+
+    @GetMapping("/notes")
+    public ResponseEntity<Page<TopicNoteDto>> getAllTopicNotes(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) Long topicId,
+            @RequestParam(defaultValue = "title") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir) {
+        
+        Sort sort = sortDir.equalsIgnoreCase("desc") ? 
+            Sort.by(sortBy).descending() : 
+            Sort.by(sortBy).ascending();
+        
+        Pageable pageable = PageRequest.of(page, size, sort);
+        Page<TopicNoteDto> notes = contentManagementService.getAllTopicNotes(pageable, search, active, topicId);
+        
+        return ResponseEntity.ok(notes);
+    }
+
+    @PostMapping("/topics/{topicId}/notes")
+    public ResponseEntity<TopicNoteDto> createTopicNote(
+            @PathVariable Long topicId,
+            @Valid @RequestBody CreateTopicNoteRequest request) {
+        TopicNoteDto note = contentManagementService.createTopicNote(topicId, request);
+        return ResponseEntity.ok(note);
+    }
+
+    @PostMapping("/notes")
+    public ResponseEntity<TopicNoteDto> createTopicNoteGeneral(@Valid @RequestBody CreateTopicNoteRequest request) {
+        TopicNoteDto note = contentManagementService.createTopicNoteGeneral(request);
+        return ResponseEntity.ok(note);
+    }
+
+    @PutMapping("/notes/{id}")
+    public ResponseEntity<TopicNoteDto> updateTopicNote(
+            @PathVariable Long id, 
+            @Valid @RequestBody UpdateTopicNoteRequest request) {
+        TopicNoteDto note = contentManagementService.updateTopicNote(id, request);
+        return ResponseEntity.ok(note);
+    }
+
+    @PatchMapping("/notes/{id}/active")
+    public ResponseEntity<TopicNoteDto> updateTopicNoteStatus(
+            @PathVariable Long id, 
+            @RequestBody Map<String, Boolean> statusUpdate) {
+        Boolean active = statusUpdate.get("active");
+        TopicNoteDto note = contentManagementService.updateTopicNoteStatus(id, active);
+        return ResponseEntity.ok(note);
+    }
+
+    @DeleteMapping("/notes/{id}")
+    public ResponseEntity<Map<String, Object>> deleteTopicNote(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "false") boolean force) {
+        Map<String, Object> result = contentManagementService.deleteTopicNote(id, force);
+        return ResponseEntity.ok(result);
+    }
+}

@@ -1,0 +1,6 @@
+Class Level,Subject,Chapter,Topic,Brief Description,Summary,Suggested Topics,Resource URL,Expected Time Minutes
+GRADE_9,Physics,Mechanics,Force and Motion,Introduction to basic concepts of force and motion,This chapter covers the fundamental principles of force and motion including Newton's laws,Newton's Laws,https://example.com/physics/force-motion,45
+GRADE_9,Physics,Mechanics,Gravitation,Understanding gravitational force,This chapter explains gravitational force and its effects on objects,Universal Law of Gravitation,https://example.com/physics/gravitation,60
+GRADE_10,Mathematics,Algebra,Quadratic Equations,Solving quadratic equations,This chapter covers methods to solve quadratic equations,Factorization Method,https://example.com/math/quadratic,50
+GRADE_10,Mathematics,Algebra,Polynomials,Understanding polynomial functions,This chapter introduces polynomial functions and their properties,Polynomial Division,https://example.com/math/polynomials,55
+GRADE_11,Chemistry,Atomic Structure,Electronic Configuration,Understanding electron arrangement,This chapter covers how electrons are arranged in atoms,Quantum Numbers,https://example.com/chemistry/electronic-config,40

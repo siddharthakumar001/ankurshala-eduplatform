@@ -85,7 +85,8 @@ test.describe('Admin Dashboard', () => {
 
   test('should have dark/light mode toggle', async ({ page }) => {
     // Wait for dark mode toggle button to be present - look for Moon icon specifically
-    await expect(page.locator('button').locator('svg.lucide-moon')).toBeVisible()
+    // Use first() to avoid ambiguity with multiple moon icons
+    await expect(page.locator('button').locator('svg.lucide-moon').first()).toBeVisible()
   })
 
   test('should be responsive', async ({ page }) => {

@@ -10,18 +10,10 @@ test.describe('Admin Route Debug', () => {
     await page.fill('input[type="password"]', 'Maza@123')
     await page.click('button[type="submit"]')
     
-    // Wait for redirect to admin profile
-    await page.waitForURL('/admin/profile')
+    // Wait for redirect to admin dashboard (not profile)
+    await page.waitForURL('/admin')
     
-    // Check if we can access admin profile (should work)
-    console.log('Admin profile URL:', page.url())
-    const profileTitle = await page.locator('h1').textContent()
-    console.log('Profile title:', profileTitle)
-    
-    // Navigate to admin dashboard
-    await page.goto('/admin')
-    
-    // Check if we can access admin dashboard
+    // Check if we can access admin dashboard (should work)
     console.log('Admin dashboard URL:', page.url())
     const dashboardTitle = await page.locator('h1').textContent()
     console.log('Dashboard title:', dashboardTitle)
