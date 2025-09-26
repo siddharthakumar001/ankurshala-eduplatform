@@ -1,5 +1,6 @@
 package com.ankurshala.backend.repository;
 
+import com.ankurshala.backend.entity.Role;
 import com.ankurshala.backend.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -15,6 +16,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     long countByCreatedAtAfter(LocalDateTime dateTime);
     
     // Methods for notification service
-    List<User> findByRole(String role);
-    List<User> findByRoleIn(List<String> roles);
+    List<User> findByRole(Role role);
+    List<User> findByRoleIn(List<Role> roles);
 }

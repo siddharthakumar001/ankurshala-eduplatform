@@ -40,6 +40,20 @@ public class AdminCsvImportController {
                     ));
             }
             
+            // Validate CSV headers synchronously before creating job
+            try {
+                csvImportService.validateCsvHeaders(csvContent);
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest()
+                    .body(Map.of(
+                        "type", "https://ankurshala.com/problems/invalid-headers",
+                        "title", "Invalid Headers",
+                        "status", 400,
+                        "detail", e.getMessage(),
+                        "instance", "/admin/content/import/csv"
+                    ));
+            }
+            
             // Get user ID from authentication
             Long userId = null;
             if (authentication != null && authentication.getPrincipal() instanceof org.springframework.security.core.userdetails.UserDetails) {

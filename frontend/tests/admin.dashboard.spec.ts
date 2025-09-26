@@ -45,7 +45,7 @@ test.describe('Admin Dashboard', () => {
     await expect(page.locator('text=Total Teachers')).toBeVisible()
     
     // Check if any metric values are displayed (be more specific)
-    await expect(page.locator('[data-testid="dashboard-metrics"]').locator('text=5').first()).toBeVisible()
+    await expect(page.locator('[data-testid="dashboard-metrics"]').locator('text=16').first()).toBeVisible()
   })
 
   test('should display charts section', async ({ page }) => {

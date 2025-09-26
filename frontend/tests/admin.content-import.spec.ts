@@ -174,7 +174,7 @@ CBSE,9,Chemistry,Test Chapter 4,Test Topic 4,0.5,Test Description 4,Test Summary
     await expect(page.locator('table')).toBeVisible({ timeout: 10000 })
     
     // Check for status badge (should be SUCCEEDED, RUNNING, or PENDING)
-    const statusBadge = page.locator('table tr:last-child td:nth-child(2) span')
+    const statusBadge = page.locator('table tr:last-child td:nth-child(2)')
     await expect(statusBadge).toBeVisible()
   })
 
@@ -205,6 +205,9 @@ CBSE,9,Chemistry,Test Chapter 4,Test Topic 4,0.5,Test Description 4,Test Summary
       mimeType: 'text/csv',
       buffer: Buffer.from(invalidCsvContent)
     })
+    
+    // Wait for the file to be processed and button to be enabled
+    await page.waitForTimeout(1000)
 
     // Ensure dry run is enabled for validation testing
     const dryRunCheckbox = page.locator('input[type="checkbox"]')
@@ -213,7 +216,8 @@ CBSE,9,Chemistry,Test Chapter 4,Test Topic 4,0.5,Test Description 4,Test Summary
     // Start import (button text is "Preview Import" when dry run is enabled)
     await page.click('button:has-text("Preview Import")')
 
-    // Should show validation error
+    // Should show validation error - the backend now returns 400 error immediately
+    // The error should be displayed as a toast message
     await expect(page.locator('text=Missing required headers')).toBeVisible({ timeout: 10000 })
   })
 

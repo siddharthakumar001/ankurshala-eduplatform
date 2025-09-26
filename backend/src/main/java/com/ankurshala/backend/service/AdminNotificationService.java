@@ -3,6 +3,7 @@ package com.ankurshala.backend.service;
 import com.ankurshala.backend.dto.admin.BroadcastNotificationRequest;
 import com.ankurshala.backend.dto.admin.NotificationDto;
 import com.ankurshala.backend.entity.Notification;
+import com.ankurshala.backend.entity.Role;
 import com.ankurshala.backend.entity.User;
 import com.ankurshala.backend.repository.NotificationRepository;
 import com.ankurshala.backend.repository.UserRepository;
@@ -129,11 +130,11 @@ public class AdminNotificationService {
     private List<User> getTargetUsers(Notification.NotificationAudience audience) {
         switch (audience) {
             case STUDENT:
-                return userRepository.findByRole("STUDENT");
+                return userRepository.findByRole(Role.STUDENT);
             case TEACHER:
-                return userRepository.findByRole("TEACHER");
+                return userRepository.findByRole(Role.TEACHER);
             case BOTH:
-                return userRepository.findByRoleIn(List.of("STUDENT", "TEACHER"));
+                return userRepository.findByRoleIn(List.of(Role.STUDENT, Role.TEACHER));
             default:
                 return List.of();
         }

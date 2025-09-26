@@ -17,12 +17,9 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     @Query("SELECT n FROM Notification n")
     Page<Notification> findAllNotifications(Pageable pageable);
 
-    @Query("SELECT n FROM Notification n WHERE n.status = 'QUEUED' ORDER BY n.createdAt ASC")
-    List<Notification> findQueuedNotifications();
+    List<Notification> findByStatusOrderByCreatedAtAsc(Notification.NotificationStatus status);
 
-    @Query("SELECT COUNT(n) FROM Notification n WHERE n.status = :status")
-    long countByStatus(@Param("status") Notification.NotificationStatus status);
+    long countByStatus(Notification.NotificationStatus status);
 
-    @Query("SELECT COUNT(n) FROM Notification n WHERE n.createdAt >= :from AND n.createdAt <= :to")
-    long countByCreatedAtBetween(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+    long countByCreatedAtBetween(LocalDateTime from, LocalDateTime to);
 }

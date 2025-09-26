@@ -56,7 +56,17 @@ export default function AdminDashboard() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchMetrics()
+    // Wait for authentication token to be available
+    const checkAuthAndFetch = () => {
+      const token = localStorage.getItem('accessToken')
+      if (token) {
+        fetchMetrics()
+      } else {
+        // Retry after a short delay
+        setTimeout(checkAuthAndFetch, 100)
+      }
+    }
+    checkAuthAndFetch()
   }, [])
 
   const fetchMetrics = async () => {

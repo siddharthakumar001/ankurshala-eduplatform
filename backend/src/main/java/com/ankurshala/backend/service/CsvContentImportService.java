@@ -46,6 +46,31 @@ public class CsvContentImportService {
         "board", "grade", "subject", "chapter", "topictitle", "hours"
     );
 
+    public void validateCsvHeaders(byte[] csvContent) throws IllegalArgumentException {
+        try {
+            CSVParser parser = CSVParser.parse(
+                new InputStreamReader(new ByteArrayInputStream(csvContent), StandardCharsets.UTF_8),
+                CSVFormat.DEFAULT.withFirstRecordAsHeader()
+            );
+            
+            // Validate headers
+            Set<String> headerSet = parser.getHeaderMap().keySet().stream()
+                .map(String::toLowerCase)
+                .collect(HashSet::new, HashSet::add, HashSet::addAll);
+            
+            Set<String> missingHeaders = new HashSet<>(REQUIRED_HEADERS);
+            missingHeaders.removeAll(headerSet);
+            
+            if (!missingHeaders.isEmpty()) {
+                throw new IllegalArgumentException("Missing required headers: " + missingHeaders);
+            }
+            
+            parser.close();
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Invalid CSV format: " + e.getMessage());
+        }
+    }
+
 
     @Transactional
     public ImportJob createImportJob(String fileName, Long fileSize, Long userId) {
