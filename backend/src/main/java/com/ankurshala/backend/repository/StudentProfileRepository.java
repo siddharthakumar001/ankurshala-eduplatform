@@ -53,4 +53,7 @@ public interface StudentProfileRepository extends JpaRepository<StudentProfile, 
 
     // Count students by school
     long countBySchoolName(String schoolName);
+    
+    // Check if mobile number exists
+    boolean existsByMobileNumber(String mobileNumber);
 }

@@ -34,3 +34,4 @@ public class UpdateTopicRequest {
     
     private Boolean active;
 }
+

@@ -17,3 +17,4 @@ public class CreateSubjectRequest {
     
     private Boolean active = true;
 }
+

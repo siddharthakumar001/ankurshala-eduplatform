@@ -17,3 +17,4 @@ public class CreateBoardRequest {
     
     private Boolean active = true;
 }
+

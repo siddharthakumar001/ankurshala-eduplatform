@@ -27,3 +27,4 @@ public class CreateTopicNoteRequest {
     
     private Boolean active = true;
 }
+

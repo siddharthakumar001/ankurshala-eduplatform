@@ -21,4 +21,7 @@ public interface SubjectRepository extends JpaRepository<Subject, Long>, JpaSpec
     Page<Subject> findSubjectsWithFilters(@Param("search") String search, 
                                          @Param("active") Boolean active, 
                                          Pageable pageable);
+    
+    // Count methods for analytics
+    long countByActiveTrue();
 }

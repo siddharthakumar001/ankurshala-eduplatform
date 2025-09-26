@@ -23,3 +23,4 @@ public class UpdateTopicNoteRequest {
     
     private Boolean active;
 }
+

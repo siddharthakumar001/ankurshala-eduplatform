@@ -22,7 +22,10 @@ public interface TopicRepository extends JpaRepository<Topic, Long>, JpaSpecific
            "(:active IS NULL OR t.active = :active) AND " +
            "t.deletedAt IS NULL")
     Page<Topic> findTopicsWithFilters(@Param("chapterId") Long chapterId,
-                                      @Param("search") String search, 
-                                      @Param("active") Boolean active, 
-                                      Pageable pageable);
+                                     @Param("search") String search, 
+                                     @Param("active") Boolean active, 
+                                     Pageable pageable);
+    
+    // Count methods for analytics
+    long countByActiveTrue();
 }

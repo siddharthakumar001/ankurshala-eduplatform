@@ -24,4 +24,7 @@ public interface ChapterRepository extends JpaRepository<Chapter, Long>, JpaSpec
                                          @Param("search") String search, 
                                          @Param("active") Boolean active, 
                                          Pageable pageable);
+    
+    // Count methods for analytics
+    long countByActiveTrue();
 }

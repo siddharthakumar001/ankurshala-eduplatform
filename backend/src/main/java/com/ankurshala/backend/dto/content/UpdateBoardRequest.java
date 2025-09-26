@@ -17,3 +17,4 @@ public class UpdateBoardRequest {
     
     private Boolean active;
 }
+

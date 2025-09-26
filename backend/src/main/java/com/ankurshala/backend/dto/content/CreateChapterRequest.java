@@ -21,3 +21,4 @@ public class CreateChapterRequest {
     
     private Boolean active = true;
 }
+

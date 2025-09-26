@@ -17,3 +17,4 @@ public class UpdateSubjectRequest {
     
     private Boolean active;
 }
+

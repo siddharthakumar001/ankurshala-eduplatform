@@ -24,3 +24,4 @@ public class TopicDto {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
+

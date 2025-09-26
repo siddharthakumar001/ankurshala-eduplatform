@@ -21,4 +21,7 @@ public interface BoardRepository extends JpaRepository<Board, Long>, JpaSpecific
     Page<Board> findBoardsWithFilters(@Param("search") String search, 
                                      @Param("active") Boolean active, 
                                      Pageable pageable);
+    
+    // Count methods for analytics
+    long countByActiveTrue();
 }

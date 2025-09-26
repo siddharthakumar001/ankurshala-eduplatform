@@ -363,3 +363,4 @@ public class BulkDemoSeederIntegrationTest {
         assertEquals(33, totalUsers); // 15 students + 15 teachers + 3 admins
     }
 }
+
