@@ -1,8 +1,7 @@
-
-version: '3.8'
+version: "3.9"
 
 services:
-  # Database Service (Production)
+  # ---------------- Database (Postgres) ----------------
   postgres:
     image: postgres:15-alpine
     container_name: ankurshala_db_prod
@@ -12,44 +11,43 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    # keep DB private; expose only to host if you need psql locally
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME}"]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - ankurshala-network
+    networks: [ankurshala-network]
     restart: unless-stopped
 
-  # Redis Cache Service (Production)
+  # ---------------- Redis ----------------
   redis:
     image: redis:7-alpine
     container_name: ankurshala_redis_prod
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
+    # keep Redis private; expose only to host if you need redis-cli locally
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
-    networks:
-      - ankurshala-network
+    networks: [ankurshala-network]
     restart: unless-stopped
 
-  # Kafka Service (Production)
+  # ---------------- Kafka (optional infra) ----------------
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
     container_name: ankurshala_zookeeper_prod
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-    networks:
-      - ankurshala-network
+    networks: [ankurshala-network]
     restart: unless-stopped
 
   kafka:
@@ -57,33 +55,41 @@ services:
     container_name: ankurshala_kafka_prod
     depends_on:
       - zookeeper
+    # only map 9092 to host if you need external/host clients
     ports:
-      - "9092:9092"
+      - "127.0.0.1:9092:9092"
     volumes:
       - kafka_data:/var/lib/kafka/data
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      # bind listeners explicitly and advertise both internal and host
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-    networks:
-      - ankurshala-network
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+    networks: [ankurshala-network]
     restart: unless-stopped
 
-  # MailHog Service (Production - for email testing)
+  # ---------------- MailHog (dev/test SMTP) ----------------
   mailhog:
     image: mailhog/mailhog:latest
     container_name: ankurshala_mailhog_prod
+    # bind to loopback so it's not public
     ports:
-      - "1025:1025"  # SMTP
-      - "8025:8025"  # Web UI
-    networks:
-      - ankurshala-network
+      - "127.0.0.1:1025:1025"  # SMTP
+      - "127.0.0.1:8025:8025"  # Web UI
+    networks: [ankurshala-network]
     restart: unless-stopped
 
-  # Backend Service (Production)
+  # ---------------- Backend API ----------------
   backend:
     image: ankurshala/backend:prod
     container_name: ankurshala_backend_prod
@@ -96,8 +102,9 @@ services:
         condition: service_started
       mailhog:
         condition: service_started
+    # keep private; only nginx should talk to it
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
@@ -117,53 +124,54 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       SMTP_FROM: ${SMTP_FROM}
       KAFKA_BROKERS: kafka:29092
-      DEMO_SEED_ON_START: ${DEMO_SEED_ON_START:-true}
+      # prod-safe defaults (use deploy flag to seed once)
+      DEMO_SEED_ON_START: ${DEMO_SEED_ON_START:-false}
       DEMO_ENV: ${DEMO_ENV:-prod}
-      DEMO_FORCE: ${DEMO_FORCE:-true}
-    networks:
-      - ankurshala-network
+      DEMO_FORCE: ${DEMO_FORCE:-false}
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
-    restart: unless-stopped
     deploy:
       resources:
         limits:
           memory: 1G
         reservations:
           memory: 512M
+    networks: [ankurshala-network]
+    restart: unless-stopped
 
-  # Frontend Service (Production)
+  # ---------------- Frontend (Next.js) ----------------
   frontend:
     image: ankurshala/frontend:prod
     container_name: ankurshala_frontend_prod
     depends_on:
       backend:
         condition: service_healthy
+    # keep private; only nginx should talk to it
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
       NODE_ENV: production
-    networks:
-      - ankurshala-network
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3000/ || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 60s
-    restart: unless-stopped
     deploy:
       resources:
         limits:
           memory: 512M
         reservations:
           memory: 256M
+    networks: [ankurshala-network]
+    restart: unless-stopped
 
+  # ---------------- Nginx reverse proxy ----------------
   nginx:
     image: nginx:1.25-alpine
     container_name: ankurshala_nginx_prod
@@ -175,26 +183,21 @@ services:
     ports:
       - "80:80"
       - "443:443"
-    # mount logs, certs, webroot and your conf.d
     volumes:
       - nginx_logs:/var/log/nginx
       - certbot_certs:/etc/letsencrypt:ro
       - certbot_www:/var/www/certbot
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
-    networks:
-      - ankurshala-network
-    # (optional) liveness; nginx:alpine has no curl/wget by default, so skip HC
-    restart: unless-stopped  
+    networks: [ankurshala-network]
+    restart: unless-stopped
 
 volumes:
   postgres_data:
   redis_data:
+  kafka_data:
   nginx_logs:
   certbot_certs:
   certbot_www:
-  kafka_data:
-
-
 
 networks:
   ankurshala-network:
