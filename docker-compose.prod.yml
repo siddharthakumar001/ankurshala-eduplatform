@@ -128,7 +128,7 @@ services:
       KAFKA_BROKERS: kafka:29092
       DEMO_SEED_ON_START: ${DEMO_SEED_ON_START:-false}
       DEMO_ENV: ${DEMO_ENV:-prod}
-      DEMO_FORCE: ${DEMO_FORCE:-false}
+      DEMO_FORCE: ${DEMO_FORCE:-true}
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/actuator/health"]
       interval: 30s

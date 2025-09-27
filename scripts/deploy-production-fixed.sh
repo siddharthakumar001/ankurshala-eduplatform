@@ -60,17 +60,27 @@ wait_healthy() {
   local start now status running; start=$(date +%s)
   while true; do
     if ! docker inspect "$name" >/dev/null 2>&1; then sleep 1; continue; fi
-    status=$(docker inspect --format '{{.State.Health.Status}}' "$name" 2>/dev/null || echo "null")
+
+    # When there is no Health object, Docker prints nothing; normalize to 'none'
+    status=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$name" 2>/dev/null || true)
+    status="${status:-none}"
     running=$(docker inspect --format '{{.State.Status}}' "$name" 2>/dev/null || echo "exited")
-    # succeed if healthy, or if there's no HC but it's running
-    if [[ "$status" == "healthy" ]] || { [[ "$status" == "null" ]] && [[ "$running" == "running" ]]; }; then
-      [[ "$status" == "healthy" ]] && log PASS "'$name' is healthy" || log PASS "'$name' is running"
+
+    # succeed if healthy, or if there's no HC ('none') but it's running
+    if [[ "$status" == "healthy" ]] || { [[ "$status" == "none" ]] && [[ "$running" == "running" ]]; }; then
+      [[ "$status" == "healthy" ]] && log PASS "'$name' is healthy" || log PASS "'$name' is running (no healthcheck)"
       return 0
     fi
-    now=$(date +%s); (( now - start > timeout )) && { log FAIL "Timeout waiting for '$name' (status: $status / $running)"; return 1; }
+
+    now=$(date +%s)
+    if (( now - start > timeout )); then
+      log FAIL "Timeout waiting for '$name' (status: $status / $running)"
+      return 1
+    fi
     sleep 3
   done
 }
+
 
 recreate_service() {
   local svc="$1"
