@@ -47,11 +47,14 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-      # allow 4-letter-word commands used by healthcheck
       ZOOKEEPER_4LW_COMMANDS_WHITELIST: "ruok,stat,conf,mntr,srvr"
     healthcheck:
-    # 'nc' is available in confluent images; whitelist makes this return "imok"
-      test: ["CMD-SHELL", "echo ruok | nc -w 2 127.0.0.1 2181 | grep -q imok"]
+      # Use bash /dev/tcp to send 'ruok' and expect 'imok' back
+      test: >
+        bash -lc 'exec 3<>/dev/tcp/127.0.0.1/2181 &&
+                  printf "ruok" >&3 &&
+                  IFS= read -r -t 2 reply <&3 &&
+                  [[ "$reply" == imok* ]]'
       interval: 10s
       timeout: 5s
       retries: 12
