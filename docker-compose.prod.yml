@@ -1,7 +1,7 @@
 version: "3.9"
 
 services:
-  # ---------------- Database (Postgres) ----------------
+  # -------- Postgres --------
   postgres:
     image: postgres:15-alpine
     container_name: ankurshala_db_prod
@@ -21,7 +21,7 @@ services:
     networks: [ankurshala-network]
     restart: unless-stopped
 
-  # ---------------- Redis ----------------
+  # -------- Redis --------
   redis:
     image: redis:7-alpine
     container_name: ankurshala_redis_prod
@@ -38,15 +38,15 @@ services:
     networks: [ankurshala-network]
     restart: unless-stopped
 
-  # ---------------- Kafka (optional infra) ----------------
+  # -------- Zookeeper (Kafka) --------
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
     container_name: ankurshala_zookeeper_prod
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-    # simple TCP check; 'nc' is available in this image
     healthcheck:
+      # nc exists in this image
       test: ["CMD", "nc", "-z", "127.0.0.1", "2181"]
       interval: 10s
       timeout: 5s
@@ -55,6 +55,7 @@ services:
     networks: [ankurshala-network]
     restart: unless-stopped
 
+  # -------- Kafka --------
   kafka:
     image: confluentinc/cp-kafka:7.4.0
     container_name: ankurshala_kafka_prod
@@ -81,18 +82,17 @@ services:
     networks: [ankurshala-network]
     restart: unless-stopped
 
-  # ---------------- MailHog (dev/test SMTP) ----------------
+  # -------- MailHog (no HC; script accepts running) --------
   mailhog:
     image: mailhog/mailhog:latest
     container_name: ankurshala_mailhog_prod
-    # no healthcheck; script will accept 'running'
     ports:
-      - "127.0.0.1:1025:1025"  # SMTP
-      - "127.0.0.1:8025:8025"  # Web UI
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
     networks: [ankurshala-network]
     restart: unless-stopped
 
-  # ---------------- Backend API ----------------
+  # -------- Backend (Spring) --------
   backend:
     image: ankurshala/backend:prod
     container_name: ankurshala_backend_prod
@@ -144,7 +144,7 @@ services:
     networks: [ankurshala-network]
     restart: unless-stopped
 
-  # ---------------- Frontend (Next.js) ----------------
+  # -------- Frontend (Next.js) --------
   frontend:
     image: ankurshala/frontend:prod
     container_name: ankurshala_frontend_prod
@@ -171,7 +171,7 @@ services:
     networks: [ankurshala-network]
     restart: unless-stopped
 
-  # ---------------- Nginx reverse proxy ----------------
+  # -------- Nginx --------
   nginx:
     image: nginx:1.25-alpine
     container_name: ankurshala_nginx_prod
