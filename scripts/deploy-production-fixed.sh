@@ -22,17 +22,17 @@ print_status() {
 print_status "INFO" "🚀 Starting AnkurShala Production Deployment (Environment Fixed)"
 echo "================================================================="
 
-# Check if .env.prod exists
-if [ ! -f ".env.prod" ]; then
-    print_status "FAIL" ".env.prod file not found!"
-    echo "Please create .env.prod with all required variables"
+# Check if .env-prod exists
+if [ ! -f ".env-prod" ]; then
+    print_status "FAIL" ".env-prod file not found!"
+    echo "Please create .env-prod with all required variables"
     exit 1
 fi
 
 # Load and export environment variables
-print_status "INFO" "Loading environment variables from .env.prod..."
+print_status "INFO" "Loading environment variables from .env-prod..."
 set -a  # automatically export all variables
-source .env.prod
+source .env-prod
 set +a  # stop automatically exporting
 
 # Verify critical environment variables are loaded
