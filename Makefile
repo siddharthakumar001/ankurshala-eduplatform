@@ -1,3 +1,8 @@
+# Smart deployment for development
+smart-deploy:
+	@echo "🚀 Running smart deployment..."
+	./scripts/smart-deploy.sh
+
 # Admin testing targets
 admin-test-backend:
 	cd backend && ./mvnw test -Dtest="*Admin*Test"
