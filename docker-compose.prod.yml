@@ -1,4 +1,6 @@
 
+version: '3.8'
+
 services:
   # Database Service (Production)
   postgres:
@@ -39,6 +41,48 @@ services:
       - ankurshala-network
     restart: unless-stopped
 
+  # Kafka Service (Production)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: ankurshala_zookeeper_prod
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - ankurshala-network
+    restart: unless-stopped
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: ankurshala_kafka_prod
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - ankurshala-network
+    restart: unless-stopped
+
+  # MailHog Service (Production - for email testing)
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: ankurshala_mailhog_prod
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
+    networks:
+      - ankurshala-network
+    restart: unless-stopped
+
   # Backend Service (Production)
   backend:
     image: ankurshala/backend:prod
@@ -48,6 +92,10 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      kafka:
+        condition: service_started
+      mailhog:
+        condition: service_started
     ports:
       - "8080:8080"
     environment:
@@ -63,11 +111,15 @@ services:
       BANK_ENC_KEY: ${BANK_ENC_KEY}
       SERVER_PORT: 8080
       SPRING_PROFILES_ACTIVE: production
-      SMTP_HOST: ${SMTP_HOST}
-      SMTP_PORT: ${SMTP_PORT}
+      SMTP_HOST: ${SMTP_HOST:-mailhog}
+      SMTP_PORT: ${SMTP_PORT:-1025}
       SMTP_USERNAME: ${SMTP_USERNAME}
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       SMTP_FROM: ${SMTP_FROM}
+      KAFKA_BROKERS: kafka:29092
+      DEMO_SEED_ON_START: ${DEMO_SEED_ON_START:-true}
+      DEMO_ENV: ${DEMO_ENV:-prod}
+      DEMO_FORCE: ${DEMO_FORCE:-true}
     networks:
       - ankurshala-network
     healthcheck:
@@ -112,9 +164,37 @@ services:
         reservations:
           memory: 256M
 
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: ankurshala_nginx_prod
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    # mount logs, certs, webroot and your conf.d
+    volumes:
+      - nginx_logs:/var/log/nginx
+      - certbot_certs:/etc/letsencrypt:ro
+      - certbot_www:/var/www/certbot
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+    networks:
+      - ankurshala-network
+    # (optional) liveness; nginx:alpine has no curl/wget by default, so skip HC
+    restart: unless-stopped  
+
 volumes:
   postgres_data:
   redis_data:
+  nginx_logs:
+  certbot_certs:
+  certbot_www:
+  kafka_data:
+
+
 
 networks:
   ankurshala-network:
