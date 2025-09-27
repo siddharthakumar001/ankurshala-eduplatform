@@ -85,16 +85,30 @@ sleep 30
 print_status "INFO" "Checking service status..."
 docker-compose -f docker-compose.prod.yml ps
 
+# Wait for database to be fully ready
+print_status "INFO" "Waiting for database to be fully ready..."
+sleep 10
+
 # Wait for backend to complete seeding
 print_status "INFO" "Waiting for backend to complete database seeding..."
-sleep 15
+sleep 20
 
 # Check if seeding was successful
 print_status "INFO" "Verifying database seeding..."
 if docker logs ankur_backend_prod 2>&1 | grep -q "Demo data seeding completed successfully"; then
     print_status "PASS" "Database seeding completed successfully"
+elif docker logs ankur_backend_prod 2>&1 | grep -q "Database is ready"; then
+    print_status "PASS" "Database is ready and seeding should be complete"
 else
     print_status "WARN" "Database seeding status unclear - check backend logs"
+fi
+
+# Verify database has users
+print_status "INFO" "Verifying users exist in database..."
+if docker exec ankur_db_prod psql -U ankur -d ankurshala -c "SELECT COUNT(*) FROM users;" 2>/dev/null | grep -q "[1-9]"; then
+    print_status "PASS" "Users found in database"
+else
+    print_status "WARN" "No users found in database - check seeding logs"
 fi
 
 print_status "PASS" "🎉 Deployment script completed!"

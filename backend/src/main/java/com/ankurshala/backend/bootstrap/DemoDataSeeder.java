@@ -60,6 +60,9 @@ public class DemoDataSeeder implements ApplicationRunner {
 
         logger.info("Starting demo data seeding for environment: {}", demoEnv);
         
+        // Wait for database to be ready
+        waitForDatabaseReady();
+        
         try {
             SeedResult result = seedDemoData();
             logger.info("Demo data seeding completed successfully: {}", result);
@@ -67,6 +70,32 @@ public class DemoDataSeeder implements ApplicationRunner {
             logger.error("Demo data seeding failed", e);
             throw e;
         }
+    }
+
+    private void waitForDatabaseReady() {
+        logger.info("Waiting for database to be ready...");
+        int maxRetries = 30; // 30 seconds max wait
+        int retryCount = 0;
+        
+        while (retryCount < maxRetries) {
+            try {
+                // Test database connection by checking if we can query users table
+                long userCount = userRepository.count();
+                logger.info("Database is ready. Current user count: {}", userCount);
+                return;
+            } catch (Exception e) {
+                retryCount++;
+                logger.warn("Database not ready yet (attempt {}/{}): {}", retryCount, maxRetries, e.getMessage());
+                try {
+                    Thread.sleep(1000); // Wait 1 second before retry
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("Interrupted while waiting for database", ie);
+                }
+            }
+        }
+        
+        throw new RuntimeException("Database not ready after " + maxRetries + " seconds");
     }
 
     public SeedResult seedDemoData() {
