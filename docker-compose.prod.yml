@@ -1,4 +1,3 @@
-application: ankurshala
 
 services:
   # Database Service (Production)
