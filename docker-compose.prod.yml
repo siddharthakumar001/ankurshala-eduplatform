@@ -52,7 +52,7 @@ services:
       test: ["CMD", "nc", "-z", "localhost", "2181"]
       interval: 10s
       timeout: 5s
-      retries: 12s
+      retries: 12
 
     networks: [ankurshala-network]
     restart: unless-stopped
