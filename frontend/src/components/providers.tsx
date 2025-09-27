@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { Toaster } from 'sonner'
 import { useAuthStore } from '@/store/auth'
 import { ThemeProvider } from '@/components/theme-provider'
+import { useChunkErrorRetry } from '@/hooks/use-chunk-error-retry'
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
@@ -17,6 +18,15 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   }))
 
   const { initializeAuth } = useAuthStore()
+  
+  // Handle chunk loading errors
+  useChunkErrorRetry({
+    maxRetries: 3,
+    retryDelay: 1000,
+    onRetry: () => {
+      console.log('Retrying chunk load...')
+    }
+  })
 
   useEffect(() => {
     initializeAuth().catch(console.error)
