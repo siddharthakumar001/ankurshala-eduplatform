@@ -11,7 +11,6 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    # keep DB private; expose only to host if you need psql locally
     ports:
       - "127.0.0.1:5432:5432"
     healthcheck:
@@ -29,7 +28,6 @@ services:
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
-    # keep Redis private; expose only to host if you need redis-cli locally
     ports:
       - "127.0.0.1:6379:6379"
     healthcheck:
@@ -47,23 +45,21 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-      ZOOKEEPER_4LW_COMMANDS_WHITELIST: "ruok,stat,conf,mntr,srvr"
+    # simple TCP check; 'nc' is available in this image
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      test: ["CMD", "nc", "-z", "127.0.0.1", "2181"]
       interval: 10s
       timeout: 5s
       retries: 12
-
+      start_period: 20s
     networks: [ankurshala-network]
     restart: unless-stopped
-
 
   kafka:
     image: confluentinc/cp-kafka:7.4.0
     container_name: ankurshala_kafka_prod
     depends_on:
       - zookeeper
-    # only map 9092 to host if you need external/host clients
     ports:
       - "127.0.0.1:9092:9092"
     volumes:
@@ -71,7 +67,6 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      # bind listeners explicitly and advertise both internal and host
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
@@ -90,7 +85,7 @@ services:
   mailhog:
     image: mailhog/mailhog:latest
     container_name: ankurshala_mailhog_prod
-    # bind to loopback so it's not public
+    # no healthcheck; script will accept 'running'
     ports:
       - "127.0.0.1:1025:1025"  # SMTP
       - "127.0.0.1:8025:8025"  # Web UI
@@ -110,7 +105,6 @@ services:
         condition: service_started
       mailhog:
         condition: service_started
-    # keep private; only nginx should talk to it
     ports:
       - "127.0.0.1:8080:8080"
     environment:
@@ -132,7 +126,6 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       SMTP_FROM: ${SMTP_FROM}
       KAFKA_BROKERS: kafka:29092
-      # prod-safe defaults (use deploy flag to seed once)
       DEMO_SEED_ON_START: ${DEMO_SEED_ON_START:-false}
       DEMO_ENV: ${DEMO_ENV:-prod}
       DEMO_FORCE: ${DEMO_FORCE:-false}
@@ -158,7 +151,6 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-    # keep private; only nginx should talk to it
     ports:
       - "127.0.0.1:3000:3000"
     environment:
