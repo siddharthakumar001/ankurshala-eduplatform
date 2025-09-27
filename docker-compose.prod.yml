@@ -49,10 +49,10 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
       ZOOKEEPER_4LW_COMMANDS_WHITELIST: "ruok,stat,conf,mntr,srvr"
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "2181"]  
-      interval: 10s, 
-      timeout: 5s, 
-      retries: 12
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 12s
 
     networks: [ankurshala-network]
     restart: unless-stopped
