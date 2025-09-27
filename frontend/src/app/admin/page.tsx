@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { AdminRoute } from '@/components/route-guard'
 import AdminLayoutSimple from '@/components/admin-layout-simple'
 import { Card } from '@/components/ui/card'
@@ -14,12 +14,25 @@ import {
   CheckCircle,
   AlertCircle
 } from 'lucide-react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import dynamic from 'next/dynamic'
 
-// Dynamically import chart components to prevent SSR issues
-const DynamicLineChart = dynamic(() => import('recharts').then(mod => ({ default: mod.LineChart })), { ssr: false })
-const DynamicResponsiveContainer = dynamic(() => import('recharts').then(mod => ({ default: mod.ResponsiveContainer })), { ssr: false })
+// Dynamically import chart components to prevent SSR issues and improve performance
+const DynamicLineChart = dynamic(() => import('recharts').then(mod => ({ default: mod.LineChart })), { 
+  ssr: false,
+  loading: () => <div className="h-64 flex items-center justify-center text-gray-500">Loading chart...</div>
+})
+const DynamicResponsiveContainer = dynamic(() => import('recharts').then(mod => ({ default: mod.ResponsiveContainer })), { 
+  ssr: false,
+  loading: () => <div className="h-64 flex items-center justify-center text-gray-500">Loading chart...</div>
+})
+
+// Import other chart components dynamically
+const DynamicXAxis = dynamic(() => import('recharts').then(mod => ({ default: mod.XAxis })), { ssr: false })
+const DynamicYAxis = dynamic(() => import('recharts').then(mod => ({ default: mod.YAxis })), { ssr: false })
+const DynamicCartesianGrid = dynamic(() => import('recharts').then(mod => ({ default: mod.CartesianGrid })), { ssr: false })
+const DynamicTooltip = dynamic(() => import('recharts').then(mod => ({ default: mod.Tooltip })), { ssr: false })
+const DynamicLegend = dynamic(() => import('recharts').then(mod => ({ default: mod.Legend })), { ssr: false })
+const DynamicLine = dynamic(() => import('recharts').then(mod => ({ default: mod.Line })), { ssr: false })
 
 interface DashboardMetrics {
   // User counts
@@ -128,10 +141,34 @@ export default function AdminDashboard() {
     }
   }, [])
 
-  // Prevent hydration issues
-  if (!mounted) {
-    return null
-  }
+  // Loading skeleton component
+  const MetricsSkeleton = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {[...Array(4)].map((_, index) => (
+        <Card key={index} className="p-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 animate-pulse"></div>
+              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-16 animate-pulse"></div>
+            </div>
+            <div className="p-3 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse">
+              <div className="h-6 w-6"></div>
+            </div>
+          </div>
+        </Card>
+      ))}
+    </div>
+  )
+
+  // Chart skeleton component
+  const ChartSkeleton = () => (
+    <Card className="p-6">
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Registration Trends (Last 30 Days)</h3>
+      <div className="h-64 flex items-center justify-center">
+        <div className="text-gray-500 dark:text-gray-400">Loading chart...</div>
+      </div>
+    </Card>
+  )
 
   if (loading) {
     return (
@@ -327,8 +364,8 @@ export default function AdminDashboard() {
             {series.length > 0 && mounted ? (
               <DynamicResponsiveContainer width="100%" height="100%">
                 <DynamicLineChart data={series}>
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                  <XAxis 
+                  <DynamicCartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                  <DynamicXAxis 
                     dataKey="date" 
                     tick={{ fontSize: 12 }}
                     tickFormatter={(value) => {
@@ -340,8 +377,8 @@ export default function AdminDashboard() {
                       }
                     }}
                   />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip 
+                  <DynamicYAxis tick={{ fontSize: 12 }} />
+                  <DynamicTooltip 
                     labelFormatter={(value) => {
                       try {
                         const date = new Date(value)
@@ -357,8 +394,8 @@ export default function AdminDashboard() {
                       borderRadius: '6px'
                     }}
                   />
-                  <Legend />
-                  <Line 
+                  <DynamicLegend />
+                  <DynamicLine 
                     type="monotone" 
                     dataKey="students" 
                     stroke="#3b82f6" 
@@ -366,7 +403,7 @@ export default function AdminDashboard() {
                     name="Students"
                     dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
                   />
-                  <Line 
+                  <DynamicLine 
                     type="monotone" 
                     dataKey="teachers" 
                     stroke="#10b981" 
