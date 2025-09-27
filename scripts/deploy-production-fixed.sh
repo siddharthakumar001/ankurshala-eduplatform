@@ -67,6 +67,7 @@ docker-compose -f docker-compose.prod.yml down -v --remove-orphans || true
 export DB_NAME DB_USERNAME DB_PASSWORD JWT_SECRET REDIS_PASSWORD BANK_ENC_KEY
 export SPRING_PROFILES_ACTIVE NODE_ENV NEXT_PUBLIC_API_URL
 export DB_HOST DB_PORT REDIS_HOST REDIS_PORT SERVER_PORT
+export DEMO_SEED_ON_START DEMO_ENV DEMO_FORCE
 
 # Build images
 print_status "INFO" "Building production images..."
@@ -84,9 +85,22 @@ sleep 30
 print_status "INFO" "Checking service status..."
 docker-compose -f docker-compose.prod.yml ps
 
+# Wait for backend to complete seeding
+print_status "INFO" "Waiting for backend to complete database seeding..."
+sleep 15
+
+# Check if seeding was successful
+print_status "INFO" "Verifying database seeding..."
+if docker logs ankur_backend_prod 2>&1 | grep -q "Demo data seeding completed successfully"; then
+    print_status "PASS" "Database seeding completed successfully"
+else
+    print_status "WARN" "Database seeding status unclear - check backend logs"
+fi
+
 print_status "PASS" "🎉 Deployment script completed!"
 echo ""
 echo "📋 Next steps:"
 echo "1. Check service logs: docker-compose -f docker-compose.prod.yml logs"
 echo "2. Verify services are running: docker-compose -f docker-compose.prod.yml ps"
-echo "3. Test endpoints once services are healthy"
+echo "3. Test login with: siddhartha@ankurshala.com / Maza@123"
+echo "4. Check backend logs for seeding: docker logs ankur_backend_prod"
