@@ -19,7 +19,8 @@ public class UpdateTopicNoteRequest {
     @Size(min = 10, max = 10000, message = "Note content must be between 10 and 10000 characters")
     private String content;
     
-    private String attachments; // JSON string for now
+    private String attachments; // JSON string for attachments
     
     private Boolean active;
 }
+

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import AdminLayoutSimple from '@/components/admin-layout-simple'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -63,37 +63,97 @@ export default function AdminContentBrowsePage() {
   const [selectedTopics, setSelectedTopics] = useState<Set<number>>(new Set())
 
   useEffect(() => {
-    fetchBoards()
+    // Wait for authentication token to be available
+    console.log('Content browse page mounted')
+    const checkAuthAndFetch = () => {
+      const token = localStorage.getItem('accessToken')
+      if (token) {
+        console.log('Token found, fetching initial data')
+        fetchBoards()
+        fetchGrades()
+        fetchSubjects()
+        fetchChapters()
+        fetchTopics()
+      } else {
+        console.log('No token, retrying...')
+        // Retry after a short delay
+        setTimeout(checkAuthAndFetch, 100)
+      }
+    }
+    checkAuthAndFetch()
   }, [])
 
   useEffect(() => {
-    if (selectedBoard) {
-      fetchGrades()
-    }
-  }, [selectedBoard])
-
-  useEffect(() => {
-    if (selectedGrade) {
-      fetchSubjects()
-    }
-  }, [selectedGrade])
-
-  useEffect(() => {
-    if (selectedSubject) {
-      fetchChapters()
-    }
-  }, [selectedSubject])
-
-  useEffect(() => {
-    if (selectedChapter) {
+    // Only fetch topics if we have a token
+    const token = localStorage.getItem('accessToken')
+    if (token) {
       fetchTopics()
     }
   }, [selectedChapter, searchTerm])
 
+  const fetchChapters = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('accessToken')
+      console.log('Fetching chapters for subjectId:', selectedSubject)
+      if (!selectedSubject) {
+        console.log('No selectedSubject, skipping fetchChapters')
+        return
+      }
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/chapters?subjectId=${selectedSubject}&active=true`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      console.log('Chapters API response status:', response.status)
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Chapters fetched:', data.content || data)
+        setChapters(data.content || data)
+      } else {
+        console.error('Chapters API error:', response.status, response.statusText)
+      }
+    } catch (error) {
+      console.error('Error fetching chapters:', error)
+    }
+  }, [selectedSubject])
+
+  useEffect(() => {
+    // Fetch chapters when subject changes
+    console.log('useEffect triggered for selectedSubject:', selectedSubject)
+    if (selectedSubject) {
+      console.log('Calling fetchChapters for subjectId:', selectedSubject)
+      const fetchChaptersForSubject = async () => {
+        try {
+          const token = localStorage.getItem('accessToken')
+          console.log('Fetching chapters for subjectId:', selectedSubject)
+          if (!selectedSubject) {
+            console.log('No selectedSubject, skipping fetchChapters')
+            return
+          }
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/chapters?subjectId=${selectedSubject}&active=true`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+          console.log('Chapters API response status:', response.status)
+          if (response.ok) {
+            const data = await response.json()
+            console.log('Chapters fetched:', data.content || data)
+            setChapters(data.content || data)
+          } else {
+            console.error('Chapters API error:', response.status, response.statusText)
+          }
+        } catch (error) {
+          console.error('Error fetching chapters:', error)
+        }
+      }
+      fetchChaptersForSubject()
+    } else {
+      console.log('No selectedSubject, clearing chapters')
+      setChapters([])
+    }
+  }, [selectedSubject])
+
   const fetchBoards = async () => {
     try {
       const token = localStorage.getItem('accessToken')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/boards`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/boards?active=true`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
@@ -108,7 +168,7 @@ export default function AdminContentBrowsePage() {
   const fetchGrades = async () => {
     try {
       const token = localStorage.getItem('accessToken')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/grades`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/grades-list`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
@@ -123,7 +183,7 @@ export default function AdminContentBrowsePage() {
   const fetchSubjects = async () => {
     try {
       const token = localStorage.getItem('accessToken')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/subjects`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/subjects?active=true`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
@@ -135,35 +195,34 @@ export default function AdminContentBrowsePage() {
     }
   }
 
-  const fetchChapters = async () => {
-    try {
-      const token = localStorage.getItem('accessToken')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/chapters?subjectId=${selectedSubject}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setChapters(data.content || data)
-      }
-    } catch (error) {
-      console.error('Error fetching chapters:', error)
-    }
-  }
-
   const fetchTopics = async () => {
     setLoading(true)
     try {
       const token = localStorage.getItem('accessToken')
+      if (!token) {
+        console.error('No access token found')
+        return
+      }
+      
       const params = new URLSearchParams()
       if (selectedChapter) params.append('chapterId', selectedChapter.toString())
       if (searchTerm) params.append('search', searchTerm)
       
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/topics?${params}`, {
+      const url = `${process.env.NEXT_PUBLIC_API_URL}/admin/content/topics?${params}`
+      console.log('Fetching topics from:', url)
+      
+      const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
+      
+      console.log('Topics API response status:', response.status)
+      
       if (response.ok) {
         const data = await response.json()
+        console.log('Topics data received:', data)
         setTopics(data.content || data)
+      } else {
+        console.error('Topics API error:', response.status, response.statusText)
       }
     } catch (error) {
       console.error('Error fetching topics:', error)
@@ -241,10 +300,10 @@ export default function AdminContentBrowsePage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Panel - Content Hierarchy */}
+          {/* Left Panel - Filters */}
           <Card className="p-6">
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Content Hierarchy</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Filters</h3>
               
               {/* Search */}
               <div className="relative">
@@ -273,7 +332,7 @@ export default function AdminContentBrowsePage() {
                     }}
                     className="w-full mt-1 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 dark:bg-gray-700 dark:text-white"
                   >
-                    <option value="">Select Board</option>
+                    <option value="">All Boards</option>
                     {boards.map(board => (
                       <option key={board.id} value={board.id}>{board.name}</option>
                     ))}
@@ -281,62 +340,59 @@ export default function AdminContentBrowsePage() {
                 </div>
 
                 {/* Grade Selection */}
-                {selectedBoard && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Grade</label>
-                    <select 
-                      value={selectedGrade || ''} 
-                      onChange={(e) => {
-                        setSelectedGrade(e.target.value ? Number(e.target.value) : null)
-                        setSelectedSubject(null)
-                        setSelectedChapter(null)
-                      }}
-                      className="w-full mt-1 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 dark:bg-gray-700 dark:text-white"
-                    >
-                      <option value="">Select Grade</option>
-                      {grades.map(grade => (
-                        <option key={grade.id} value={grade.id}>{grade.displayName}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+                <div>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Grade</label>
+                  <select 
+                    value={selectedGrade || ''} 
+                    onChange={(e) => {
+                      setSelectedGrade(e.target.value ? Number(e.target.value) : null)
+                      setSelectedSubject(null)
+                      setSelectedChapter(null)
+                    }}
+                    className="w-full mt-1 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 dark:bg-gray-700 dark:text-white"
+                  >
+                    <option value="">All Grades</option>
+                    {grades.map(grade => (
+                      <option key={grade.id} value={grade.id}>{grade.name}</option>
+                    ))}
+                  </select>
+                </div>
 
                 {/* Subject Selection */}
-                {selectedGrade && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Subject</label>
-                    <select 
-                      value={selectedSubject || ''} 
-                      onChange={(e) => {
-                        setSelectedSubject(e.target.value ? Number(e.target.value) : null)
-                        setSelectedChapter(null)
-                      }}
-                      className="w-full mt-1 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 dark:bg-gray-700 dark:text-white"
-                    >
-                      <option value="">Select Subject</option>
-                      {subjects.map(subject => (
-                        <option key={subject.id} value={subject.id}>{subject.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+                <div>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Subject</label>
+                  <select 
+                    value={selectedSubject || ''} 
+                    onChange={(e) => {
+                      console.log('Subject selected:', e.target.value, 'Chemistry ID should be 3')
+                      const newSubjectId = e.target.value ? Number(e.target.value) : null
+                      console.log('Setting selectedSubject to:', newSubjectId)
+                      setSelectedSubject(newSubjectId)
+                      setSelectedChapter(null)
+                    }}
+                    className="w-full mt-1 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 dark:bg-gray-700 dark:text-white"
+                  >
+                    <option value="">All Subjects</option>
+                    {subjects.map(subject => (
+                      <option key={subject.id} value={subject.id}>{subject.name}</option>
+                    ))}
+                  </select>
+                </div>
 
                 {/* Chapter Selection */}
-                {selectedSubject && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Chapter</label>
-                    <select 
-                      value={selectedChapter || ''} 
-                      onChange={(e) => setSelectedChapter(e.target.value ? Number(e.target.value) : null)}
-                      className="w-full mt-1 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 dark:bg-gray-700 dark:text-white"
-                    >
-                      <option value="">Select Chapter</option>
-                      {chapters.map(chapter => (
-                        <option key={chapter.id} value={chapter.id}>{chapter.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+                <div>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Chapter</label>
+                  <select 
+                    value={selectedChapter || ''} 
+                    onChange={(e) => setSelectedChapter(e.target.value ? Number(e.target.value) : null)}
+                    className="w-full mt-1 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 dark:bg-gray-700 dark:text-white"
+                  >
+                    <option value="">All Chapters</option>
+                    {chapters.map(chapter => (
+                      <option key={chapter.id} value={chapter.id}>{chapter.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
           </Card>

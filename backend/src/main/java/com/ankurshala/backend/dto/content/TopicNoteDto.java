@@ -16,8 +16,9 @@ public class TopicNoteDto {
     private Long topicId;
     private String topicTitle;
     private Boolean active;
-    private String attachments; // JSON string for now
+    private String attachments; // JSON string for attachments
     private LocalDateTime deletedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
+

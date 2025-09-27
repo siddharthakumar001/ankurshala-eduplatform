@@ -14,6 +14,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -316,5 +318,25 @@ public class AdminContentManagementController {
             @RequestParam(defaultValue = "false") boolean force) {
         Map<String, Object> result = contentManagementService.deleteTopicNote(id, force);
         return ResponseEntity.ok(result);
+    }
+
+    // ============ HIERARCHICAL DATA FOR BROWSE PAGE ============
+    
+    @GetMapping("/grades-list")
+    public ResponseEntity<List<Map<String, Object>>> getGrades() {
+        List<Map<String, Object>> grades = List.of(
+            Map.of("id", 1, "name", "9", "displayName", "Grade 9", "active", true),
+            Map.of("id", 2, "name", "10", "displayName", "Grade 10", "active", true),
+            Map.of("id", 3, "name", "11", "displayName", "Grade 11", "active", true),
+            Map.of("id", 4, "name", "12", "displayName", "Grade 12", "active", true)
+        );
+        return ResponseEntity.ok(grades);
+    }
+    
+    @GetMapping("/content-tree")
+    public ResponseEntity<Map<String, Object>> getContentTree() {
+        Map<String, Object> tree = new HashMap<>();
+        tree.put("test", "working");
+        return ResponseEntity.ok(tree);
     }
 }

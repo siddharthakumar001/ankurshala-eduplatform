@@ -483,6 +483,7 @@ public class ContentManagementService {
         note.setTitle(request.getTitle());
         note.setContent(request.getContent());
         note.setTopic(topic);
+        // Set attachments as string - database column is now TEXT
         note.setAttachments(request.getAttachments());
         note.setActive(request.getActive());
         note.setCreatedAt(LocalDateTime.now());
@@ -501,6 +502,7 @@ public class ContentManagementService {
         note.setTitle(request.getTitle());
         note.setContent(request.getContent());
         note.setTopic(topic);
+        // Set attachments as string - database column is now TEXT
         note.setAttachments(request.getAttachments());
         note.setActive(request.getActive());
         note.setCreatedAt(LocalDateTime.now());
@@ -627,5 +629,39 @@ public class ContentManagementService {
                 note.getCreatedAt(),
                 note.getUpdatedAt()
         );
+    }
+
+    // ============ HIERARCHICAL DATA FOR BROWSE PAGE ============
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> getContentTree() {
+        Map<String, Object> tree = new HashMap<>();
+        
+        // Get all boards
+        List<Board> boards = boardRepository.findByActiveTrue();
+        tree.put("boards", boards.stream().map(this::convertToBoardDto).collect(Collectors.toList()));
+        
+        // Get all grades (hardcoded for now)
+        List<Map<String, Object>> grades = List.of(
+            Map.of("id", 1, "name", "9", "displayName", "Grade 9", "active", true),
+            Map.of("id", 2, "name", "10", "displayName", "Grade 10", "active", true),
+            Map.of("id", 3, "name", "11", "displayName", "Grade 11", "active", true),
+            Map.of("id", 4, "name", "12", "displayName", "Grade 12", "active", true)
+        );
+        tree.put("grades", grades);
+        
+        // Get all subjects
+        List<Subject> subjects = subjectRepository.findByActiveTrue();
+        tree.put("subjects", subjects.stream().map(this::convertToSubjectDto).collect(Collectors.toList()));
+        
+        // Get all chapters
+        List<Chapter> chapters = chapterRepository.findByActiveTrue();
+        tree.put("chapters", chapters.stream().map(this::convertToChapterDto).collect(Collectors.toList()));
+        
+        // Get all topics
+        List<Topic> topics = topicRepository.findByActiveTrue();
+        tree.put("topics", topics.stream().map(this::convertToTopicDto).collect(Collectors.toList()));
+        
+        return tree;
     }
 }

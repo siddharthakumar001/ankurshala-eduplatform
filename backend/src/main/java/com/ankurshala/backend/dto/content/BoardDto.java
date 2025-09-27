@@ -16,3 +16,4 @@ public class BoardDto {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
+

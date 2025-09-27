@@ -41,4 +41,7 @@ public interface TeacherProfileRepository extends JpaRepository<TeacherProfile, 
             @Param("status") TeacherStatus status,
             @Param("verified") Boolean verified,
             Pageable pageable);
+    
+    // Check if mobile number exists
+    boolean existsByMobileNumber(String mobileNumber);
 }

@@ -180,6 +180,19 @@ public class BulkDemoSeeder implements CommandLineRunner {
     }
 
     private UserSeedResult createStudentProfile(String email, String password) {
+        // Check if mobile number is already in use before creating user
+        String mobileNumber = dataGenerator.generatePhoneNumber();
+        int attempts = 0;
+        while (studentProfileRepository.existsByMobileNumber(mobileNumber) && attempts < 10) {
+            mobileNumber = dataGenerator.generatePhoneNumber();
+            attempts++;
+        }
+        
+        if (attempts >= 10) {
+            logger.warn("Could not generate unique mobile number for student {}, skipping", email);
+            return new UserSeedResult(false, false, email);
+        }
+        
         // Create user
         User user = new User();
         user.setName("Student " + email.split("@")[0]);
@@ -190,7 +203,7 @@ public class BulkDemoSeeder implements CommandLineRunner {
         user = userRepository.save(user);
 
         // Create student profile
-        StudentProfile profile = createStudentProfileData(user);
+        StudentProfile profile = createStudentProfileData(user, mobileNumber);
         profile = studentProfileRepository.save(profile);
 
         // Create student documents
@@ -202,15 +215,27 @@ public class BulkDemoSeeder implements CommandLineRunner {
     private UserSeedResult updateStudentProfile(User user) {
         StudentProfile profile = user.getStudentProfile();
         if (profile == null) {
-            // Create missing profile
-            profile = createStudentProfileData(user);
+            // Create missing profile with unique mobile number
+            String mobileNumber = dataGenerator.generatePhoneNumber();
+            int attempts = 0;
+            while (studentProfileRepository.existsByMobileNumber(mobileNumber) && attempts < 10) {
+                mobileNumber = dataGenerator.generatePhoneNumber();
+                attempts++;
+            }
+            
+            if (attempts >= 10) {
+                logger.warn("Could not generate unique mobile number for existing student {}, skipping", user.getEmail());
+                return new UserSeedResult(false, false, user.getEmail());
+            }
+            
+            profile = createStudentProfileData(user, mobileNumber);
             profile = studentProfileRepository.save(profile);
             createStudentDocuments(profile);
         }
         return new UserSeedResult(false, true, user.getEmail());
     }
 
-    private StudentProfile createStudentProfileData(User user) {
+    private StudentProfile createStudentProfileData(User user, String mobileNumber) {
         StudentProfile profile = new StudentProfile();
         profile.setUser(user);
         
@@ -225,7 +250,7 @@ public class BulkDemoSeeder implements CommandLineRunner {
         profile.setFatherName(dataGenerator.generateFirstName(Gender.MALE) + " " + lastName);
         profile.setGuardianName(profile.getFatherName());
         
-        profile.setMobileNumber(dataGenerator.generatePhoneNumber());
+        profile.setMobileNumber(mobileNumber);
         profile.setAlternateMobileNumber(dataGenerator.generateAlternatePhoneNumber());
         profile.setDateOfBirth(dataGenerator.generateDateOfBirth(13, 18)); // 13-18 years old
         
@@ -272,6 +297,19 @@ public class BulkDemoSeeder implements CommandLineRunner {
     }
 
     private UserSeedResult createTeacherProfile(String email, String password) {
+        // Check if mobile number is already in use before creating user
+        String mobileNumber = dataGenerator.generatePhoneNumber();
+        int attempts = 0;
+        while (teacherProfileRepository.existsByMobileNumber(mobileNumber) && attempts < 10) {
+            mobileNumber = dataGenerator.generatePhoneNumber();
+            attempts++;
+        }
+        
+        if (attempts >= 10) {
+            logger.warn("Could not generate unique mobile number for teacher {}, skipping", email);
+            return new UserSeedResult(false, false, email);
+        }
+        
         // Create user
         User user = new User();
         user.setName("Teacher " + email.split("@")[0]);
@@ -286,7 +324,7 @@ public class BulkDemoSeeder implements CommandLineRunner {
         teacher.setUser(user);
         teacher.setName(user.getName());
         teacher.setEmail(email);
-        teacher.setPhoneNumber(dataGenerator.generatePhoneNumber());
+        teacher.setPhoneNumber(mobileNumber);
         teacher.setAlternatePhoneNumber(dataGenerator.generateAlternatePhoneNumber());
         teacher.setDateOfBirth(dataGenerator.generateDateOfBirth(25, 50)); // 25-50 years old
         teacher.setGender(dataGenerator.generateGender());
@@ -315,7 +353,7 @@ public class BulkDemoSeeder implements CommandLineRunner {
     private UserSeedResult updateTeacherProfile(User user) {
         Teacher teacher = user.getTeacher();
         if (teacher == null) {
-            // Create missing teacher entity and all related data
+            // Create missing teacher entity and all related data with unique mobile number
             return createTeacherProfile(user.getEmail(), "Maza@123");
         }
         return new UserSeedResult(false, true, user.getEmail());

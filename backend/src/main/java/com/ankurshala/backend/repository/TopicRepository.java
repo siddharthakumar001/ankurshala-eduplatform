@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -22,7 +23,13 @@ public interface TopicRepository extends JpaRepository<Topic, Long>, JpaSpecific
            "(:active IS NULL OR t.active = :active) AND " +
            "t.deletedAt IS NULL")
     Page<Topic> findTopicsWithFilters(@Param("chapterId") Long chapterId,
-                                      @Param("search") String search, 
-                                      @Param("active") Boolean active, 
-                                      Pageable pageable);
+                                     @Param("search") String search, 
+                                     @Param("active") Boolean active, 
+                                     Pageable pageable);
+    
+    // Count methods for analytics
+    long countByActiveTrue();
+    
+    // Find active topics for tree structure
+    List<Topic> findByActiveTrue();
 }

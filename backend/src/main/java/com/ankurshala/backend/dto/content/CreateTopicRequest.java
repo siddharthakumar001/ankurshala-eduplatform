@@ -34,3 +34,4 @@ public class CreateTopicRequest {
     
     private Boolean active = true;
 }
+

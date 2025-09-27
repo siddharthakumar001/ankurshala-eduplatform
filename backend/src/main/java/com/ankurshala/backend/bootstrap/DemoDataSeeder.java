@@ -120,9 +120,23 @@ public class DemoDataSeeder implements ApplicationRunner {
 
     private User seedStudentUser(int studentNumber) {
         String email = "student" + studentNumber + "@ankurshala.com";
+        String mobileNumber = "+91-987654321" + studentNumber;
         
+        // Check if user already exists by email
         User user = userRepository.findByEmail(email).orElse(null);
-        if (user == null) {
+        if (user != null) {
+            logger.info("Student user already exists: {}", email);
+            return user;
+        }
+        
+        // Check if mobile number is already in use
+        boolean mobileExists = studentProfileRepository.existsByMobileNumber(mobileNumber);
+        if (mobileExists) {
+            logger.warn("Mobile number {} already exists, skipping student {}", mobileNumber, studentNumber);
+            return null;
+        }
+        
+        try {
             user = new User();
             user.setName("Student " + studentNumber);
             user.setEmail(email);
@@ -136,15 +150,16 @@ public class DemoDataSeeder implements ApplicationRunner {
             studentProfile.setUser(user);
             studentProfile.setFirstName("Student");
             studentProfile.setLastName(studentNumber + "");
-            studentProfile.setMobileNumber("+91-987654321" + studentNumber);
+            studentProfile.setMobileNumber(mobileNumber);
             studentProfile.setEducationalBoard(EducationalBoard.CBSE);
             studentProfile.setClassLevel(ClassLevel.GRADE_8);
             studentProfile.setSchoolName("Delhi Public School " + studentNumber);
             studentProfileRepository.save(studentProfile);
 
-            logger.info("Created student user: {}", email);
-        } else {
-            logger.info("Student user already exists: {}", email);
+            logger.info("Created student user: {} with mobile: {}", email, mobileNumber);
+        } catch (Exception e) {
+            logger.error("Failed to create student user {}: {}", email, e.getMessage());
+            return null;
         }
         
         return user;
@@ -152,9 +167,23 @@ public class DemoDataSeeder implements ApplicationRunner {
 
     private User seedTeacherUser(int teacherNumber) {
         String email = "teacher" + teacherNumber + "@ankurshala.com";
+        String mobileNumber = "+91-987654321" + teacherNumber;
         
+        // Check if user already exists by email
         User user = userRepository.findByEmail(email).orElse(null);
-        if (user == null) {
+        if (user != null) {
+            logger.info("Teacher user already exists: {}", email);
+            return user;
+        }
+        
+        // Check if mobile number is already in use
+        boolean mobileExists = teacherProfileRepository.existsByMobileNumber(mobileNumber);
+        if (mobileExists) {
+            logger.warn("Mobile number {} already exists, skipping teacher {}", mobileNumber, teacherNumber);
+            return null;
+        }
+        
+        try {
             user = new User();
             user.setName("Teacher " + teacherNumber);
             user.setEmail(email);
@@ -162,33 +191,37 @@ public class DemoDataSeeder implements ApplicationRunner {
             user.setRole(Role.TEACHER);
             user.setEnabled(true);
             user = userRepository.save(user);
-        }
 
-        // Check if Teacher entity exists
-        Teacher teacher = teacherRepository.findByUserId(user.getId()).orElse(null);
-        if (teacher == null) {
-            teacher = new Teacher();
-            teacher.setUser(user);
-            teacher.setName("Teacher " + teacherNumber);
-            teacher.setEmail(email);
-            teacher.setStatus(TeacherStatus.ACTIVE);
-            teacher = teacherRepository.save(teacher);
-        }
+            // Check if Teacher entity exists
+            Teacher teacher = teacherRepository.findByUserId(user.getId()).orElse(null);
+            if (teacher == null) {
+                teacher = new Teacher();
+                teacher.setUser(user);
+                teacher.setName("Teacher " + teacherNumber);
+                teacher.setEmail(email);
+                teacher.setStatus(TeacherStatus.ACTIVE);
+                teacher = teacherRepository.save(teacher);
+            }
 
-        // Check if TeacherProfile exists
-        TeacherProfile teacherProfile = teacherProfileRepository.findByUserId(user.getId()).orElse(null);
-        if (teacherProfile == null) {
-            teacherProfile = new TeacherProfile();
-            teacherProfile.setUser(user);
-            teacherProfile.setTeacher(teacher);
-            teacherProfile.setFirstName("Teacher");
-            teacherProfile.setLastName(teacherNumber + "");
-            teacherProfile.setMobileNumber("+91-987654321" + teacherNumber);
-            teacherProfile.setBio("Experienced teacher with " + (5 + teacherNumber) + " years of teaching experience");
-            teacherProfileRepository.save(teacherProfile);
-        }
+            // Check if TeacherProfile exists
+            TeacherProfile teacherProfile = teacherProfileRepository.findByUserId(user.getId()).orElse(null);
+            if (teacherProfile == null) {
+                teacherProfile = new TeacherProfile();
+                teacherProfile.setUser(user);
+                teacherProfile.setTeacher(teacher);
+                teacherProfile.setFirstName("Teacher");
+                teacherProfile.setLastName(teacherNumber + "");
+                teacherProfile.setMobileNumber(mobileNumber);
+                teacherProfile.setBio("Experienced teacher with " + (5 + teacherNumber) + " years of teaching experience");
+                teacherProfileRepository.save(teacherProfile);
+            }
 
-        logger.info("Teacher user ready: {}", email);
+            logger.info("Created teacher user: {} with mobile: {}", email, mobileNumber);
+        } catch (Exception e) {
+            logger.error("Failed to create teacher user {}: {}", email, e.getMessage());
+            return null;
+        }
+        
         return user;
     }
 

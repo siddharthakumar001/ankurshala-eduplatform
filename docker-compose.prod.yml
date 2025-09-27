@@ -107,9 +107,9 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       BANK_ENC_KEY: ${BANK_ENC_KEY}
       SERVER_PORT: ${SERVER_PORT:-8080}
-      DEMO_SEED_ON_START: "false"
+      DEMO_SEED_ON_START: "true"
       DEMO_ENV: "prod"
-      DEMO_FORCE: "false"
+      DEMO_FORCE: "true"
     depends_on:
       postgres:
         condition: service_healthy

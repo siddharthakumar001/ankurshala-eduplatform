@@ -328,7 +328,7 @@ export default function AdminStudentsPage() {
               </div>
               <div className="flex gap-2">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-32">
+                  <SelectTrigger className="w-32" data-testid="status-select">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>

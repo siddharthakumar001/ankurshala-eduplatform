@@ -148,3 +148,4 @@ echo "🎉 All tests passed!"
 echo "✅ Bulk seeding works correctly"
 echo "✅ Idempotency verified - no duplicates created"
 echo "✅ All 15 students, 15 teachers, and 3 admins seeded successfully"
+

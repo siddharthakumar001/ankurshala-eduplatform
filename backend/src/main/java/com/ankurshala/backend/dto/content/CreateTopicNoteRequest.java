@@ -23,7 +23,8 @@ public class CreateTopicNoteRequest {
     @NotNull(message = "Topic ID is required")
     private Long topicId;
     
-    private String attachments; // JSON string for now
+    private String attachments; // JSON string for attachments
     
     private Boolean active = true;
 }
+

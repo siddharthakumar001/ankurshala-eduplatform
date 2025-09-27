@@ -116,10 +116,15 @@ test.describe('Admin Students Management', () => {
   })
 
   test('should clear all filters when clear button is clicked', async ({ page }) => {
+    // Wait for page to load
+    await page.waitForLoadState('domcontentloaded')
+    await page.waitForTimeout(2000)
+    
     // Apply some filters
     await page.locator('input[placeholder*="Search"]').fill('test')
-    await page.click('button:has-text("Status")')
-    await page.click('text=Active')
+    await page.waitForSelector('[data-testid="status-select"]', { timeout: 10000 })
+    await page.click('[data-testid="status-select"]')
+    await page.click('[role="option"]:has-text("Active")')
     
     // Clear filters
     await page.click('button:has-text("Clear")')

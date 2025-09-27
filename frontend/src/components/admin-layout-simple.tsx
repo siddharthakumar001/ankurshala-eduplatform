@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuthStore } from '@/store/auth'
 import { authAPI } from '@/lib/apiClient'
@@ -30,9 +30,14 @@ interface AdminLayoutProps {
 export default function AdminLayoutSimple({ children }: AdminLayoutProps) {
   const router = useRouter()
   const pathname = usePathname()
-  const { logout } = useAuthStore()
+  const { logout, initializeAuth } = useAuthStore()
   const { theme, setTheme } = useTheme()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  useEffect(() => {
+    // Initialize auth state on component mount
+    initializeAuth()
+  }, [initializeAuth])
 
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark')
@@ -61,6 +66,7 @@ export default function AdminLayoutSimple({ children }: AdminLayoutProps) {
     { name: 'Teachers', href: '/admin/users/teachers', icon: GraduationCap },
     { name: 'Content Import', href: '/admin/content/import', icon: FileText },
     { name: 'Content Browse', href: '/admin/content/browse', icon: FileText },
+    { name: 'Content Manage', href: '/admin/content/manage', icon: Settings },
     { name: 'Analytics', href: '/admin/content/analytics', icon: BarChart3 },
     { name: 'Pricing', href: '/admin/pricing', icon: DollarSign },
     { name: 'Notifications', href: '/admin/notifications', icon: Bell },

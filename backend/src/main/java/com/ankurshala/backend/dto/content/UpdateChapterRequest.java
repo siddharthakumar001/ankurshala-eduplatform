@@ -21,3 +21,4 @@ public class UpdateChapterRequest {
     
     private Boolean active;
 }
+

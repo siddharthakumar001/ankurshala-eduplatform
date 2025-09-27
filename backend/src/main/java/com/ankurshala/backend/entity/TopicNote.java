@@ -26,7 +26,7 @@ public class TopicNote {
     @Column(name = "active", nullable = false)
     private Boolean active = true;
 
-    @Column(name = "attachments", columnDefinition = "JSONB")
+    @Column(name = "attachments", columnDefinition = "TEXT", nullable = true)
     private String attachments;
 
     @Column(name = "deleted_at")

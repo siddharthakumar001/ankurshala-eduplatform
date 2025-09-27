@@ -71,7 +71,8 @@ export default function AdminContentImportPage() {
 
       if (response.ok) {
         const data = await response.json()
-        setImportJobs(data)
+        // Handle paginated response - the actual array is in the 'content' field
+        setImportJobs(data.content || data)
       } else {
         const errorData = await response.json()
         toast.error(errorData.detail || errorData.title || 'Failed to fetch import jobs')
@@ -166,7 +167,15 @@ export default function AdminContentImportPage() {
         fetchImportJobs() // Refresh the jobs list
       } else {
         const errorData = await response.json()
-        toast.error(errorData.detail || errorData.title || 'Failed to upload file')
+        const errorMessage = errorData.detail || errorData.title || 'Failed to upload file'
+        toast.error(errorMessage)
+        
+        // Show validation errors in a more detailed way
+        if (errorData.errors && Array.isArray(errorData.errors)) {
+          errorData.errors.forEach((error: any) => {
+            toast.error(error.message || error)
+          })
+        }
       }
     } catch (error) {
       console.error('Error uploading file:', error)
