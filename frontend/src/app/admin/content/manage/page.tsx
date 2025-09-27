@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
+import AdminLayoutSimple from '@/components/admin-layout-simple'
 import { 
   Plus, 
   Search, 
@@ -141,7 +142,7 @@ export default function ContentManagePage() {
 
   const fetchBoards = async () => {
     const token = localStorage.getItem('accessToken')
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/boards?size=100`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/boards?size=100&active=true`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     if (response.ok) {
@@ -153,7 +154,7 @@ export default function ContentManagePage() {
   const fetchSubjects = async () => {
     const token = localStorage.getItem('accessToken')
     console.log('Fetching subjects with token:', token ? 'present' : 'missing')
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/subjects?size=100`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/subjects?size=100&active=true`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     console.log('Subjects API response status:', response.status)
@@ -168,7 +169,7 @@ export default function ContentManagePage() {
 
   const fetchChapters = async () => {
     const token = localStorage.getItem('accessToken')
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/chapters?size=100`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/chapters?size=100&active=true`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     if (response.ok) {
@@ -180,7 +181,7 @@ export default function ContentManagePage() {
   const fetchTopics = async () => {
     const token = localStorage.getItem('accessToken')
     console.log('Fetching topics with token:', token ? 'present' : 'missing')
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/topics?size=100`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/topics?size=100&active=true`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     console.log('Topics API response status:', response.status)
@@ -195,7 +196,7 @@ export default function ContentManagePage() {
 
   const fetchTopicNotes = async () => {
     const token = localStorage.getItem('accessToken')
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/topics/1/notes?size=100`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/notes?size=100&active=true`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     if (response.ok) {
@@ -205,8 +206,10 @@ export default function ContentManagePage() {
   }
 
   const handleCreate = async () => {
+    console.log('=== handleCreate START ===')
     console.log('handleCreate called with formData:', formData)
     console.log('activeTab:', activeTab)
+    console.log('isCreateDialogOpen:', isCreateDialogOpen)
     
     try {
       const token = localStorage.getItem('accessToken')
@@ -217,9 +220,23 @@ export default function ContentManagePage() {
       }
 
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
-      const endpoint = `${baseUrl}/api/admin/content/${activeTab}`
+      const endpoint = `${baseUrl}/admin/content/${activeTab}`
       
-      console.log('Creating item:', { endpoint, formData, activeTab })
+      console.log('API Configuration:', {
+        NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+        baseUrl,
+        endpoint,
+        formData,
+        activeTab
+      })
+      
+      // Prepare data for API call
+      const apiData = { ...formData }
+      
+      // For notes, ensure attachments is explicitly null if not provided
+      if (activeTab === 'notes' && !apiData.attachments) {
+        apiData.attachments = null
+      }
       
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -227,7 +244,7 @@ export default function ContentManagePage() {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(apiData)
       })
 
       console.log('Response status:', response.status)
@@ -235,20 +252,30 @@ export default function ContentManagePage() {
       if (response.ok) {
         const result = await response.json()
         console.log('Created item:', result)
-        toast.success(`${activeTab.slice(0, -1)} created successfully`)
+        const itemType = activeTab.slice(0, -1) // Remove 's' from end
+        console.log('Item type for message:', itemType)
+        toast.success(`${itemType} created successfully`)
         setIsCreateDialogOpen(false)
         setFormData({})
         console.log('Calling loadData() to refresh table')
         loadData()
       } else {
-        const error = await response.json()
-        console.error('API Error:', error)
-        toast.error(error.message || 'Failed to create item')
+        const errorText = await response.text()
+        console.error('API Error Response:', errorText)
+        try {
+          const error = JSON.parse(errorText)
+          console.error('Parsed API Error:', error)
+          toast.error(error.message || 'Failed to create item')
+        } catch (parseError) {
+          console.error('Failed to parse error response:', parseError)
+          toast.error(`Failed to create item (${response.status})`)
+        }
       }
     } catch (error) {
       console.error('Error creating item:', error)
       toast.error('Failed to create item')
     }
+    console.log('=== handleCreate END ===')
   }
 
   const handleEdit = async () => {
@@ -260,7 +287,7 @@ export default function ContentManagePage() {
       }
 
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
-      const endpoint = `${baseUrl}/api/admin/content/${activeTab}/${editingItem.id}`
+      const endpoint = `${baseUrl}/admin/content/${activeTab}/${editingItem.id}`
       
       const response = await fetch(endpoint, {
         method: 'PUT',
@@ -296,7 +323,7 @@ export default function ContentManagePage() {
       }
 
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
-      const endpoint = `${baseUrl}/api/admin/content/${activeTab}/${id}/active`
+      const endpoint = `${baseUrl}/admin/content/${activeTab}/${id}/active`
       
       const response = await fetch(endpoint, {
         method: 'PATCH',
@@ -329,7 +356,7 @@ export default function ContentManagePage() {
       }
 
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
-      const endpoint = `${baseUrl}/api/admin/content/${activeTab}/${id}?force=${force}`
+      const endpoint = `${baseUrl}/admin/content/${activeTab}/${id}?force=${force}`
       
       const response = await fetch(endpoint, {
         method: 'DELETE',
@@ -395,11 +422,18 @@ export default function ContentManagePage() {
           </div>
           <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
             console.log('Dialog open state changed:', open)
+            if (open) {
+              console.log('Dialog opening, resetting form data for tab:', activeTab)
+              // Reset form data with appropriate defaults for each tab
+              const defaultFormData = { active: true }
+              setFormData(defaultFormData)
+            }
             setIsCreateDialogOpen(open)
           }}>
             <DialogTrigger asChild>
               <Button onClick={() => {
-                console.log('Add button clicked, opening dialog')
+                console.log('Add button clicked, opening dialog for tab:', activeTab)
+                setFormData({ active: true }) // Reset form data with default values
                 setIsCreateDialogOpen(true)
               }}>
                 <Plus className="h-4 w-4 mr-2" />
@@ -507,9 +541,82 @@ export default function ContentManagePage() {
   }
 
   const renderCreateForm = () => {
-    console.log('renderCreateForm called')
+    console.log('renderCreateForm called for activeTab:', activeTab)
+    console.log('Current formData:', formData)
     return (
-      <div className="space-y-4">
+      <form onSubmit={(e) => {
+        e.preventDefault()
+        console.log('=== FORM SUBMIT EVENT ===')
+        console.log('Form submitted via onSubmit handler')
+        console.log('Current formData:', formData)
+        console.log('Current activeTab:', activeTab)
+        
+        // Validate required fields
+        if (activeTab === 'subjects' && !formData.name?.trim()) {
+          console.log('Validation failed: subject name is required', { formData })
+          toast.error('Subject name is required')
+          return
+        }
+        
+        if (activeTab === 'boards' && !formData.name?.trim()) {
+          console.log('Validation failed: board name is required', { formData })
+          toast.error('Board name is required')
+          return
+        }
+
+        if (activeTab === 'chapters') {
+          if (!formData.name?.trim()) {
+            console.log('Validation failed: chapter name is required', { formData })
+            toast.error('Chapter name is required')
+            return
+          }
+          if (!formData.subjectId) {
+            console.log('Validation failed: subject selection is required', { formData })
+            toast.error('Please select a subject')
+            return
+          }
+        }
+
+        if (activeTab === 'topics') {
+          if (!formData.title?.trim()) {
+            console.log('Validation failed: topic title is required', { formData })
+            toast.error('Topic title is required')
+            return
+          }
+          if (!formData.chapterId) {
+            console.log('Validation failed: chapter selection is required', { formData })
+            toast.error('Please select a chapter')
+            return
+          }
+          if (!formData.expectedTimeMins || formData.expectedTimeMins <= 0) {
+            console.log('Validation failed: expected time is required', { formData })
+            toast.error('Expected time must be greater than 0')
+            return
+          }
+        }
+
+        if (activeTab === 'notes') {
+          if (!formData.title?.trim()) {
+            console.log('Validation failed: note title is required', { formData })
+            toast.error('Note title is required')
+            return
+          }
+          if (!formData.content?.trim()) {
+            console.log('Validation failed: note content is required', { formData })
+            toast.error('Note content is required')
+            return
+          }
+          if (!formData.topicId) {
+            console.log('Validation failed: topic selection is required', { formData })
+            toast.error('Please select a topic')
+            return
+          }
+        }
+        
+        console.log('Validation passed, calling handleCreate')
+        handleCreate()
+      }}>
+        <div className="space-y-4">
         {activeTab === 'boards' && (
           <>
             <div>
@@ -725,14 +832,15 @@ export default function ContentManagePage() {
           <Button variant="outline" type="button" onClick={() => setIsCreateDialogOpen(false)}>
             Cancel
           </Button>
-          <button type="button" data-testid="create-button" onClick={() => {
-            console.log('Button clicked!')
-            handleCreate()
-          }}>
+          <Button 
+            type="submit" 
+            data-testid="create-button"
+          >
             Create
-          </button>
+          </Button>
         </div>
-      </div>
+        </div>
+      </form>
     )
   }
 
@@ -755,13 +863,14 @@ export default function ContentManagePage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Content Management</h1>
-          <p className="text-gray-600 dark:text-gray-400">Manage educational content hierarchy</p>
+    <AdminLayoutSimple>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Content Management</h1>
+            <p className="text-gray-600 dark:text-gray-400">Manage educational content hierarchy</p>
+          </div>
         </div>
-      </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-5">
@@ -825,6 +934,7 @@ export default function ContentManagePage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </AdminLayoutSimple>
   )
 }

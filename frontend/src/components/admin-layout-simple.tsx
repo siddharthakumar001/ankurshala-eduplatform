@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuthStore } from '@/store/auth'
 import { authAPI } from '@/lib/apiClient'
@@ -30,9 +30,14 @@ interface AdminLayoutProps {
 export default function AdminLayoutSimple({ children }: AdminLayoutProps) {
   const router = useRouter()
   const pathname = usePathname()
-  const { logout } = useAuthStore()
+  const { logout, initializeAuth } = useAuthStore()
   const { theme, setTheme } = useTheme()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  useEffect(() => {
+    // Initialize auth state on component mount
+    initializeAuth()
+  }, [initializeAuth])
 
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark')

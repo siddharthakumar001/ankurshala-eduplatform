@@ -483,6 +483,7 @@ public class ContentManagementService {
         note.setTitle(request.getTitle());
         note.setContent(request.getContent());
         note.setTopic(topic);
+        // Set attachments as string - database column is now TEXT
         note.setAttachments(request.getAttachments());
         note.setActive(request.getActive());
         note.setCreatedAt(LocalDateTime.now());
@@ -501,6 +502,7 @@ public class ContentManagementService {
         note.setTitle(request.getTitle());
         note.setContent(request.getContent());
         note.setTopic(topic);
+        // Set attachments as string - database column is now TEXT
         note.setAttachments(request.getAttachments());
         note.setActive(request.getActive());
         note.setCreatedAt(LocalDateTime.now());

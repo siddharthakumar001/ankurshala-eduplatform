@@ -15,6 +15,11 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import dynamic from 'next/dynamic'
+
+// Dynamically import chart components to prevent SSR issues
+const DynamicLineChart = dynamic(() => import('recharts').then(mod => ({ default: mod.LineChart })), { ssr: false })
+const DynamicResponsiveContainer = dynamic(() => import('recharts').then(mod => ({ default: mod.ResponsiveContainer })), { ssr: false })
 
 interface DashboardMetrics {
   // User counts
@@ -54,20 +59,7 @@ export default function AdminDashboard() {
   const [series, setSeries] = useState<DashboardSeries[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    // Wait for authentication token to be available
-    const checkAuthAndFetch = () => {
-      const token = localStorage.getItem('accessToken')
-      if (token) {
-        fetchMetrics()
-      } else {
-        // Retry after a short delay
-        setTimeout(checkAuthAndFetch, 100)
-      }
-    }
-    checkAuthAndFetch()
-  }, [])
+  const [mounted, setMounted] = useState(false)
 
   const fetchMetrics = async () => {
     try {
@@ -114,6 +106,31 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false)
     }
+  }
+
+  useEffect(() => {
+    setMounted(true)
+    // Wait for authentication token to be available
+    const checkAuthAndFetch = () => {
+      const token = localStorage.getItem('accessToken')
+      if (token) {
+        fetchMetrics()
+      } else {
+        // Retry after a short delay
+        setTimeout(checkAuthAndFetch, 100)
+      }
+    }
+    checkAuthAndFetch()
+
+    // Cleanup function to prevent memory leaks
+    return () => {
+      setMounted(false)
+    }
+  }, [])
+
+  // Prevent hydration issues
+  if (!mounted) {
+    return null
   }
 
   if (loading) {
@@ -307,23 +324,31 @@ export default function AdminDashboard() {
         <Card className="p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Registration Trends (Last 30 Days)</h3>
           <div className="h-64">
-            {series.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={series}>
+            {series.length > 0 && mounted ? (
+              <DynamicResponsiveContainer width="100%" height="100%">
+                <DynamicLineChart data={series}>
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                   <XAxis 
                     dataKey="date" 
                     tick={{ fontSize: 12 }}
                     tickFormatter={(value) => {
-                      const date = new Date(value)
-                      return `${date.getMonth() + 1}/${date.getDate()}`
+                      try {
+                        const date = new Date(value)
+                        return `${date.getMonth() + 1}/${date.getDate()}`
+                      } catch (error) {
+                        return value
+                      }
                     }}
                   />
                   <YAxis tick={{ fontSize: 12 }} />
                   <Tooltip 
                     labelFormatter={(value) => {
-                      const date = new Date(value)
-                      return date.toLocaleDateString()
+                      try {
+                        const date = new Date(value)
+                        return date.toLocaleDateString()
+                      } catch (error) {
+                        return value
+                      }
                     }}
                     formatter={(value, name) => [value, name === 'students' ? 'Students' : 'Teachers']}
                     contentStyle={{
@@ -349,11 +374,13 @@ export default function AdminDashboard() {
                     name="Teachers"
                     dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
                   />
-                </LineChart>
-              </ResponsiveContainer>
+                </DynamicLineChart>
+              </DynamicResponsiveContainer>
             ) : (
               <div className="h-full flex items-center justify-center">
-                <p className="text-gray-500 dark:text-gray-400">No data available for charts</p>
+                <p className="text-gray-500 dark:text-gray-400">
+                  {loading ? 'Loading chart data...' : 'No data available for charts'}
+                </p>
               </div>
             )}
           </div>

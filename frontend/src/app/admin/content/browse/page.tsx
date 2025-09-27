@@ -99,7 +99,7 @@ export default function AdminContentBrowsePage() {
         console.log('No selectedSubject, skipping fetchChapters')
         return
       }
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/chapters?subjectId=${selectedSubject}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/chapters?subjectId=${selectedSubject}&active=true`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       console.log('Chapters API response status:', response.status)
@@ -128,7 +128,7 @@ export default function AdminContentBrowsePage() {
             console.log('No selectedSubject, skipping fetchChapters')
             return
           }
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/chapters?subjectId=${selectedSubject}`, {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/chapters?subjectId=${selectedSubject}&active=true`, {
             headers: { 'Authorization': `Bearer ${token}` }
           })
           console.log('Chapters API response status:', response.status)
@@ -153,7 +153,7 @@ export default function AdminContentBrowsePage() {
   const fetchBoards = async () => {
     try {
       const token = localStorage.getItem('accessToken')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/boards`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/boards?active=true`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
@@ -183,7 +183,7 @@ export default function AdminContentBrowsePage() {
   const fetchSubjects = async () => {
     try {
       const token = localStorage.getItem('accessToken')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/subjects`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/subjects?active=true`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {

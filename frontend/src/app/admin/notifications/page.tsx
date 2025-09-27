@@ -107,9 +107,13 @@ export default function AdminNotificationsPage() {
       if (response.ok) {
         const data = await response.json()
         setNotifications(data.content || data)
+      } else {
+        console.warn('Failed to fetch notifications:', response.status)
+        setNotifications([]) // Set empty array on failure
       }
     } catch (error) {
       console.error('Error fetching notifications:', error)
+      setNotifications([]) // Set empty array on error
     } finally {
       setLoading(false)
     }
@@ -124,9 +128,27 @@ export default function AdminNotificationsPage() {
       if (response.ok) {
         const data = await response.json()
         setStats(data)
+      } else {
+        console.warn('Failed to fetch notification stats:', response.status)
+        // Set default stats on failure
+        setStats({
+          totalNotifications: 0,
+          queuedNotifications: 0,
+          sentNotifications: 0,
+          failedNotifications: 0,
+          notificationsLast30Days: 0
+        })
       }
     } catch (error) {
       console.error('Error fetching notification stats:', error)
+      // Set default stats on error
+      setStats({
+        totalNotifications: 0,
+        queuedNotifications: 0,
+        sentNotifications: 0,
+        failedNotifications: 0,
+        notificationsLast30Days: 0
+      })
     }
   }
 

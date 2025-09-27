@@ -69,7 +69,7 @@ export default function RouteGuard({
               router.push('/teacher/profile')
               break
             case 'ADMIN':
-              router.push('/admin/profile')
+              router.push('/admin')
               break
             default:
               router.push('/forbidden')
