@@ -7,15 +7,10 @@
 FROM node:20-alpine AS deps
 LABEL com.ankurshala=1
 
-# Install dependencies only when needed
 WORKDIR /app
-
-# Copy package files
 COPY package.json package-lock.json* ./
-
-# Install dependencies with cache mount
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --only=production
+    npm ci --only=production && npm cache clean --force
 
 ############################
 # Stage 2: Builder
@@ -25,15 +20,16 @@ LABEL com.ankurshala=1
 
 WORKDIR /app
 
-# Copy package files
+# Copy package files and install all dependencies
 COPY package.json package-lock.json* ./
-
-# Install all dependencies (including devDependencies)
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci
+    npm ci && npm cache clean --force
 
 # Copy source code
 COPY . .
+
+# Ensure public directory exists
+RUN mkdir -p public
 
 # Set build-time environment variables
 ARG NEXT_PUBLIC_API_URL=http://localhost:8080/api
@@ -43,7 +39,7 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 RUN npm run build
 
 ############################
-# Stage 3: Runner (Minimal)
+# Stage 3: Runner (Production)
 ############################
 FROM node:20-alpine AS runner
 LABEL com.ankurshala=1
@@ -60,6 +56,9 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy built application from builder stage
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+
+# Handle public directory safely
+RUN mkdir -p ./public
 COPY --from=builder /app/public ./public
 
 # Change ownership to non-root user

@@ -1,7 +1,7 @@
-version: '3.8'
+version: "3.9"
 
 services:
-  # Database Service (Production)
+  # -------- Postgres --------
   postgres:
     image: postgres:15-alpine
     container_name: ankurshala_db_prod
@@ -12,17 +12,16 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME}"]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - ankurshala-network
+    networks: [ankurshala-network]
     restart: unless-stopped
 
-  # Redis Cache Service (Production)
+  # -------- Redis --------
   redis:
     image: redis:7-alpine
     container_name: ankurshala_redis_prod
@@ -30,17 +29,70 @@ services:
     volumes:
       - redis_data:/data
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
-    networks:
-      - ankurshala-network
+    networks: [ankurshala-network]
     restart: unless-stopped
 
-  # Backend Service (Production)
+  # -------- Zookeeper (Kafka) --------
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: ankurshala_zookeeper_prod
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    healthcheck:
+      # nc exists in this image
+      test: ["CMD", "nc", "-z", "127.0.0.1", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks: [ankurshala-network]
+    restart: unless-stopped
+
+  # -------- Kafka --------
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: ankurshala_kafka_prod
+    depends_on:
+      - zookeeper
+    ports:
+      - "127.0.0.1:9092:9092"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 40s
+    networks: [ankurshala-network]
+    restart: unless-stopped
+
+  # -------- MailHog (no HC; script accepts running) --------
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: ankurshala_mailhog_prod
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+    networks: [ankurshala-network]
+    restart: unless-stopped
+
+  # -------- Backend (Spring) --------
   backend:
     image: ankurshala/backend:prod
     container_name: ankurshala_backend_prod
@@ -49,8 +101,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      kafka:
+        condition: service_started
+      mailhog:
+        condition: service_started
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
@@ -64,28 +120,31 @@ services:
       BANK_ENC_KEY: ${BANK_ENC_KEY}
       SERVER_PORT: 8080
       SPRING_PROFILES_ACTIVE: production
-      SMTP_HOST: ${SMTP_HOST}
-      SMTP_PORT: ${SMTP_PORT}
+      SMTP_HOST: ${SMTP_HOST:-mailhog}
+      SMTP_PORT: ${SMTP_PORT:-1025}
       SMTP_USERNAME: ${SMTP_USERNAME}
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       SMTP_FROM: ${SMTP_FROM}
-    networks:
-      - ankurshala-network
+      KAFKA_BROKERS: kafka:29092
+      DEMO_SEED_ON_START: ${DEMO_SEED_ON_START:-false}
+      DEMO_ENV: ${DEMO_ENV:-prod}
+      DEMO_FORCE: ${DEMO_FORCE:-true}
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
-    restart: unless-stopped
     deploy:
       resources:
         limits:
           memory: 1G
         reservations:
           memory: 512M
+    networks: [ankurshala-network]
+    restart: unless-stopped
 
-  # Frontend Service (Production)
+  # -------- Frontend (Next.js) --------
   frontend:
     image: ankurshala/frontend:prod
     container_name: ankurshala_frontend_prod
@@ -93,29 +152,52 @@ services:
       backend:
         condition: service_healthy
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
       NODE_ENV: production
-    networks:
-      - ankurshala-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3000/ || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 30s
-    restart: unless-stopped
+      retries: 5
+      start_period: 60s
     deploy:
       resources:
         limits:
           memory: 512M
         reservations:
           memory: 256M
+    networks: [ankurshala-network]
+    restart: unless-stopped
+
+  # -------- Nginx --------
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: ankurshala_nginx_prod
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - nginx_logs:/var/log/nginx
+      - certbot_certs:/etc/letsencrypt:ro
+      - certbot_www:/var/www/certbot
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+    networks: [ankurshala-network]
+    restart: unless-stopped
 
 volumes:
   postgres_data:
   redis_data:
+  kafka_data:
+  nginx_logs:
+  certbot_certs:
+  certbot_www:
 
 networks:
   ankurshala-network:

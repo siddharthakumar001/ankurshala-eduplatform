@@ -6,8 +6,8 @@ import Providers from '@/components/providers'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Login - AnkurShala',
-  description: 'Sign in to your AnkurShala account',
+  title: 'AnkurShala - Smart Learning, On Demand',
+  description: 'Book 1:1 sessions by topic. Get matched with verified teachers in minutes. AI guides your prep with personalized recommendations.',
   icons: {
     icon: '/favicon.svg',
     shortcut: '/favicon.svg',
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   },
 }
 
-export default function LoginLayout({
+export default function HomeLayout({
   children,
 }: {
   children: React.ReactNode
