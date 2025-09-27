@@ -47,14 +47,18 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+      # allow 4-letter-word commands used by healthcheck
+      ZOOKEEPER_4LW_COMMANDS_WHITELIST: "ruok,stat,conf,mntr,srvr"
     healthcheck:
-      test: ["CMD-SHELL", "echo ruok | nc -w 2 localhost 2181 | grep imok"]
+    # 'nc' is available in confluent images; whitelist makes this return "imok"
+      test: ["CMD-SHELL", "echo ruok | nc -w 2 127.0.0.1 2181 | grep -q imok"]
       interval: 10s
       timeout: 5s
       retries: 12
       start_period: 20s
     networks: [ankurshala-network]
     restart: unless-stopped
+
 
   kafka:
     image: confluentinc/cp-kafka:7.4.0
