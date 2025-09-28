@@ -156,7 +156,7 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      NEXT_PUBLIC_API_URL: https://ankurshala.com/api
       NODE_ENV: production
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3000/ || exit 1"]
