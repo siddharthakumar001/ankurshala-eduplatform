@@ -199,7 +199,12 @@ volumes:
   kafka_data:
   nginx_logs:
   certbot_certs:
+    external: true
+    name: ankurshala_certbot_certs
   certbot_www:
+    external: true
+    name: ankurshala_certbot_www
+
 
 networks:
   ankurshala-network:
