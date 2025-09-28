@@ -16,8 +16,10 @@ public interface GradeRepository extends JpaRepository<Grade, Long> {
     
     @Query("SELECT g FROM Grade g WHERE " +
            "(:search IS NULL OR :search = '' OR LOWER(g.name) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(g.displayName) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
+           "(:boardId IS NULL OR g.boardId = :boardId) AND " +
            "(:active IS NULL OR g.active = :active)")
     Page<Grade> findGradesWithFilters(@Param("search") String search, 
+                                     @Param("boardId") Long boardId,
                                      @Param("active") Boolean active, 
                                      Pageable pageable);
 }

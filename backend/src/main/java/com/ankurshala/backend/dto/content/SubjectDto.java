@@ -14,6 +14,7 @@ public class SubjectDto {
     private String name;
     private Boolean active;
     private Long boardId;
+    private Long gradeId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

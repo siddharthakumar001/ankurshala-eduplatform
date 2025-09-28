@@ -65,7 +65,6 @@ export default function AdminLayoutSimple({ children }: AdminLayoutProps) {
     { name: 'Students', href: '/admin/users/students', icon: Users },
     { name: 'Teachers', href: '/admin/users/teachers', icon: GraduationCap },
     { name: 'Content Import', href: '/admin/content/import', icon: FileText },
-    { name: 'Content Browse', href: '/admin/content/browse', icon: FileText },
     { name: 'Content Structure', href: '/admin/content/manage', icon: Settings },
     { name: 'Analytics', href: '/admin/content/analytics', icon: BarChart3 },
     { name: 'Pricing', href: '/admin/pricing', icon: DollarSign },

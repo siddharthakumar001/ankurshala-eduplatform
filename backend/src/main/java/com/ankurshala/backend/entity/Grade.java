@@ -19,6 +19,9 @@ public class Grade {
     @Column(name = "display_name", nullable = false, length = 100)
     private String displayName;
 
+    @Column(name = "board_id", nullable = false)
+    private Long boardId;
+
     @Column(name = "active", nullable = false)
     private Boolean active = true;
 
@@ -32,9 +35,10 @@ public class Grade {
 
     public Grade() {}
 
-    public Grade(String name, String displayName) {
+    public Grade(String name, String displayName, Long boardId) {
         this.name = name;
         this.displayName = displayName;
+        this.boardId = boardId;
     }
 
     // Getters and Setters
@@ -46,6 +50,9 @@ public class Grade {
 
     public String getDisplayName() { return displayName; }
     public void setDisplayName(String displayName) { this.displayName = displayName; }
+
+    public Long getBoardId() { return boardId; }
+    public void setBoardId(Long boardId) { this.boardId = boardId; }
 
     public Boolean getActive() { return active; }
     public void setActive(Boolean active) { this.active = active; }

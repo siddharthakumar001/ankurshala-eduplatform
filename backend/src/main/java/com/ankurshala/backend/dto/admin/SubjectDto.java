@@ -9,6 +9,8 @@ public class SubjectDto implements Serializable {
     private Long id;
     private String name;
     private Boolean active;
+    private Long boardId;
+    private Long gradeId;
     
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdAt;
@@ -27,6 +29,12 @@ public class SubjectDto implements Serializable {
 
     public Boolean getActive() { return active; }
     public void setActive(Boolean active) { this.active = active; }
+
+    public Long getBoardId() { return boardId; }
+    public void setBoardId(Long boardId) { this.boardId = boardId; }
+
+    public Long getGradeId() { return gradeId; }
+    public void setGradeId(Long gradeId) { this.gradeId = gradeId; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

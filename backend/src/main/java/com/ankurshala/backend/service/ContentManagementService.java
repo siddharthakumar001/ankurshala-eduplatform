@@ -1,13 +1,18 @@
 package com.ankurshala.backend.service;
 
 import com.ankurshala.backend.dto.content.*;
+import com.ankurshala.backend.dto.admin.GradeDto;
+import com.ankurshala.backend.dto.admin.CreateGradeRequest;
+import com.ankurshala.backend.dto.admin.UpdateGradeRequest;
 import com.ankurshala.backend.entity.*;
 import com.ankurshala.backend.exception.ResourceNotFoundException;
 import com.ankurshala.backend.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +33,7 @@ import java.util.stream.Collectors;
 public class ContentManagementService {
 
     private final BoardRepository boardRepository;
+    private final GradeRepository gradeRepository;
     private final SubjectRepository subjectRepository;
     private final ChapterRepository chapterRepository;
     private final TopicRepository topicRepository;
@@ -204,42 +210,38 @@ public class ContentManagementService {
     // ============ SUBJECTS SERVICE ============
 
     @Transactional(readOnly = true)
-    public Page<SubjectDto> getSubjects(Pageable pageable, String search, Boolean active) {
-        Specification<Subject> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
-
-            if (search != null && !search.trim().isEmpty()) {
-                String searchTerm = "%" + search.toLowerCase() + "%";
-                predicates.add(cb.like(cb.lower(root.get("name")), searchTerm));
-            }
-
-            if (active != null) {
-                predicates.add(cb.equal(root.get("active"), active));
-            }
-
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
-
-        Page<Subject> subjects = subjectRepository.findAll(spec, pageable);
+    public Page<SubjectDto> getSubjects(Pageable pageable, String search, Boolean active, Long boardId, Long gradeId) {
+        Page<Subject> subjects = subjectRepository.findSubjectsWithFilters(search, boardId, gradeId, active, pageable);
         return subjects.map(this::convertToSubjectDto);
     }
 
     public SubjectDto createSubject(CreateSubjectRequest request) {
-        // Check for duplicate subject name within the same board
-        Optional<Subject> existingSubject = subjectRepository.findByBoardIdAndName(request.getBoardId(), request.getName());
+        log.info("=== CREATE SUBJECT DEBUG ===");
+        log.info("Service received request: {}", request);
+        log.info("Service request gradeId: {}", request.getGradeId());
+        log.info("Service request boardId: {}", request.getBoardId());
+        log.info("Service request name: {}", request.getName());
+        log.info("Service request active: {}", request.getActive());
+        
+        // Check for duplicate subject name within the same grade
+        Optional<Subject> existingSubject = subjectRepository.findByGradeIdAndName(request.getGradeId(), request.getName());
         if (existingSubject.isPresent()) {
-            throw new IllegalArgumentException("Subject with name '" + request.getName() + "' already exists for this board");
+            throw new IllegalArgumentException("Subject with name '" + request.getName() + "' already exists for this grade");
         }
         
         Subject subject = new Subject();
         subject.setName(request.getName());
         subject.setBoardId(request.getBoardId());
+        subject.setGradeId(request.getGradeId());
         subject.setActive(request.getActive());
         subject.setCreatedAt(LocalDateTime.now());
         subject.setUpdatedAt(LocalDateTime.now());
 
+        log.info("Subject entity before save - gradeId: {}, boardId: {}", subject.getGradeId(), subject.getBoardId());
+        
         Subject savedSubject = subjectRepository.save(subject);
-        log.info("Created subject: {} for board ID: {}", savedSubject.getName(), savedSubject.getBoardId());
+        log.info("Created subject: {} for board ID: {} and grade ID: {}", savedSubject.getName(), savedSubject.getBoardId(), savedSubject.getGradeId());
+        log.info("=== END CREATE SUBJECT DEBUG ===");
         return convertToSubjectDto(savedSubject);
     }
 
@@ -854,6 +856,7 @@ public class ContentManagementService {
                 subject.getName(),
                 subject.getActive(),
                 subject.getBoardId(),
+                subject.getGradeId(),
                 subject.getCreatedAt(),
                 subject.getUpdatedAt()
         );
@@ -1020,10 +1023,12 @@ public class ContentManagementService {
         
         // Get all grades (hardcoded for now)
         List<Map<String, Object>> grades = List.of(
-            Map.of("id", 1, "name", "9", "displayName", "Grade 9", "active", true),
-            Map.of("id", 2, "name", "10", "displayName", "Grade 10", "active", true),
-            Map.of("id", 3, "name", "11", "displayName", "Grade 11", "active", true),
-            Map.of("id", 4, "name", "12", "displayName", "Grade 12", "active", true)
+            Map.of("id", 1, "name", "7", "displayName", "Grade 7", "active", true),
+            Map.of("id", 2, "name", "8", "displayName", "Grade 8", "active", true),
+            Map.of("id", 3, "name", "9", "displayName", "Grade 9", "active", true),
+            Map.of("id", 4, "name", "10", "displayName", "Grade 10", "active", true),
+            Map.of("id", 5, "name", "11", "displayName", "Grade 11", "active", true),
+            Map.of("id", 6, "name", "12", "displayName", "Grade 12", "active", true)
         );
         tree.put("grades", grades);
         
@@ -1040,5 +1045,154 @@ public class ContentManagementService {
         tree.put("topics", topics.stream().map(this::convertToTopicDto).collect(Collectors.toList()));
         
         return tree;
+    }
+
+    // ============ GRADES MANAGEMENT ============
+
+    @Transactional(readOnly = true)
+    public Page<GradeDto> getGrades(int page, int size, String sortBy, String sortDir, String search, Boolean active, Long boardId) {
+        Sort sort = Sort.by(Sort.Direction.fromString(sortDir), sortBy);
+        Pageable pageable = PageRequest.of(page, size, sort);
+        
+        Page<Grade> grades = gradeRepository.findGradesWithFilters(search, boardId, active, pageable);
+        
+        return grades.map(this::convertToGradeDto);
+    }
+
+    @Transactional
+    public GradeDto createGrade(CreateGradeRequest request) {
+        // Check if board exists
+        Board board = boardRepository.findById(request.getBoardId())
+                .orElseThrow(() -> new ResourceNotFoundException("Board not found with id: " + request.getBoardId()));
+
+        // Check if grade name already exists for this board
+        Optional<Grade> existingGrade = gradeRepository.findByName(request.getName());
+        if (existingGrade.isPresent()) {
+            throw new IllegalArgumentException("Grade with name '" + request.getName() + "' already exists");
+        }
+
+        Grade grade = new Grade(request.getName(), request.getDisplayName(), request.getBoardId());
+        grade.setActive(request.getActive());
+        
+        Grade savedGrade = gradeRepository.save(grade);
+        log.info("Created grade: {} for board: {}", savedGrade.getName(), board.getName());
+        
+        return convertToGradeDto(savedGrade);
+    }
+
+    @Transactional
+    public GradeDto updateGrade(Long id, UpdateGradeRequest request) {
+        Grade grade = gradeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Grade not found with id: " + id));
+
+        grade.setName(request.getName());
+        grade.setDisplayName(request.getDisplayName());
+        grade.setActive(request.getActive());
+        
+        Grade savedGrade = gradeRepository.save(grade);
+        log.info("Updated grade: {}", savedGrade.getName());
+        
+        return convertToGradeDto(savedGrade);
+    }
+
+    @Transactional
+    public GradeDto updateGradeStatus(Long id, Boolean active) {
+        Grade grade = gradeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Grade not found with id: " + id));
+
+        grade.setActive(active);
+        
+        Grade savedGrade = gradeRepository.save(grade);
+        log.info("Updated grade status: {} -> {}", savedGrade.getName(), active);
+        
+        return convertToGradeDto(savedGrade);
+    }
+
+    @Transactional
+    public Map<String, Object> deleteGrade(Long id, boolean force) {
+        Grade grade = gradeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Grade not found with id: " + id));
+
+        Map<String, Object> result = new HashMap<>();
+        
+        if (force) {
+            // Cascading delete: Grade → Subjects → Chapters → Topics → Notes
+            log.info("Starting cascading delete for grade: {}", grade.getName());
+            
+            // 1. Delete all notes associated with topics from subjects in this grade
+            List<Subject> subjects = subjectRepository.findByGradeId(id);
+            for (Subject subject : subjects) {
+                List<Chapter> chapters = chapterRepository.findBySubjectIdAndDeletedAtIsNull(subject.getId());
+                for (Chapter chapter : chapters) {
+                    List<Topic> topics = topicRepository.findByChapterIdAndDeletedAtIsNull(chapter.getId());
+                    for (Topic topic : topics) {
+                        // Delete all notes for this topic
+                        topicNoteRepository.deleteByTopicId(topic.getId());
+                        log.info("Deleted notes for topic: {}", topic.getTitle());
+                    }
+                    // Delete all topics for this chapter
+                    topicRepository.deleteByChapterId(chapter.getId());
+                    log.info("Deleted topics for chapter: {}", chapter.getName());
+                }
+                // Delete all chapters for this subject
+                chapterRepository.deleteBySubjectId(subject.getId());
+                log.info("Deleted chapters for subject: {}", subject.getName());
+            }
+            
+            // 2. Delete all subjects for this grade
+            subjectRepository.deleteByGradeId(id);
+            log.info("Deleted subjects for grade: {}", grade.getName());
+            
+            // 3. Finally delete the grade
+            gradeRepository.delete(grade);
+            result.put("hardDeleted", true);
+            log.info("Hard deleted grade: {}", grade.getName());
+        } else {
+            grade.setActive(false);
+            gradeRepository.save(grade);
+            result.put("softDeleted", true);
+            log.info("Soft deleted grade: {}", grade.getName());
+        }
+
+        return result;
+    }
+
+    public Map<String, Object> getGradeDeletionImpact(Long id) {
+        Grade grade = gradeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Grade not found with id: " + id));
+
+        Map<String, Object> impact = new HashMap<>();
+        List<String> warnings = new ArrayList<>();
+        
+        // Check if there are subjects associated with this grade
+        long subjectsCount = subjectRepository.countByGradeId(id);
+        
+        if (subjectsCount > 0) {
+            warnings.add(subjectsCount + " subject(s) are associated with this grade");
+            warnings.add("Grade cannot be deleted while subjects exist");
+            impact.put("canDelete", false);
+        } else {
+            impact.put("canDelete", true);
+        }
+        
+        impact.put("gradeId", id);
+        impact.put("gradeName", grade.getName());
+        impact.put("subjectsCount", subjectsCount);
+        impact.put("warnings", warnings);
+        impact.put("totalImpact", subjectsCount);
+        
+        return impact;
+    }
+
+    private GradeDto convertToGradeDto(Grade grade) {
+        GradeDto dto = new GradeDto();
+        dto.setId(grade.getId());
+        dto.setName(grade.getName());
+        dto.setDisplayName(grade.getDisplayName());
+        dto.setBoardId(grade.getBoardId());
+        dto.setActive(grade.getActive());
+        dto.setCreatedAt(grade.getCreatedAt());
+        dto.setUpdatedAt(grade.getUpdatedAt());
+        return dto;
     }
 }

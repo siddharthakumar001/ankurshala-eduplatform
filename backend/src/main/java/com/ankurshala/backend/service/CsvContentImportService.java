@@ -355,14 +355,15 @@ public class CsvContentImportService {
         String topicCode = record.get("topiccode");
         
         // Find or create Board
-        boardRepository.findByName(boardName)
+        Board board = boardRepository.findByName(boardName)
                 .orElseGet(() -> boardRepository.save(new Board(boardName)));
         
         // Find or create Grade
         gradeRepository.findByName(gradeName)
                 .orElseGet(() -> {
                     String displayName = "Grade " + gradeName;
-                    return gradeRepository.save(new Grade(gradeName, displayName));
+                    Grade grade = new Grade(gradeName, displayName, board.getId());
+                    return gradeRepository.save(grade);
                 });
         
         // Find or create Subject

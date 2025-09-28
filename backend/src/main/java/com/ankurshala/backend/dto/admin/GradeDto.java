@@ -9,6 +9,7 @@ public class GradeDto implements Serializable {
     private Long id;
     private String name;
     private String displayName;
+    private Long boardId;
     private Boolean active;
     
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
@@ -28,6 +29,9 @@ public class GradeDto implements Serializable {
 
     public String getDisplayName() { return displayName; }
     public void setDisplayName(String displayName) { this.displayName = displayName; }
+
+    public Long getBoardId() { return boardId; }
+    public void setBoardId(Long boardId) { this.boardId = boardId; }
 
     public Boolean getActive() { return active; }
     public void setActive(Boolean active) { this.active = active; }

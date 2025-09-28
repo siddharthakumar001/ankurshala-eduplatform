@@ -1,6 +1,9 @@
 package com.ankurshala.backend.controller;
 
 import com.ankurshala.backend.dto.content.*;
+import com.ankurshala.backend.dto.admin.GradeDto;
+import com.ankurshala.backend.dto.admin.CreateGradeRequest;
+import com.ankurshala.backend.dto.admin.UpdateGradeRequest;
 import com.ankurshala.backend.service.ContentManagementService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -93,6 +96,8 @@ public class AdminContentManagementController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) Long boardId,
+            @RequestParam(required = false) Long gradeId,
             @RequestParam(defaultValue = "name") String sortBy,
             @RequestParam(defaultValue = "asc") String sortDir) {
         
@@ -101,15 +106,38 @@ public class AdminContentManagementController {
             Sort.by(sortBy).ascending();
         
         Pageable pageable = PageRequest.of(page, size, sort);
-        Page<SubjectDto> subjects = contentManagementService.getSubjects(pageable, search, active);
+        Page<SubjectDto> subjects = contentManagementService.getSubjects(pageable, search, active, boardId, gradeId);
         
         return ResponseEntity.ok(subjects);
     }
 
     @PostMapping("/subjects")
-    public ResponseEntity<SubjectDto> createSubject(@Valid @RequestBody CreateSubjectRequest request) {
+    public ResponseEntity<SubjectDto> createSubject(@RequestBody CreateSubjectRequest request) {
+        log.info("=== CONTROLLER DEBUG ===");
+        log.info("Received createSubject request: {}", request);
+        log.info("Request gradeId: {}", request.getGradeId());
+        log.info("Request boardId: {}", request.getBoardId());
+        log.info("Request name: {}", request.getName());
+        log.info("Request active: {}", request.getActive());
+        log.info("=== END CONTROLLER DEBUG ===");
+        
         SubjectDto subject = contentManagementService.createSubject(request);
         return ResponseEntity.ok(subject);
+    }
+
+    @PostMapping("/subjects/debug")
+    public ResponseEntity<Map<String, Object>> debugSubjectCreation(@RequestBody Map<String, Object> rawRequest) {
+        log.info("=== RAW REQUEST DEBUG ===");
+        log.info("Raw request: {}", rawRequest);
+        log.info("Raw request type: {}", rawRequest.getClass());
+        log.info("Raw request keys: {}", rawRequest.keySet());
+        log.info("Raw request values: {}", rawRequest.values());
+        log.info("=== END RAW REQUEST DEBUG ===");
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("received", rawRequest);
+        response.put("message", "Debug endpoint working");
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/subjects/{id}")
@@ -343,15 +371,67 @@ public class AdminContentManagementController {
         return ResponseEntity.ok(result);
     }
 
-    // ============ HIERARCHICAL DATA FOR BROWSE PAGE ============
+    // ============ GRADES MANAGEMENT ============
+    
+    @GetMapping("/grades")
+    public ResponseEntity<Page<GradeDto>> getGrades(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size,
+            @RequestParam(defaultValue = "name") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) Long boardId) {
+        Page<GradeDto> grades = contentManagementService.getGrades(page, size, sortBy, sortDir, search, active, boardId);
+        return ResponseEntity.ok(grades);
+    }
+
+    @PostMapping("/grades")
+    public ResponseEntity<GradeDto> createGrade(@Valid @RequestBody CreateGradeRequest request) {
+        GradeDto grade = contentManagementService.createGrade(request);
+        return ResponseEntity.ok(grade);
+    }
+
+    @PutMapping("/grades/{id}")
+    public ResponseEntity<GradeDto> updateGrade(
+            @PathVariable Long id, 
+            @Valid @RequestBody UpdateGradeRequest request) {
+        GradeDto grade = contentManagementService.updateGrade(id, request);
+        return ResponseEntity.ok(grade);
+    }
+
+    @PatchMapping("/grades/{id}/active")
+    public ResponseEntity<GradeDto> updateGradeStatus(
+            @PathVariable Long id, 
+            @RequestBody Map<String, Boolean> statusUpdate) {
+        Boolean active = statusUpdate.get("active");
+        GradeDto grade = contentManagementService.updateGradeStatus(id, active);
+        return ResponseEntity.ok(grade);
+    }
+
+    @DeleteMapping("/grades/{id}")
+    public ResponseEntity<Map<String, Object>> deleteGrade(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "false") boolean force) {
+        Map<String, Object> result = contentManagementService.deleteGrade(id, force);
+        return ResponseEntity.ok(result);
+    }
+    
+    @GetMapping("/grades/{id}/deletion-impact")
+    public ResponseEntity<Map<String, Object>> getGradeDeletionImpact(@PathVariable Long id) {
+        Map<String, Object> impact = contentManagementService.getGradeDeletionImpact(id);
+        return ResponseEntity.ok(impact);
+    }
     
     @GetMapping("/grades-list")
-    public ResponseEntity<List<Map<String, Object>>> getGrades() {
+    public ResponseEntity<List<Map<String, Object>>> getGradesList() {
         List<Map<String, Object>> grades = List.of(
-            Map.of("id", 1, "name", "9", "displayName", "Grade 9", "active", true),
-            Map.of("id", 2, "name", "10", "displayName", "Grade 10", "active", true),
-            Map.of("id", 3, "name", "11", "displayName", "Grade 11", "active", true),
-            Map.of("id", 4, "name", "12", "displayName", "Grade 12", "active", true)
+            Map.of("id", 1, "name", "7", "displayName", "Grade 7", "active", true),
+            Map.of("id", 2, "name", "8", "displayName", "Grade 8", "active", true),
+            Map.of("id", 3, "name", "9", "displayName", "Grade 9", "active", true),
+            Map.of("id", 4, "name", "10", "displayName", "Grade 10", "active", true),
+            Map.of("id", 5, "name", "11", "displayName", "Grade 11", "active", true),
+            Map.of("id", 6, "name", "12", "displayName", "Grade 12", "active", true)
         );
         return ResponseEntity.ok(grades);
     }

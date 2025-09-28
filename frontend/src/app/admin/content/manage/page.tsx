@@ -52,18 +52,29 @@ interface Board {
   createdAt: string
 }
 
+interface Grade {
+  id: number
+  name: string
+  displayName: string
+  boardId: number
+  active: boolean
+  createdAt: string
+}
+
 interface Subject {
   id: number
   name: string
   active: boolean
   createdAt: string
   boardId: number 
+  gradeId: number
 }
 
 interface Chapter {
   id: number
   name: string
   subjectId: number
+  gradeId: number
   active: boolean
   createdAt: string
 }
@@ -80,6 +91,7 @@ interface Topic {
   subjectName?: string
   boardId: number
   subjectId: number
+  gradeId: number
   active: boolean
   createdAt: string
 }
@@ -89,6 +101,7 @@ interface TopicNote {
   title: string
   content: string
   topicId: number
+  gradeId: number
   active: boolean
   createdAt: string
 }
@@ -108,11 +121,31 @@ function ContentManagePageContent() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [boards, setBoards] = useState<Board[]>([])
+  const [grades, setGrades] = useState<Grade[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [chapters, setChapters] = useState<Chapter[]>([])
   const [topics, setTopics] = useState<Topic[]>([])
   const [topicNotes, setTopicNotes] = useState<TopicNote[]>([])
   const [loading, setLoading] = useState(true)
+  
+  // Hierarchical filter states
+  const [selectedBoardFilter, setSelectedBoardFilter] = useState<number | null>(null)
+  const [selectedGradeFilter, setSelectedGradeFilter] = useState<number | null>(null)
+  const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<number | null>(null)
+  const [selectedGradeBoardFilter, setSelectedGradeBoardFilter] = useState<number | null>(null)
+  const [selectedChapterFilter, setSelectedChapterFilter] = useState<number | null>(null)
+  const [selectedTopicFilter, setSelectedTopicFilter] = useState<number | null>(null)
+  
+  // Filtered data for dropdowns
+  const [filteredSubjects, setFilteredSubjects] = useState<Subject[]>([])
+  const [filteredChapters, setFilteredChapters] = useState<Chapter[]>([])
+  const [filteredTopics, setFilteredTopics] = useState<Topic[]>([])
+  
+  // Pagination state for grades
+  const [gradesCurrentPage, setGradesCurrentPage] = useState(0)
+  const [gradesPageSize, setGradesPageSize] = useState(5)
+  const [gradesTotalPages, setGradesTotalPages] = useState(0)
+  const [gradesTotalElements, setGradesTotalElements] = useState(0)
   
   // Pagination state for subjects
   const [subjectsCurrentPage, setSubjectsCurrentPage] = useState(0)
@@ -143,6 +176,7 @@ function ContentManagePageContent() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<any>(null)
   const [editingBoardId, setEditingBoardId] = useState<number | null>(null)
+  const [editingGradeId, setEditingGradeId] = useState<number | null>(null)
   const [editingSubjectId, setEditingSubjectId] = useState<number | null>(null)
   const [editingChapterId, setEditingChapterId] = useState<number | null>(null)
   const [editingTopicId, setEditingTopicId] = useState<number | null>(null)
@@ -154,6 +188,18 @@ function ContentManagePageContent() {
   const [boardToDelete, setBoardToDelete] = useState<any>(null)
   const [isDeletionConfirmed, setIsDeletionConfirmed] = useState(false)
 
+  // Pagination handlers for grades
+  const handleGradesPageChange = (newPage: number) => {
+    setGradesCurrentPage(newPage)
+    fetchGrades(newPage, gradesPageSize)
+  }
+
+  const handleGradesPageSizeChange = (newSize: number) => {
+    setGradesPageSize(newSize)
+    setGradesCurrentPage(0) // Reset to first page
+    fetchGrades(0, newSize)
+  }
+
   // Pagination handlers for subjects
   const handleSubjectsPageChange = (newPage: number) => {
     setSubjectsCurrentPage(newPage)
@@ -164,6 +210,11 @@ function ContentManagePageContent() {
     setSubjectsPageSize(newSize)
     setSubjectsCurrentPage(0) // Reset to first page
     fetchSubjects(0, newSize)
+  }
+
+  const handleGradesSearchAndFilter = () => {
+    setGradesCurrentPage(0) // Reset to first page when searching/filtering
+    fetchGrades(0, gradesPageSize)
   }
 
   const handleSubjectsSearchAndFilter = () => {
@@ -222,13 +273,30 @@ function ContentManagePageContent() {
     fetchTopicNotes(0, notesPageSize)
   }
 
+  // Reset filters when switching tabs
+  const resetFilters = () => {
+    setSelectedBoardFilter(null)
+    setSelectedGradeFilter(null)
+    setSelectedSubjectFilter(null)
+    setSelectedChapterFilter(null)
+    setSelectedTopicFilter(null)
+    setSelectedGradeBoardFilter(null)
+  }
+
   useEffect(() => {
     // Wait for authentication token to be available
     const checkAuthAndLoad = () => {
+      // Only run on client side
+      if (typeof window === 'undefined') return
+      
       const token = localStorage.getItem('accessToken')
       if (token) {
+        // Reset filters when switching tabs
+        resetFilters()
+        
         // Load all data needed for forms
         fetchBoards()
+        fetchGrades(0, 5) // Start with page 0, size 5
         fetchSubjects(0, 5) // Start with page 0, size 5
         fetchChapters(0, 5) // Start with page 0, size 5
         fetchTopics(0, 5) // Start with page 0, size 5
@@ -241,6 +309,219 @@ function ContentManagePageContent() {
     }
     checkAuthAndLoad()
   }, [activeTab])
+
+  // Load filter data when tab changes
+  useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return
+    
+    const token = localStorage.getItem('accessToken')
+    if (!token) return
+
+    // Load filter data based on active tab
+    switch (activeTab) {
+      case 'subjects':
+        fetchSubjectsForFilter()
+        break
+      case 'chapters':
+        fetchSubjectsForFilter()
+        break
+      case 'topics':
+        fetchSubjectsForFilter()
+        break
+      case 'notes':
+        fetchSubjectsForFilter()
+        break
+    }
+  }, [activeTab])
+
+  // Handle board filter change for subjects
+  useEffect(() => {
+    if (activeTab === 'subjects') {
+      // Reset grade filter when board changes
+      setSelectedGradeFilter(null)
+      fetchSubjects(0, subjectsPageSize)
+    }
+  }, [selectedBoardFilter, activeTab])
+
+  // Handle grade filter change for subjects
+  useEffect(() => {
+    if (activeTab === 'subjects') {
+      fetchSubjects(0, subjectsPageSize)
+    }
+  }, [selectedGradeFilter, activeTab])
+
+  // Handle board filter change for chapters
+  useEffect(() => {
+    if (activeTab === 'chapters') {
+      if (selectedBoardFilter) {
+        fetchSubjectsForFilter(selectedBoardFilter, selectedGradeFilter || undefined)
+        setSelectedSubjectFilter(null) // Reset subject filter
+      } else {
+        fetchSubjectsForFilter()
+        setSelectedSubjectFilter(null)
+      }
+      fetchChapters(0, chaptersPageSize)
+    }
+  }, [selectedBoardFilter, activeTab])
+
+  // Handle grade filter change for chapters
+  useEffect(() => {
+    if (activeTab === 'chapters') {
+      if (selectedBoardFilter) {
+        fetchSubjectsForFilter(selectedBoardFilter, selectedGradeFilter || undefined)
+        setSelectedSubjectFilter(null) // Reset subject filter
+      } else {
+        fetchSubjectsForFilter()
+        setSelectedSubjectFilter(null)
+      }
+      fetchChapters(0, chaptersPageSize)
+    }
+  }, [selectedGradeFilter, activeTab])
+
+  // Handle subject filter change for chapters
+  useEffect(() => {
+    if (activeTab === 'chapters') {
+      fetchChapters(0, chaptersPageSize)
+    }
+  }, [selectedSubjectFilter, activeTab])
+
+  // Handle board filter change for topics
+  useEffect(() => {
+    if (activeTab === 'topics') {
+      if (selectedBoardFilter) {
+        fetchSubjectsForFilter(selectedBoardFilter, selectedGradeFilter || undefined)
+        setSelectedSubjectFilter(null) // Reset subject filter
+        setSelectedChapterFilter(null) // Reset chapter filter
+      } else {
+        fetchSubjectsForFilter()
+        setSelectedSubjectFilter(null)
+        setSelectedChapterFilter(null)
+      }
+      fetchTopics(0, topicsPageSize)
+    }
+  }, [selectedBoardFilter, activeTab])
+
+  // Handle grade filter change for topics
+  useEffect(() => {
+    if (activeTab === 'topics') {
+      if (selectedBoardFilter) {
+        fetchSubjectsForFilter(selectedBoardFilter, selectedGradeFilter || undefined)
+        setSelectedSubjectFilter(null) // Reset subject filter
+        setSelectedChapterFilter(null) // Reset chapter filter
+      } else {
+        fetchSubjectsForFilter()
+        setSelectedSubjectFilter(null)
+        setSelectedChapterFilter(null)
+      }
+      fetchTopics(0, topicsPageSize)
+    }
+  }, [selectedGradeFilter, activeTab])
+
+  // Handle subject filter change for topics
+  useEffect(() => {
+    if (activeTab === 'topics') {
+      if (selectedSubjectFilter) {
+        fetchChaptersForFilter(selectedSubjectFilter)
+        setSelectedChapterFilter(null) // Reset chapter filter
+      } else {
+        setSelectedChapterFilter(null)
+      }
+      fetchTopics(0, topicsPageSize)
+    }
+  }, [selectedSubjectFilter, activeTab])
+
+  // Handle chapter filter change for topics
+  useEffect(() => {
+    if (activeTab === 'topics') {
+      fetchTopics(0, topicsPageSize)
+    }
+  }, [selectedChapterFilter, activeTab])
+
+  // Handle board filter change for notes
+  useEffect(() => {
+    if (activeTab === 'notes') {
+      if (selectedBoardFilter) {
+        fetchSubjectsForFilter(selectedBoardFilter, selectedGradeFilter || undefined)
+        setSelectedSubjectFilter(null) // Reset subject filter
+        setSelectedChapterFilter(null) // Reset chapter filter
+        setSelectedTopicFilter(null) // Reset topic filter
+      } else {
+        fetchSubjectsForFilter()
+        setSelectedSubjectFilter(null)
+        setSelectedChapterFilter(null)
+        setSelectedTopicFilter(null)
+      }
+      fetchTopicNotes(0, notesPageSize)
+    }
+  }, [selectedBoardFilter, activeTab])
+
+  // Handle grade filter change for notes
+  useEffect(() => {
+    if (activeTab === 'notes') {
+      if (selectedBoardFilter) {
+        fetchSubjectsForFilter(selectedBoardFilter, selectedGradeFilter || undefined)
+        setSelectedSubjectFilter(null) // Reset subject filter
+        setSelectedChapterFilter(null) // Reset chapter filter
+        setSelectedTopicFilter(null) // Reset topic filter
+      } else {
+        fetchSubjectsForFilter()
+        setSelectedSubjectFilter(null)
+        setSelectedChapterFilter(null)
+        setSelectedTopicFilter(null)
+      }
+      fetchTopicNotes(0, notesPageSize)
+    }
+  }, [selectedGradeFilter, activeTab])
+
+  // Handle subject filter change for notes
+  useEffect(() => {
+    if (activeTab === 'notes') {
+      if (selectedSubjectFilter) {
+        fetchChaptersForFilter(selectedSubjectFilter)
+        setSelectedChapterFilter(null) // Reset chapter filter
+        setSelectedTopicFilter(null) // Reset topic filter
+      } else {
+        setSelectedChapterFilter(null)
+        setSelectedTopicFilter(null)
+      }
+      fetchTopicNotes(0, notesPageSize)
+    }
+  }, [selectedSubjectFilter, activeTab])
+
+  // Handle chapter filter change for notes
+  useEffect(() => {
+    if (activeTab === 'notes') {
+      if (selectedChapterFilter) {
+        fetchTopicsForFilter(selectedChapterFilter)
+        setSelectedTopicFilter(null) // Reset topic filter
+      } else {
+        setSelectedTopicFilter(null)
+      }
+      fetchTopicNotes(0, notesPageSize)
+    }
+  }, [selectedChapterFilter, activeTab])
+
+  // Handle topic filter change for notes
+  useEffect(() => {
+    if (activeTab === 'notes') {
+      fetchTopicNotes(0, notesPageSize)
+    }
+  }, [selectedTopicFilter, activeTab])
+
+  // Handle board filter change for grades
+  useEffect(() => {
+    if (activeTab === 'grades') {
+      fetchGrades(0, gradesPageSize)
+    }
+  }, [selectedGradeBoardFilter, activeTab])
+
+  // Handle search and filter changes for grades pagination
+  useEffect(() => {
+    if (activeTab === 'grades') {
+      handleGradesSearchAndFilter()
+    }
+  }, [searchTerm, statusFilter])
 
   // Handle search and filter changes for subjects pagination
   useEffect(() => {
@@ -271,6 +552,9 @@ function ContentManagePageContent() {
   }, [searchTerm, statusFilter])
 
   const loadData = async () => {
+    // Only run on client side
+    if (typeof window === 'undefined') return
+    
     setLoading(true)
     try {
       const token = localStorage.getItem('accessToken')
@@ -283,6 +567,9 @@ function ContentManagePageContent() {
       switch (activeTab) {
         case 'boards':
           await fetchBoards()
+          break
+        case 'grades':
+          await fetchGrades(gradesCurrentPage, gradesPageSize)
           break
         case 'subjects':
           await fetchSubjects(subjectsCurrentPage, subjectsPageSize)
@@ -318,9 +605,155 @@ function ContentManagePageContent() {
     }
   }
 
+  const fetchGrades = async (page: number = gradesCurrentPage, size: number = gradesPageSize) => {
+    try {
+      const token = localStorage.getItem('accessToken')
+      if (!token) return
+
+      const params = new URLSearchParams({
+        page: page.toString(),
+        size: size.toString(),
+        sortBy: 'name',
+        sortDir: 'asc'
+      })
+      
+      // Add board filter if not 'all'
+      if (selectedGradeBoardFilter) {
+        params.append('boardId', selectedGradeBoardFilter.toString())
+      }
+      
+      // Add active filter if not 'all'
+      if (statusFilter !== 'all') {
+        params.append('active', statusFilter === 'active' ? 'true' : 'false')
+      }
+      
+      // Add search term if provided
+      if (searchTerm.trim()) {
+        params.append('search', searchTerm.trim())
+      }
+      
+      const url = `${process.env.NEXT_PUBLIC_API_URL}/admin/content/grades?${params}`
+      
+      const response = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setGrades(data.content || data)
+        
+        // Update pagination info
+        setGradesTotalPages(data.totalPages || 0)
+        setGradesTotalElements(data.totalElements || 0)
+        setGradesCurrentPage(data.number || 0)
+      } else {
+        console.error('Grades API error:', response.status, response.statusText)
+      }
+    } catch (error) {
+      console.error('Error fetching grades:', error)
+      toast.error('Failed to fetch grades')
+    }
+  }
+
+  // Fetch subjects for filter dropdowns
+  const fetchSubjectsForFilter = async (boardId?: number, gradeId?: number) => {
+    try {
+      const token = localStorage.getItem('accessToken')
+      if (!token) return
+
+      const params = new URLSearchParams({
+        size: '1000', // Get all subjects for filter
+        sortBy: 'name',
+        sortDir: 'asc'
+      })
+
+      if (boardId) {
+        params.append('boardId', boardId.toString())
+      }
+      
+      if (gradeId) {
+        params.append('gradeId', gradeId.toString())
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/subjects?${params}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const subjectsList = data.content || data
+        setFilteredSubjects(subjectsList)
+      }
+    } catch (error) {
+      console.error('Error fetching subjects for filter:', error)
+    }
+  }
+
+  // Fetch chapters for filter dropdowns
+  const fetchChaptersForFilter = async (subjectId?: number) => {
+    try {
+      const token = localStorage.getItem('accessToken')
+      if (!token) return
+
+      const params = new URLSearchParams({
+        size: '1000', // Get all chapters for filter
+        sortBy: 'name',
+        sortDir: 'asc'
+      })
+
+      if (subjectId) {
+        params.append('subjectId', subjectId.toString())
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/chapters?${params}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const chaptersList = data.content || data
+        setFilteredChapters(chaptersList)
+      }
+    } catch (error) {
+      console.error('Error fetching chapters for filter:', error)
+    }
+  }
+
+  // Fetch topics for filter dropdowns
+  const fetchTopicsForFilter = async (chapterId?: number) => {
+    try {
+      const token = localStorage.getItem('accessToken')
+      if (!token) return
+
+      const params = new URLSearchParams({
+        size: '1000', // Get all topics for filter
+        sortBy: 'title',
+        sortDir: 'asc'
+      })
+
+      if (chapterId) {
+        params.append('chapterId', chapterId.toString())
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/topics?${params}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const topicsList = data.content || data
+        setFilteredTopics(topicsList)
+      }
+    } catch (error) {
+      console.error('Error fetching topics for filter:', error)
+    }
+  }
+
   const fetchSubjects = async (page: number = subjectsCurrentPage, size: number = subjectsPageSize) => {
     const token = localStorage.getItem('accessToken')
     console.log('Fetching subjects with token:', token ? 'present' : 'missing')
+    console.log('Selected board filter:', selectedBoardFilter)
+    console.log('Selected grade filter:', selectedGradeFilter)
     
     // Build query parameters
     const params = new URLSearchParams({
@@ -339,8 +772,23 @@ function ContentManagePageContent() {
     if (searchTerm.trim()) {
       params.append('search', searchTerm.trim())
     }
+
+    // Add board filter if selected
+    if (selectedBoardFilter) {
+      params.append('boardId', selectedBoardFilter.toString())
+      console.log('Adding board filter:', selectedBoardFilter)
+    }
+
+    // Add grade filter if selected
+    if (selectedGradeFilter) {
+      params.append('gradeId', selectedGradeFilter.toString())
+      console.log('Adding grade filter:', selectedGradeFilter)
+    }
     
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/subjects?${params}`, {
+    const url = `${process.env.NEXT_PUBLIC_API_URL}/admin/content/subjects?${params}`
+    console.log('Subjects API URL:', url)
+    
+    const response = await fetch(url, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     console.log('Subjects API response status:', response.status)
@@ -361,6 +809,8 @@ function ContentManagePageContent() {
   const fetchChapters = async (page: number = chaptersCurrentPage, size: number = chaptersPageSize) => {
     const token = localStorage.getItem('accessToken')
     console.log('Fetching chapters with token:', token ? 'present' : 'missing')
+    console.log('Selected board filter:', selectedBoardFilter)
+    console.log('Selected subject filter:', selectedSubjectFilter)
     
     // Build query parameters
     const params = new URLSearchParams({
@@ -379,8 +829,29 @@ function ContentManagePageContent() {
     if (searchTerm.trim()) {
       params.append('search', searchTerm.trim())
     }
+
+    // Add board filter if selected
+    if (selectedBoardFilter) {
+      params.append('boardId', selectedBoardFilter.toString())
+      console.log('Adding board filter:', selectedBoardFilter)
+    }
+
+    // Add grade filter if selected
+    if (selectedGradeFilter) {
+      params.append('gradeId', selectedGradeFilter.toString())
+      console.log('Adding grade filter:', selectedGradeFilter)
+    }
+
+    // Add subject filter if selected
+    if (selectedSubjectFilter) {
+      params.append('subjectId', selectedSubjectFilter.toString())
+      console.log('Adding subject filter:', selectedSubjectFilter)
+    }
     
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/chapters?${params}`, {
+    const url = `${process.env.NEXT_PUBLIC_API_URL}/admin/content/chapters?${params}`
+    console.log('Chapters API URL:', url)
+    
+    const response = await fetch(url, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     console.log('Chapters API response status:', response.status)
@@ -413,6 +884,26 @@ function ContentManagePageContent() {
     
     if (searchTerm) {
       params.append('search', searchTerm)
+    }
+
+    // Add board filter if selected
+    if (selectedBoardFilter) {
+      params.append('boardId', selectedBoardFilter.toString())
+    }
+
+    // Add grade filter if selected
+    if (selectedGradeFilter) {
+      params.append('gradeId', selectedGradeFilter.toString())
+    }
+
+    // Add subject filter if selected
+    if (selectedSubjectFilter) {
+      params.append('subjectId', selectedSubjectFilter.toString())
+    }
+
+    // Add chapter filter if selected
+    if (selectedChapterFilter) {
+      params.append('chapterId', selectedChapterFilter.toString())
     }
     
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/topics?${params}`, {
@@ -452,6 +943,31 @@ function ContentManagePageContent() {
       // Add status filter if not 'all'
       if (statusFilter !== 'all') {
         params.append('active', statusFilter === 'active' ? 'true' : 'false')
+      }
+
+      // Add board filter if selected
+      if (selectedBoardFilter) {
+        params.append('boardId', selectedBoardFilter.toString())
+      }
+
+      // Add grade filter if selected
+      if (selectedGradeFilter) {
+        params.append('gradeId', selectedGradeFilter.toString())
+      }
+
+      // Add subject filter if selected
+      if (selectedSubjectFilter) {
+        params.append('subjectId', selectedSubjectFilter.toString())
+      }
+
+      // Add chapter filter if selected
+      if (selectedChapterFilter) {
+        params.append('chapterId', selectedChapterFilter.toString())
+      }
+
+      // Add topic filter if selected
+      if (selectedTopicFilter) {
+        params.append('topicId', selectedTopicFilter.toString())
       }
 
       const response = await fetch(`${baseUrl}/admin/content/notes?${params}`, {
@@ -500,11 +1016,61 @@ function ContentManagePageContent() {
       // Prepare data for API call
       let apiData = { ...formData }
       
+      // For grades, send the required fields
+      if (activeTab === 'grades') {
+        apiData = {
+          name: formData.name,
+          displayName: formData.displayName,
+          boardId: formData.boardId,
+          active: formData.active ?? true
+        }
+      }
+      
+      // For subjects, send the required fields including gradeId
+      if (activeTab === 'subjects') {
+        apiData = {
+          name: formData.name,
+          boardId: formData.boardId,
+          gradeId: formData.gradeId,
+          active: formData.active ?? true
+        }
+      }
+      
+      // For chapters, send the required fields including gradeId
+      if (activeTab === 'chapters') {
+        apiData = {
+          name: formData.name,
+          boardId: formData.boardId,
+          gradeId: formData.gradeId,
+          subjectId: formData.subjectId,
+          active: formData.active ?? true
+        }
+      }
+      
+      // For topics, send the required fields including gradeId
+      if (activeTab === 'topics') {
+        apiData = {
+          title: formData.title,
+          description: formData.description,
+          summary: formData.summary,
+          expectedTimeMins: formData.expectedTimeMins,
+          boardId: formData.boardId,
+          gradeId: formData.gradeId,
+          subjectId: formData.subjectId,
+          chapterId: formData.chapterId,
+          active: formData.active ?? true
+        }
+      }
+      
       // For notes, send only the required fields expected by the backend
       if (activeTab === 'notes') {
         apiData = {
           title: formData.title,
           content: formData.content,
+          boardId: formData.boardId,
+          gradeId: formData.gradeId,
+          subjectId: formData.subjectId,
+          chapterId: formData.chapterId,
           topicId: formData.topicId,
           attachments: formData.attachments || null,
           active: formData.active ?? true
@@ -583,6 +1149,41 @@ function ContentManagePageContent() {
     } catch (error) {
       console.error('Error updating board:', error)
       toast.error('Failed to update board')
+    }
+  }
+
+  const handleGradeEdit = async () => {
+    try {
+      const token = localStorage.getItem('accessToken')
+      if (!token) {
+        toast.error('Authentication required')
+        return
+      }
+
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+      const endpoint = `${baseUrl}/admin/content/grades/${editingGradeId}`
+      
+      const response = await fetch(endpoint, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(editFormData)
+      })
+
+      if (response.ok) {
+        toast.success('Grade updated successfully')
+        setEditingGradeId(null)
+        setEditFormData({})
+        loadData()
+      } else {
+        const error = await response.json()
+        toast.error(error.message || 'Failed to update grade')
+      }
+    } catch (error) {
+      console.error('Error updating grade:', error)
+      toast.error('Failed to update grade')
     }
   }
 
@@ -728,6 +1329,7 @@ function ContentManagePageContent() {
 
   const handleEditCancel = () => {
     setEditingBoardId(null)
+    setEditingGradeId(null)
     setEditingSubjectId(null)
     setEditingChapterId(null)
     setEditingTopicId(null)
@@ -735,7 +1337,7 @@ function ContentManagePageContent() {
     setEditFormData({})
   }
 
-  const handleDeleteClick = async (board: any) => {
+  const handleDeleteClick = async (item: any) => {
     try {
       const token = localStorage.getItem('accessToken')
       if (!token) {
@@ -744,14 +1346,34 @@ function ContentManagePageContent() {
       }
 
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
-      const response = await fetch(`${baseUrl}/admin/content/boards/${board.id}/deletion-impact`, {
+      let endpoint: string
+      
+      if (activeTab === 'boards') {
+        endpoint = `${baseUrl}/admin/content/boards/${item.id}/deletion-impact`
+      } else if (activeTab === 'grades') {
+        endpoint = `${baseUrl}/admin/content/grades/${item.id}/deletion-impact`
+      } else if (activeTab === 'subjects') {
+        endpoint = `${baseUrl}/admin/content/subjects/${item.id}/deletion-impact`
+      } else if (activeTab === 'chapters') {
+        endpoint = `${baseUrl}/admin/content/chapters/${item.id}/deletion-impact`
+      } else if (activeTab === 'topics') {
+        endpoint = `${baseUrl}/admin/content/topics/${item.id}/deletion-impact`
+      } else if (activeTab === 'notes') {
+        endpoint = `${baseUrl}/admin/content/notes/${item.id}/deletion-impact`
+      } else {
+        console.error('Invalid activeTab for deletion impact:', activeTab)
+        toast.error('Invalid tab selected for deletion')
+        return
+      }
+
+      const response = await fetch(endpoint, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
 
       if (response.ok) {
         const impact = await response.json()
         setDeletionImpact(impact)
-        setBoardToDelete(board)
+        setBoardToDelete(item)
         setShowDeleteConfirmation(true)
       } else {
         toast.error('Failed to get deletion impact information')
@@ -765,7 +1387,7 @@ function ContentManagePageContent() {
   const handleConfirmDelete = async () => {
     // Check if user has confirmed the deletion
     if (!isDeletionConfirmed) {
-      const itemType = activeTab === 'boards' ? 'board' : activeTab === 'subjects' ? 'subject' : activeTab === 'chapters' ? 'chapter' : activeTab === 'topics' ? 'topic' : 'note'
+      const itemType = activeTab === 'boards' ? 'board' : activeTab === 'grades' ? 'grade' : activeTab === 'subjects' ? 'subject' : activeTab === 'chapters' ? 'chapter' : activeTab === 'topics' ? 'topic' : 'note'
       toast.error(`Please confirm that you understand this action will permanently delete the ${itemType} and all associated content`)
       return
     }
@@ -782,6 +1404,8 @@ function ContentManagePageContent() {
       
       if (activeTab === 'boards') {
         endpoint = `${baseUrl}/admin/content/boards/${boardToDelete.id}?force=true`
+      } else if (activeTab === 'grades') {
+        endpoint = `${baseUrl}/admin/content/grades/${boardToDelete.id}?force=true`
       } else if (activeTab === 'subjects') {
         endpoint = `${baseUrl}/admin/content/subjects/${boardToDelete.id}?force=true`
       } else if (activeTab === 'chapters') {
@@ -803,7 +1427,7 @@ function ContentManagePageContent() {
       })
 
       if (response.ok) {
-        const itemType = activeTab === 'boards' ? 'Board' : activeTab === 'subjects' ? 'Subject' : activeTab === 'chapters' ? 'Chapter' : activeTab === 'topics' ? 'Topic' : 'Note'
+        const itemType = activeTab === 'boards' ? 'Board' : activeTab === 'grades' ? 'Grade' : activeTab === 'subjects' ? 'Subject' : activeTab === 'chapters' ? 'Chapter' : activeTab === 'topics' ? 'Topic' : 'Note'
         toast.success(`${itemType} and all associated content deleted successfully`)
         setShowDeleteConfirmation(false)
         setDeletionImpact(null)
@@ -812,12 +1436,12 @@ function ContentManagePageContent() {
         loadData()
       } else {
         const error = await response.json()
-        const itemType = activeTab === 'boards' ? 'board' : activeTab === 'subjects' ? 'subject' : activeTab === 'chapters' ? 'chapter' : activeTab === 'topics' ? 'topic' : 'note'
+        const itemType = activeTab === 'boards' ? 'board' : activeTab === 'grades' ? 'grade' : activeTab === 'subjects' ? 'subject' : activeTab === 'chapters' ? 'chapter' : activeTab === 'topics' ? 'topic' : 'note'
         toast.error(error.message || `Failed to delete ${itemType}`)
       }
     } catch (error) {
       console.error('Error deleting item:', error)
-      const itemType = activeTab === 'boards' ? 'board' : activeTab === 'subjects' ? 'subject' : activeTab === 'chapters' ? 'chapter' : activeTab === 'topics' ? 'topic' : 'note'
+      const itemType = activeTab === 'boards' ? 'board' : activeTab === 'grades' ? 'grade' : activeTab === 'subjects' ? 'subject' : activeTab === 'chapters' ? 'chapter' : activeTab === 'topics' ? 'topic' : 'note'
       toast.error(`Failed to delete ${itemType}`)
     }
   }
@@ -1047,6 +1671,7 @@ function ContentManagePageContent() {
   const getCurrentData = () => {
     switch (activeTab) {
       case 'boards': return boards
+      case 'grades': return grades
       case 'subjects': return subjects
       case 'chapters': return chapters
       case 'topics': return topics
@@ -1056,7 +1681,10 @@ function ContentManagePageContent() {
   }
 
   const filteredData = () => {
-    // For subjects, chapters, topics, and notes, use server-side pagination, so return the data as-is
+    // For subjects, chapters, topics, notes, and grades, use server-side pagination, so return the data as-is
+    if (activeTab === 'grades') {
+      return grades
+    }
     if (activeTab === 'subjects') {
       return subjects
     }
@@ -1119,6 +1747,277 @@ function ContentManagePageContent() {
                 </SelectContent>
               </Select>
             )}
+
+            {activeTab === 'grades' && (
+              <div className="flex items-center space-x-2">
+                <Select value={selectedGradeBoardFilter?.toString() || 'all'} onValueChange={(value) => setSelectedGradeBoardFilter(value === 'all' ? null : parseInt(value))}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by Board" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Boards</SelectItem>
+                    {boards.map((board) => (
+                      <SelectItem key={board.id} value={board.id.toString()}>
+                        {board.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={statusFilter} onValueChange={(value: 'all' | 'active' | 'inactive') => setStatusFilter(value)}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Grades</SelectItem>
+                    <SelectItem value="active">Active Only</SelectItem>
+                    <SelectItem value="inactive">Inactive Only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Hierarchical Filters */}
+            {activeTab === 'subjects' && (
+              <div className="flex items-center space-x-2">
+                <Select value={selectedBoardFilter?.toString() || 'all'} onValueChange={(value) => setSelectedBoardFilter(value === 'all' ? null : parseInt(value))}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by Board" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Boards</SelectItem>
+                    {boards.map((board) => (
+                      <SelectItem key={board.id} value={board.id.toString()}>
+                        {board.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedGradeFilter?.toString() || 'all'} onValueChange={(value) => setSelectedGradeFilter(value === 'all' ? null : parseInt(value))}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by Grade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Grades</SelectItem>
+                    {grades.map((grade) => (
+                      <SelectItem key={grade.id} value={grade.id.toString()}>
+                        {grade.displayName || grade.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={statusFilter} onValueChange={(value: 'all' | 'active' | 'inactive') => setStatusFilter(value)}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="active">Active Only</SelectItem>
+                    <SelectItem value="inactive">Inactive Only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {activeTab === 'chapters' && (
+              <div className="flex items-center space-x-2">
+                <Select value={selectedBoardFilter?.toString() || 'all'} onValueChange={(value) => setSelectedBoardFilter(value === 'all' ? null : parseInt(value))}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by Board" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Boards</SelectItem>
+                    {boards.map((board) => (
+                      <SelectItem key={board.id} value={board.id.toString()}>
+                        {board.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedGradeFilter?.toString() || 'all'} onValueChange={(value) => setSelectedGradeFilter(value === 'all' ? null : parseInt(value))}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by Grade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Grades</SelectItem>
+                    {grades.filter(grade => grade.active && (!selectedBoardFilter || grade.boardId === selectedBoardFilter)).map((grade) => (
+                      <SelectItem key={grade.id} value={grade.id.toString()}>
+                        {grade.displayName || grade.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedSubjectFilter?.toString() || 'all'} onValueChange={(value) => setSelectedSubjectFilter(value === 'all' ? null : parseInt(value))}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by Subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Subjects</SelectItem>
+                    {filteredSubjects.map((subject) => (
+                      <SelectItem key={subject.id} value={subject.id.toString()}>
+                        {subject.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={statusFilter} onValueChange={(value: 'all' | 'active' | 'inactive') => setStatusFilter(value)}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="active">Active Only</SelectItem>
+                    <SelectItem value="inactive">Inactive Only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {activeTab === 'topics' && (
+              <div className="flex items-center space-x-2">
+                <Select value={selectedBoardFilter?.toString() || 'all'} onValueChange={(value) => setSelectedBoardFilter(value === 'all' ? null : parseInt(value))}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by Board" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Boards</SelectItem>
+                    {boards.map((board) => (
+                      <SelectItem key={board.id} value={board.id.toString()}>
+                        {board.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedGradeFilter?.toString() || 'all'} onValueChange={(value) => setSelectedGradeFilter(value === 'all' ? null : parseInt(value))}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by Grade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Grades</SelectItem>
+                    {grades.filter(grade => grade.active && (!selectedBoardFilter || grade.boardId === selectedBoardFilter)).map((grade) => (
+                      <SelectItem key={grade.id} value={grade.id.toString()}>
+                        {grade.displayName || grade.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedSubjectFilter?.toString() || 'all'} onValueChange={(value) => setSelectedSubjectFilter(value === 'all' ? null : parseInt(value))}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by Subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Subjects</SelectItem>
+                    {filteredSubjects.map((subject) => (
+                      <SelectItem key={subject.id} value={subject.id.toString()}>
+                        {subject.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedChapterFilter?.toString() || 'all'} onValueChange={(value) => setSelectedChapterFilter(value === 'all' ? null : parseInt(value))}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by Chapter" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Chapters</SelectItem>
+                    {filteredChapters.map((chapter) => (
+                      <SelectItem key={chapter.id} value={chapter.id.toString()}>
+                        {chapter.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={statusFilter} onValueChange={(value: 'all' | 'active' | 'inactive') => setStatusFilter(value)}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="active">Active Only</SelectItem>
+                    <SelectItem value="inactive">Inactive Only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {activeTab === 'notes' && (
+              <div className="flex items-center space-x-2">
+                <Select value={selectedBoardFilter?.toString() || 'all'} onValueChange={(value) => setSelectedBoardFilter(value === 'all' ? null : parseInt(value))}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by Board" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Boards</SelectItem>
+                    {boards.map((board) => (
+                      <SelectItem key={board.id} value={board.id.toString()}>
+                        {board.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedGradeFilter?.toString() || 'all'} onValueChange={(value) => setSelectedGradeFilter(value === 'all' ? null : parseInt(value))}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by Grade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Grades</SelectItem>
+                    {grades.filter(grade => grade.active && (!selectedBoardFilter || grade.boardId === selectedBoardFilter)).map((grade) => (
+                      <SelectItem key={grade.id} value={grade.id.toString()}>
+                        {grade.displayName || grade.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedSubjectFilter?.toString() || 'all'} onValueChange={(value) => setSelectedSubjectFilter(value === 'all' ? null : parseInt(value))}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by Subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Subjects</SelectItem>
+                    {filteredSubjects.map((subject) => (
+                      <SelectItem key={subject.id} value={subject.id.toString()}>
+                        {subject.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedChapterFilter?.toString() || 'all'} onValueChange={(value) => setSelectedChapterFilter(value === 'all' ? null : parseInt(value))}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by Chapter" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Chapters</SelectItem>
+                    {filteredChapters.map((chapter) => (
+                      <SelectItem key={chapter.id} value={chapter.id.toString()}>
+                        {chapter.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedTopicFilter?.toString() || 'all'} onValueChange={(value) => setSelectedTopicFilter(value === 'all' ? null : parseInt(value))}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by Topic" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Topics</SelectItem>
+                    {filteredTopics.map((topic) => (
+                      <SelectItem key={topic.id} value={topic.id.toString()}>
+                        {topic.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={statusFilter} onValueChange={(value: 'all' | 'active' | 'inactive') => setStatusFilter(value)}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="active">Active Only</SelectItem>
+                    <SelectItem value="inactive">Inactive Only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
             console.log('Dialog open state changed:', open)
@@ -1175,6 +2074,7 @@ function ContentManagePageContent() {
                     <tr key={item.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
                       <td className="p-4">
                         {(activeTab === 'boards' && editingBoardId === item.id) || 
+                         (activeTab === 'grades' && editingGradeId === item.id) ||
                          (activeTab === 'subjects' && editingSubjectId === item.id) ||
                          (activeTab === 'chapters' && editingChapterId === item.id) ||
                          (activeTab === 'topics' && editingTopicId === item.id) ||
@@ -1215,6 +2115,25 @@ function ContentManagePageContent() {
                                     placeholder="Summary"
                                     className="w-full"
                                     rows={2}
+                                  />
+                                </div>
+                              </div>
+                            ) : activeTab === 'grades' ? (
+                              <div className="space-y-3">
+                                <div>
+                                  <Input
+                                    value={editFormData.name || ''}
+                                    onChange={(e) => setEditFormData({...editFormData, name: e.target.value})}
+                                    placeholder="Grade name"
+                                    className="w-full"
+                                  />
+                                </div>
+                                <div>
+                                  <Input
+                                    value={editFormData.displayName || ''}
+                                    onChange={(e) => setEditFormData({...editFormData, displayName: e.target.value})}
+                                    placeholder="Display name"
+                                    className="w-full"
                                   />
                                 </div>
                               </div>
@@ -1269,6 +2188,7 @@ function ContentManagePageContent() {
                       )}
                       <td className="p-4">
                         {(activeTab === 'boards' && editingBoardId === item.id) || 
+                         (activeTab === 'grades' && editingGradeId === item.id) ||
                          (activeTab === 'subjects' && editingSubjectId === item.id) ||
                          (activeTab === 'chapters' && editingChapterId === item.id) ||
                          (activeTab === 'topics' && editingTopicId === item.id) ||
@@ -1291,6 +2211,7 @@ function ContentManagePageContent() {
                       </td>
                       <td className="p-4">
                         {(activeTab === 'boards' && editingBoardId === item.id) || 
+                         (activeTab === 'grades' && editingGradeId === item.id) ||
                          (activeTab === 'subjects' && editingSubjectId === item.id) ||
                          (activeTab === 'chapters' && editingChapterId === item.id) ||
                          (activeTab === 'topics' && editingTopicId === item.id) ||
@@ -1306,6 +2227,7 @@ function ContentManagePageContent() {
                             <Button
                               size="sm"
                               onClick={activeTab === 'boards' ? handleBoardEdit : 
+                                       activeTab === 'grades' ? handleGradeEdit :
                                        activeTab === 'subjects' ? handleSubjectEdit : 
                                        activeTab === 'chapters' ? handleChapterEdit :
                                        activeTab === 'topics' ? handleTopicEdit :
@@ -1324,6 +2246,9 @@ function ContentManagePageContent() {
                                 if (activeTab === 'boards') {
                                   setEditingBoardId(item.id)
                                   setEditFormData({ name: (item as any).name, active: item.active })
+                                } else if (activeTab === 'grades') {
+                                  setEditingGradeId(item.id)
+                                  setEditFormData({ name: (item as any).name, displayName: (item as any).displayName, active: item.active })
                                 } else if (activeTab === 'subjects') {
                                   setEditingSubjectId(item.id)
                                   setEditFormData({ name: (item as any).name, active: item.active })
@@ -1374,6 +2299,8 @@ function ContentManagePageContent() {
                               title={`Delete ${activeTab.slice(0, -1)}`}
                               onClick={() => {
                                 if (activeTab === 'boards') {
+                                  handleDeleteClick(item)
+                                } else if (activeTab === 'grades') {
                                   handleDeleteClick(item)
                                 } else if (activeTab === 'subjects') {
                                   handleSubjectDeleteClick(item)
@@ -1715,12 +2642,35 @@ function ContentManagePageContent() {
             toast.error('Please select a board')
             return
           }
+          if (!formData.gradeId) {
+            console.log('Validation failed: grade selection is required', { formData })
+            toast.error('Please select a grade')
+            return
+          }
         }
         
         if (activeTab === 'boards' && !formData.name?.trim()) {
           console.log('Validation failed: board name is required', { formData })
           toast.error('Board name is required')
           return
+        }
+
+        if (activeTab === 'grades') {
+          if (!formData.name?.trim()) {
+            console.log('Validation failed: grade name is required', { formData })
+            toast.error('Grade name is required')
+            return
+          }
+          if (!formData.displayName?.trim()) {
+            console.log('Validation failed: grade display name is required', { formData })
+            toast.error('Grade display name is required')
+            return
+          }
+          if (!formData.boardId) {
+            console.log('Validation failed: board is required', { formData })
+            toast.error('Board is required')
+            return
+          }
         }
 
         if (activeTab === 'chapters') {
@@ -1732,6 +2682,11 @@ function ContentManagePageContent() {
           if (!formData.boardId) {
             console.log('Validation failed: board selection is required', { formData })
             toast.error('Please select a board')
+            return
+          }
+          if (!formData.gradeId) {
+            console.log('Validation failed: grade selection is required', { formData })
+            toast.error('Please select a grade')
             return
           }
           if (!formData.subjectId) {
@@ -1750,6 +2705,11 @@ function ContentManagePageContent() {
           if (!formData.boardId) {
             console.log('Validation failed: board selection is required', { formData })
             toast.error('Please select a board')
+            return
+          }
+          if (!formData.gradeId) {
+            console.log('Validation failed: grade selection is required', { formData })
+            toast.error('Please select a grade')
             return
           }
           if (!formData.subjectId) {
@@ -1783,6 +2743,11 @@ function ContentManagePageContent() {
           if (!formData.boardId) {
             console.log('Validation failed: board selection is required', { formData })
             toast.error('Please select a board')
+            return
+          }
+          if (!formData.gradeId) {
+            console.log('Validation failed: grade selection is required', { formData })
+            toast.error('Please select a grade')
             return
           }
           if (!formData.subjectId) {
@@ -1828,13 +2793,62 @@ function ContentManagePageContent() {
           </>
         )}
 
-        {activeTab === 'subjects' && (
+        {activeTab === 'grades' && (
           <>
             <div>
               <Label htmlFor="boardId">Board</Label>
               <Select
                 value={formData.boardId?.toString() || ''}
                 onValueChange={(value) => setFormData({...formData, boardId: parseInt(value)})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a board" />
+                </SelectTrigger>
+                <SelectContent>
+                  {boards.filter(board => board.active).map((board) => (
+                    <SelectItem key={board.id} value={board.id.toString()}>
+                      {board.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="name">Grade Name</Label>
+              <Input
+                id="name"
+                value={formData.name || ''}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                placeholder="Enter grade name (e.g., 7, 8, 9)"
+              />
+            </div>
+            <div>
+              <Label htmlFor="displayName">Display Name</Label>
+              <Input
+                id="displayName"
+                value={formData.displayName || ''}
+                onChange={(e) => setFormData({...formData, displayName: e.target.value})}
+                placeholder="Enter display name (e.g., Grade 7, Grade 8)"
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="active"
+                checked={formData.active ?? true}
+                onCheckedChange={(checked) => setFormData({...formData, active: checked})}
+              />
+              <Label htmlFor="active">Active</Label>
+            </div>
+          </>
+        )}
+
+        {activeTab === 'subjects' && (
+          <>
+            <div>
+              <Label htmlFor="boardId">Board</Label>
+              <Select
+                value={formData.boardId?.toString() || ''}
+                onValueChange={(value) => setFormData({...formData, boardId: parseInt(value), gradeId: null})}
               >
                 <SelectTrigger data-testid="board-select">
                   <SelectValue placeholder="Select board" />
@@ -1843,6 +2857,25 @@ function ContentManagePageContent() {
                   {boards.filter(board => board.active).map(board => (
                     <SelectItem key={board.id} value={board.id.toString()}>
                       {board.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="gradeId">Grade</Label>
+              <Select
+                value={formData.gradeId?.toString() || ''}
+                onValueChange={(value) => setFormData({...formData, gradeId: parseInt(value)})}
+                disabled={!formData.boardId}
+              >
+                <SelectTrigger data-testid="grade-select">
+                  <SelectValue placeholder="Select grade" />
+                </SelectTrigger>
+                <SelectContent>
+                  {grades.filter(grade => grade.active && grade.boardId === formData.boardId).map(grade => (
+                    <SelectItem key={grade.id} value={grade.id.toString()}>
+                      {grade.displayName}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1875,7 +2908,7 @@ function ContentManagePageContent() {
               <Select
                 value={formData.boardId?.toString() || ''}
                 onValueChange={(value) => {
-                  setFormData({...formData, boardId: parseInt(value), subjectId: null})
+                  setFormData({...formData, boardId: parseInt(value), gradeId: null, subjectId: null})
                 }}
               >
                 <SelectTrigger data-testid="board-select">
@@ -1891,17 +2924,36 @@ function ContentManagePageContent() {
               </Select>
             </div>
             <div>
+              <Label htmlFor="gradeId">Grade</Label>
+              <Select
+                value={formData.gradeId?.toString() || ''}
+                onValueChange={(value) => setFormData({...formData, gradeId: parseInt(value), subjectId: null})}
+                disabled={!formData.boardId}
+              >
+                <SelectTrigger data-testid="grade-select">
+                  <SelectValue placeholder="Select grade" />
+                </SelectTrigger>
+                <SelectContent>
+                  {grades.filter(grade => grade.active && grade.boardId === formData.boardId).map(grade => (
+                    <SelectItem key={grade.id} value={grade.id.toString()}>
+                      {grade.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label htmlFor="subjectId">Subject</Label>
               <Select
                 value={formData.subjectId?.toString() || ''}
                 onValueChange={(value) => setFormData({...formData, subjectId: parseInt(value)})}
-                disabled={!formData.boardId}
+                disabled={!formData.gradeId}
               >
                 <SelectTrigger data-testid="subject-select">
-                  <SelectValue placeholder={formData.boardId ? "Select subject" : "Select board first"} />
+                  <SelectValue placeholder={formData.gradeId ? "Select subject" : "Select grade first"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {subjects.filter(subject => subject.active && subject.boardId === formData.boardId).map(subject => (
+                  {subjects.filter(subject => subject.active && subject.boardId === formData.boardId && subject.gradeId === formData.gradeId).map(subject => (
                     <SelectItem key={subject.id} value={subject.id.toString()}>
                       {subject.name}
                     </SelectItem>
@@ -1936,7 +2988,7 @@ function ContentManagePageContent() {
               <Select
                 value={formData.boardId?.toString() || ''}
                 onValueChange={(value) => {
-                  setFormData({...formData, boardId: parseInt(value), subjectId: null, chapterId: null})
+                  setFormData({...formData, boardId: parseInt(value), gradeId: null, subjectId: null, chapterId: null})
                 }}
               >
                 <SelectTrigger data-testid="board-select">
@@ -1952,19 +3004,40 @@ function ContentManagePageContent() {
               </Select>
             </div>
             <div>
+              <Label htmlFor="gradeId">Grade</Label>
+              <Select
+                value={formData.gradeId?.toString() || ''}
+                onValueChange={(value) => {
+                  setFormData({...formData, gradeId: parseInt(value), subjectId: null, chapterId: null})
+                }}
+                disabled={!formData.boardId}
+              >
+                <SelectTrigger data-testid="grade-select">
+                  <SelectValue placeholder="Select grade" />
+                </SelectTrigger>
+                <SelectContent>
+                  {grades.filter(grade => grade.active && grade.boardId === formData.boardId).map(grade => (
+                    <SelectItem key={grade.id} value={grade.id.toString()}>
+                      {grade.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label htmlFor="subjectId">Subject</Label>
               <Select
                 value={formData.subjectId?.toString() || ''}
                 onValueChange={(value) => {
                   setFormData({...formData, subjectId: parseInt(value), chapterId: null})
                 }}
-                disabled={!formData.boardId}
+                disabled={!formData.gradeId}
               >
                 <SelectTrigger data-testid="subject-select">
-                  <SelectValue placeholder="Select subject" />
+                  <SelectValue placeholder={formData.gradeId ? "Select subject" : "Select grade first"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {subjects.filter(subject => subject.active && subject.boardId === formData.boardId).map(subject => (
+                  {subjects.filter(subject => subject.active && subject.boardId === formData.boardId && subject.gradeId === formData.gradeId).map(subject => (
                     <SelectItem key={subject.id} value={subject.id.toString()}>
                       {subject.name}
                     </SelectItem>
@@ -2046,7 +3119,7 @@ function ContentManagePageContent() {
               <Select
                 value={formData.boardId?.toString() || ''}
                 onValueChange={(value) => {
-                  setFormData({...formData, boardId: parseInt(value), subjectId: null, chapterId: null, topicId: null})
+                  setFormData({...formData, boardId: parseInt(value), gradeId: null, subjectId: null, chapterId: null, topicId: null})
                 }}
               >
                 <SelectTrigger data-testid="board-select">
@@ -2062,19 +3135,40 @@ function ContentManagePageContent() {
               </Select>
             </div>
             <div>
+              <Label htmlFor="gradeId">Grade</Label>
+              <Select
+                value={formData.gradeId?.toString() || ''}
+                onValueChange={(value) => {
+                  setFormData({...formData, gradeId: parseInt(value), subjectId: null, chapterId: null, topicId: null})
+                }}
+                disabled={!formData.boardId}
+              >
+                <SelectTrigger data-testid="grade-select">
+                  <SelectValue placeholder="Select grade" />
+                </SelectTrigger>
+                <SelectContent>
+                  {grades.filter(grade => grade.active && grade.boardId === formData.boardId).map(grade => (
+                    <SelectItem key={grade.id} value={grade.id.toString()}>
+                      {grade.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label htmlFor="subjectId">Subject</Label>
               <Select
                 value={formData.subjectId?.toString() || ''}
                 onValueChange={(value) => {
                   setFormData({...formData, subjectId: parseInt(value), chapterId: null, topicId: null})
                 }}
-                disabled={!formData.boardId}
+                disabled={!formData.gradeId}
               >
                 <SelectTrigger data-testid="subject-select">
-                  <SelectValue placeholder={formData.boardId ? "Select subject" : "Select board first"} />
+                  <SelectValue placeholder={formData.gradeId ? "Select subject" : "Select grade first"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {subjects.filter(subject => subject.active && subject.boardId === formData.boardId).map(subject => (
+                  {subjects.filter(subject => subject.active && subject.boardId === formData.boardId && subject.gradeId === formData.gradeId).map(subject => (
                     <SelectItem key={subject.id} value={subject.id.toString()}>
                       {subject.name}
                     </SelectItem>
@@ -2197,10 +3291,14 @@ function ContentManagePageContent() {
         </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="boards" className="flex items-center gap-2">
             <BookOpen className="h-4 w-4" />
             Boards
+          </TabsTrigger>
+          <TabsTrigger value="grades" className="flex items-center gap-2">
+            <GraduationCap className="h-4 w-4" />
+            Grades
           </TabsTrigger>
           <TabsTrigger value="subjects" className="flex items-center gap-2">
             <GraduationCap className="h-4 w-4" />
@@ -2221,6 +3319,10 @@ function ContentManagePageContent() {
         </TabsList>
 
         <TabsContent value="boards">
+          {renderTable()}
+        </TabsContent>
+
+        <TabsContent value="grades">
           {renderTable()}
         </TabsContent>
 
@@ -2265,7 +3367,7 @@ function ContentManagePageContent() {
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Confirm {activeTab === 'boards' ? 'Board' : activeTab === 'subjects' ? 'Subject' : 'Chapter'} Deletion
+                Confirm {activeTab === 'boards' ? 'Board' : activeTab === 'grades' ? 'Grade' : activeTab === 'subjects' ? 'Subject' : 'Chapter'} Deletion
               </h3>
               <Button variant="outline" onClick={handleCancelDelete}>
                 <XCircle className="h-4 w-4" />

@@ -10,7 +10,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "subjects", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"board_id", "name"})
+    @UniqueConstraint(columnNames = {"grade_id", "name"})
 })
 public class Subject {
     @Id
@@ -25,6 +25,9 @@ public class Subject {
 
     @Column(name = "board_id", nullable = false)
     private Long boardId;
+
+    @Column(name = "grade_id", nullable = false)
+    private Long gradeId;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -55,6 +58,9 @@ public class Subject {
 
     public Long getBoardId() { return boardId; }
     public void setBoardId(Long boardId) { this.boardId = boardId; }
+
+    public Long getGradeId() { return gradeId; }
+    public void setGradeId(Long gradeId) { this.gradeId = gradeId; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

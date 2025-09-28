@@ -2,8 +2,10 @@ package com.ankurshala.backend.service;
 
 import com.ankurshala.backend.dto.admin.CreateFeeWaiverRequest;
 import com.ankurshala.backend.dto.admin.FeeWaiverDto;
+import com.ankurshala.backend.entity.Booking;
 import com.ankurshala.backend.entity.FeeWaiver;
 import com.ankurshala.backend.entity.User;
+import com.ankurshala.backend.repository.BookingRepository;
 import com.ankurshala.backend.repository.FeeWaiverRepository;
 import com.ankurshala.backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +28,9 @@ public class AdminFeeWaiverService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private BookingRepository bookingRepository;
+
     public Page<FeeWaiverDto> getFeeWaivers(Long userId, Long bookingId, Pageable pageable) {
         Page<FeeWaiver> waivers = feeWaiverRepository.findFeeWaiversWithFilters(userId, bookingId, pageable);
         return waivers.map(this::convertToDto);
@@ -36,11 +41,17 @@ public class AdminFeeWaiverService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         FeeWaiver waiver = new FeeWaiver(
-                request.getBookingId(),
                 user,
                 request.getReason(),
                 request.getAmount()
         );
+        
+        // Set the booking if provided
+        if (request.getBookingId() != null) {
+            Booking booking = bookingRepository.findById(request.getBookingId())
+                    .orElseThrow(() -> new RuntimeException("Booking not found"));
+            waiver.setBooking(booking);
+        }
 
         FeeWaiver savedWaiver = feeWaiverRepository.save(waiver);
         return convertToDto(savedWaiver);
@@ -72,7 +83,7 @@ public class AdminFeeWaiverService {
     private FeeWaiverDto convertToDto(FeeWaiver waiver) {
         return new FeeWaiverDto(
                 waiver.getId(),
-                waiver.getBookingId(),
+                waiver.getBooking() != null ? waiver.getBooking().getId() : null,
                 waiver.getUser().getId(),
                 waiver.getUser().getEmail(),
                 waiver.getReason(),

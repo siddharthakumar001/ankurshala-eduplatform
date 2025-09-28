@@ -16,7 +16,7 @@ public interface FeeWaiverRepository extends JpaRepository<FeeWaiver, Long> {
     
     @Query("SELECT fw FROM FeeWaiver fw WHERE " +
            "(:userId IS NULL OR fw.user.id = :userId) AND " +
-           "(:bookingId IS NULL OR fw.bookingId = :bookingId)")
+           "(:bookingId IS NULL OR fw.booking.id = :bookingId)")
     Page<FeeWaiver> findFeeWaiversWithFilters(
             @Param("userId") Long userId,
             @Param("bookingId") Long bookingId,

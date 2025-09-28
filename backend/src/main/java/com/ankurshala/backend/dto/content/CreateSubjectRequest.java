@@ -1,8 +1,5 @@
 package com.ankurshala.backend.dto.content;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -12,12 +9,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CreateSubjectRequest {
     
-    @NotBlank(message = "Subject name is required")
-    @Size(min = 2, max = 100, message = "Subject name must be between 2 and 100 characters")
     private String name;
     
-    @NotNull(message = "Board ID is required")
     private Long boardId;
+    
+    private Long gradeId;
     
     private Boolean active = true;
 }
