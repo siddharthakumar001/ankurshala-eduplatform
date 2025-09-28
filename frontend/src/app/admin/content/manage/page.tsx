@@ -32,6 +32,19 @@ import {
   AlertCircle
 } from 'lucide-react'
 
+// Spring Data Page interface
+interface Page<T> {
+  content: T[]
+  totalElements: number
+  totalPages: number
+  size: number
+  number: number
+  first: boolean
+  last: boolean
+  numberOfElements: number
+  empty: boolean
+}
+
 interface Board {
   id: number
   name: string
