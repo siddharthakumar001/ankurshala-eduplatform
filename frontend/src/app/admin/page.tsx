@@ -16,23 +16,17 @@ import {
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 
-// Dynamically import chart components to prevent SSR issues and improve performance
-const DynamicLineChart = dynamic(() => import('recharts').then(mod => ({ default: mod.LineChart })), { 
-  ssr: false,
-  loading: () => <div className="h-64 flex items-center justify-center text-gray-500">Loading chart...</div>
-})
-const DynamicResponsiveContainer = dynamic(() => import('recharts').then(mod => ({ default: mod.ResponsiveContainer })), { 
-  ssr: false,
-  loading: () => <div className="h-64 flex items-center justify-center text-gray-500">Loading chart...</div>
-})
-
-// Import other chart components dynamically
-const DynamicXAxis = dynamic(() => import('recharts').then(mod => ({ default: mod.XAxis })), { ssr: false })
-const DynamicYAxis = dynamic(() => import('recharts').then(mod => ({ default: mod.YAxis })), { ssr: false })
-const DynamicCartesianGrid = dynamic(() => import('recharts').then(mod => ({ default: mod.CartesianGrid })), { ssr: false })
-const DynamicTooltip = dynamic(() => import('recharts').then(mod => ({ default: mod.Tooltip })), { ssr: false })
-const DynamicLegend = dynamic(() => import('recharts').then(mod => ({ default: mod.Legend })), { ssr: false })
-const DynamicLine = dynamic(() => import('recharts').then(mod => ({ default: mod.Line })), { ssr: false })
+// Import recharts components directly - will handle SSR in a different way
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend, 
+  ResponsiveContainer 
+} from 'recharts'
 
 interface DashboardMetrics {
   // User counts
@@ -362,13 +356,13 @@ export default function AdminDashboard() {
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Registration Trends (Last 30 Days)</h3>
           <div className="h-64">
             {series.length > 0 && mounted ? (
-              <DynamicResponsiveContainer width="100%" height="100%">
-                <DynamicLineChart data={series}>
-                  <DynamicCartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                  <DynamicXAxis 
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={series}>
+                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                  <XAxis 
                     dataKey="date" 
                     tick={{ fontSize: 12 }}
-                    tickFormatter={(value) => {
+                    tickFormatter={(value: any) => {
                       try {
                         const date = new Date(value)
                         return `${date.getMonth() + 1}/${date.getDate()}`
@@ -377,9 +371,9 @@ export default function AdminDashboard() {
                       }
                     }}
                   />
-                  <DynamicYAxis tick={{ fontSize: 12 }} />
-                  <DynamicTooltip 
-                    labelFormatter={(value) => {
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip 
+                    labelFormatter={(value: any) => {
                       try {
                         const date = new Date(value)
                         return date.toLocaleDateString()
@@ -387,15 +381,15 @@ export default function AdminDashboard() {
                         return value
                       }
                     }}
-                    formatter={(value, name) => [value, name === 'students' ? 'Students' : 'Teachers']}
+                    formatter={(value: any, name: any) => [value, name === 'students' ? 'Students' : 'Teachers']}
                     contentStyle={{
                       backgroundColor: 'var(--background)',
                       border: '1px solid var(--border)',
                       borderRadius: '6px'
                     }}
                   />
-                  <DynamicLegend />
-                  <DynamicLine 
+                  <Legend />
+                  <Line 
                     type="monotone" 
                     dataKey="students" 
                     stroke="#3b82f6" 
@@ -403,7 +397,7 @@ export default function AdminDashboard() {
                     name="Students"
                     dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
                   />
-                  <DynamicLine 
+                  <Line 
                     type="monotone" 
                     dataKey="teachers" 
                     stroke="#10b981" 
@@ -411,8 +405,8 @@ export default function AdminDashboard() {
                     name="Teachers"
                     dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
                   />
-                </DynamicLineChart>
-              </DynamicResponsiveContainer>
+                </LineChart>
+              </ResponsiveContainer>
             ) : (
               <div className="h-full flex items-center justify-center">
                 <p className="text-gray-500 dark:text-gray-400">

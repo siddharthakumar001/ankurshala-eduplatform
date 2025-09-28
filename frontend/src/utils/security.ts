@@ -344,11 +344,11 @@ class SecurityUtils {
       const windowStart = now - windowMs
       
       // Clean up old entries
-      for (const [key, value] of requests.entries()) {
+      Array.from(requests.entries()).forEach(([key, value]) => {
         if (value.resetTime < windowStart) {
           requests.delete(key)
         }
-      }
+      })
       
       const current = requests.get(identifier)
       

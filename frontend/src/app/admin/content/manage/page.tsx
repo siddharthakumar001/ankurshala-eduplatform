@@ -778,7 +778,8 @@ function ContentManagePageContent() {
       }
 
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
-      let endpoint
+      let endpoint: string
+      
       if (activeTab === 'boards') {
         endpoint = `${baseUrl}/admin/content/boards/${boardToDelete.id}?force=true`
       } else if (activeTab === 'subjects') {
@@ -789,6 +790,11 @@ function ContentManagePageContent() {
         endpoint = `${baseUrl}/admin/content/topics/${boardToDelete.id}?force=true`
       } else if (activeTab === 'notes') {
         endpoint = `${baseUrl}/admin/content/notes/${boardToDelete.id}`
+      } else {
+        // This should never happen, but we need to handle it for TypeScript
+        console.error('Invalid activeTab for deletion:', activeTab)
+        toast.error('Invalid tab selected for deletion')
+        return
       }
       
       const response = await fetch(endpoint, {
