@@ -99,7 +99,7 @@ export default function LoginPage() {
     setError('')
 
     try {
-      const response = await api.post<LoginResponse>('/auth/login', {
+      const response = await api.post<LoginResponse>('/auth/signin', {
         email: formData.email,
         password: formData.password
       }, { requireAuth: false })
