@@ -94,8 +94,16 @@ services:
     restart: unless-stopped
 
   # -------- Backend (Spring) --------
+  # --- Backend (Spring) ---
   backend:
-    image: ankurshala/backend:prod
+    # Build locally from your repo (so changes are picked up)
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        # add any build args your Dockerfile expects
+        SPRING_PROFILES_ACTIVE: production
+    image: ankurshala/backend:${BACKEND_TAG:-prod}
     container_name: ankurshala_backend_prod
     depends_on:
       postgres:
@@ -127,32 +135,24 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       SMTP_FROM: ${SMTP_FROM}
       KAFKA_BROKERS: kafka:29092
-      # Safe defaults; use script --seed-once to seed when you want
       DEMO_SEED_ON_START: ${DEMO_SEED_ON_START:-false}
       DEMO_ENV: ${DEMO_ENV:-prod}
-      DEMO_FORCE: ${DEMO_FORCE:-false}
+      DEMO_FORCE: ${DEMO_FORCE:-true}
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-        reservations:
-          memory: 512M
     networks: [ankurshala-network]
     restart: unless-stopped
 
-  # -------- Frontend (Next.js) --------
+  # --- Frontend (Next.js) ---
   frontend:
-    # Build from your local code (instead of only using a static image)
+    # Build locally from your repo (so changes are picked up)
     build:
       context: ./frontend
-      dockerfile: Dockerfile          # or Dockerfile.local if you prefer
-      # optional: args you need during build
+      dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
         NODE_ENV: production
@@ -164,7 +164,7 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}   # e.g. https://ankurshala.com/api
       NODE_ENV: production
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3000/ || exit 1"]
@@ -172,12 +172,6 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 256M
     networks: [ankurshala-network]
     restart: unless-stopped
 
