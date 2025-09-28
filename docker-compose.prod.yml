@@ -148,7 +148,15 @@ services:
 
   # -------- Frontend (Next.js) --------
   frontend:
-    image: ankurshala/frontend:prod
+    # Build from your local code (instead of only using a static image)
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile          # or Dockerfile.local if you prefer
+      # optional: args you need during build
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NODE_ENV: production
+    image: ankurshala/frontend:${FRONTEND_TAG:-prod}
     container_name: ankurshala_frontend_prod
     depends_on:
       backend:
@@ -156,7 +164,7 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: https://ankurshala.com/api
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
       NODE_ENV: production
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3000/ || exit 1"]
