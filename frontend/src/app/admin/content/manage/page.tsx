@@ -44,6 +44,7 @@ interface Subject {
   name: string
   active: boolean
   createdAt: string
+  boardId: number 
 }
 
 interface Chapter {
@@ -293,8 +294,11 @@ function ContentManagePageContent() {
 
   const fetchBoards = async () => {
     try {
-      const response = await api.get<Board[]>('/admin/content/boards?size=100')
-      setBoards(response.data.content || response.data)
+      // The API may return either a Page<Board> or a plain Board[]
+      const response = await api.get<Page<Board> | Board[]>('/admin/content/boards?size=100')
+      const data = response.data as any
+      const list: Board[] = Array.isArray(data) ? data : (data?.content ?? [])
+      setBoards(list)
     } catch (error) {
       console.error('Error fetching boards:', error)
       toast.error('Failed to fetch boards')
