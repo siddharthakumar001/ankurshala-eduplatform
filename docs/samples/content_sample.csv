@@ -1,11 +1,11 @@
-Board,Grade,Subject,Chapter,TopicTitle,Hours,Description,Summary,TopicCode,Prerequisites,RelatedTopics,Active
-CBSE,9,Physics,Motion,Introduction to Motion,1.5,Basic concepts of motion and rest,Understanding motion and its types including linear and rotational motion,PHY901,Basic Mathematics,Force and Energy,true
-CBSE,9,Physics,Motion,Types of Motion,2.0,Different types of motion in detail,Linear rotational and oscillatory motion with examples,PHY902,Introduction to Motion,Velocity and Acceleration,true
-CBSE,9,Physics,Force and Laws of Motion,Newton's First Law,1.0,Law of inertia and its applications,Understanding inertia and its role in everyday life,PHY903,Introduction to Motion,Newton's Second Law,true
-CBSE,9,Chemistry,Atoms and Molecules,Atomic Structure,1.0,Structure of atoms and their components,Protons neutrons and electrons and their arrangement,CHEM901,Basic Chemistry,Periodic Table,true
-CBSE,9,Chemistry,Atoms and Molecules,Molecules and Compounds,1.5,Formation of molecules from atoms,How atoms combine to form molecules and compounds,CHEM902,Atomic Structure,Chemical Bonding,true
-CBSE,10,Mathematics,Algebra,Quadratic Equations,2.5,Solving quadratic equations using various methods,Methods to solve quadratic equations including factorization and formula,MATH1001,Linear Equations,Polynomials,true
-CBSE,10,Mathematics,Algebra,Polynomials,2.0,Understanding polynomial functions and operations,Polynomial functions their properties and operations,MATH1002,Basic Algebra,Quadratic Equations,true
-CBSE,10,Biology,Life Processes,Respiration,1.5,Process of respiration in living organisms,Understanding aerobic and anaerobic respiration,BIO1001,Basic Biology,Circulation,true
-CBSE,11,Physics,Thermodynamics,Laws of Thermodynamics,3.0,Fundamental laws governing heat and energy,First and second laws of thermodynamics with applications,PHY1101,Heat and Temperature,Kinetic Theory,true
-CBSE,12,Chemistry,Electrochemistry,Electrochemical Cells,2.5,Working principle of electrochemical cells,Galvanic and electrolytic cells and their applications,CHEM1201,Chemical Bonding,Redox Reactions,true
+Board,Grade,Subject,Chapter,TopicTitle,Hours,Description,Summary,Prerequisites,RelatedTopics,Active
+CBSE,9,Physics,Motion,Introduction to Motion,1.5,Basic concepts of motion and rest,Understanding motion and its types including linear and rotational motion,Basic Mathematics,Force and Energy,true
+CBSE,9,Physics,Motion,Types of Motion,2.0,Different types of motion in detail,Linear rotational and oscillatory motion with examples,Introduction to Motion,Velocity and Acceleration,true
+CBSE,9,Physics,Force and Laws of Motion,Newton's First Law,1.0,Law of inertia and its applications,Understanding inertia and its role in everyday life,Introduction to Motion,Newton's Second Law,true
+CBSE,9,Chemistry,Atoms and Molecules,Atomic Structure,1.0,Structure of atoms and their components,Protons neutrons and electrons and their arrangement,Basic Chemistry,Periodic Table,true
+CBSE,9,Chemistry,Atoms and Molecules,Molecules and Compounds,1.5,Formation of molecules from atoms,How atoms combine to form molecules and compounds,Atomic Structure,Chemical Bonding,true
+CBSE,10,Mathematics,Algebra,Quadratic Equations,2.5,Solving quadratic equations using various methods,Methods to solve quadratic equations including factorization and formula,Linear Equations,Polynomials,true
+CBSE,10,Mathematics,Algebra,Polynomials,2.0,Understanding polynomial functions and operations,Polynomial functions their properties and operations,Basic Algebra,Quadratic Equations,true
+CBSE,10,Biology,Life Processes,Respiration,1.5,Process of respiration in living organisms,Understanding aerobic and anaerobic respiration,Basic Biology,Circulation,true
+CBSE,11,Physics,Thermodynamics,Laws of Thermodynamics,3.0,Fundamental laws governing heat and energy,First and second laws of thermodynamics with applications,Heat and Temperature,Kinetic Theory,true
+CBSE,12,Chemistry,Electrochemistry,Electrochemical Cells,2.5,Working principle of electrochemical cells,Galvanic and electrolytic cells and their applications,Chemical Bonding,Redox Reactions,true

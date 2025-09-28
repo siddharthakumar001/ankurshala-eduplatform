@@ -7,7 +7,6 @@ import com.ankurshala.backend.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -19,6 +18,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -32,6 +32,10 @@ public class ContentManagementService {
     private final ChapterRepository chapterRepository;
     private final TopicRepository topicRepository;
     private final TopicNoteRepository topicNoteRepository;
+    private final TopicLinkRepository topicLinkRepository;
+    private final PricingRuleRepository pricingRuleRepository;
+    private final StudentProfileRepository studentProfileRepository;
+    private final CourseContentRepository courseContentRepository;
 
     // ============ BOARDS SERVICE ============
 
@@ -95,6 +99,64 @@ public class ContentManagementService {
         return convertToBoardDto(savedBoard);
     }
 
+    public Map<String, Object> getBoardDeletionImpact(Long id) {
+        Board board = boardRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Board not found with id: " + id));
+
+        Map<String, Object> impact = new HashMap<>();
+        impact.put("boardName", board.getName());
+        impact.put("boardId", board.getId());
+        
+        // Count pricing rules associated with this board
+        long pricingRulesCount = pricingRuleRepository.countByBoardId(id);
+        impact.put("pricingRulesCount", pricingRulesCount);
+        
+        // Count student profiles with this educational board
+        long studentProfilesCount = 0;
+        try {
+            EducationalBoard educationalBoard = EducationalBoard.valueOf(board.getName().toUpperCase().replace(" ", "_"));
+            studentProfilesCount = studentProfileRepository.countByEducationalBoard(educationalBoard);
+        } catch (IllegalArgumentException e) {
+            // Board name doesn't match any enum value, so no student profiles are affected
+            log.debug("Board name '{}' doesn't match EducationalBoard enum values", board.getName());
+        }
+        impact.put("studentProfilesCount", studentProfilesCount);
+        
+        // Count course content with this educational board
+        long courseContentCount = 0;
+        try {
+            EducationalBoard educationalBoard = EducationalBoard.valueOf(board.getName().toUpperCase().replace(" ", "_"));
+            courseContentCount = courseContentRepository.countByEducationalBoard(educationalBoard);
+        } catch (IllegalArgumentException e) {
+            // Board name doesn't match any enum value, so no course content is affected
+            log.debug("Board name '{}' doesn't match EducationalBoard enum values for course content", board.getName());
+        }
+        impact.put("courseContentCount", courseContentCount);
+        
+        // Calculate total impact
+        long totalImpact = pricingRulesCount + studentProfilesCount + courseContentCount;
+        impact.put("totalImpact", totalImpact);
+        
+        // Determine if deletion is safe
+        boolean canDelete = totalImpact == 0;
+        impact.put("canDelete", canDelete);
+        
+        // Generate warning message
+        List<String> warnings = new ArrayList<>();
+        if (pricingRulesCount > 0) {
+            warnings.add(pricingRulesCount + " pricing rule(s) will be affected");
+        }
+        if (studentProfilesCount > 0) {
+            warnings.add(studentProfilesCount + " student profile(s) will be affected");
+        }
+        if (courseContentCount > 0) {
+            warnings.add(courseContentCount + " course content record(s) will be affected");
+        }
+        impact.put("warnings", warnings);
+        
+        return impact;
+    }
+
     public Map<String, Object> deleteBoard(Long id, boolean force) {
         Board board = boardRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Board not found with id: " + id));
@@ -102,9 +164,32 @@ public class ContentManagementService {
         Map<String, Object> result = new HashMap<>();
         
         if (force) {
+            // Hard delete - remove all associated data
+            // Delete pricing rules first
+            pricingRuleRepository.deleteByBoardId(id);
+            
+            // Update student profiles to remove board reference
+            try {
+                EducationalBoard educationalBoard = EducationalBoard.valueOf(board.getName().toUpperCase().replace(" ", "_"));
+                studentProfileRepository.updateEducationalBoardToNull(educationalBoard);
+            } catch (IllegalArgumentException e) {
+                // Board name doesn't match any enum value, so no student profiles need updating
+                log.debug("Board name '{}' doesn't match EducationalBoard enum values, skipping student profile updates", board.getName());
+            }
+            
+            // Update course content to remove board reference
+            try {
+                EducationalBoard educationalBoard = EducationalBoard.valueOf(board.getName().toUpperCase().replace(" ", "_"));
+                courseContentRepository.updateEducationalBoardToNull(educationalBoard);
+            } catch (IllegalArgumentException e) {
+                // Board name doesn't match any enum value, so no course content needs updating
+                log.debug("Board name '{}' doesn't match EducationalBoard enum values, skipping course content updates", board.getName());
+            }
+            
+            // Finally delete the board
             boardRepository.delete(board);
             result.put("hardDeleted", true);
-            log.info("Hard deleted board: {}", board.getName());
+            log.info("Hard deleted board: {} and all associated data", board.getName());
         } else {
             board.setActive(false);
             board.setUpdatedAt(LocalDateTime.now());
@@ -140,14 +225,21 @@ public class ContentManagementService {
     }
 
     public SubjectDto createSubject(CreateSubjectRequest request) {
+        // Check for duplicate subject name within the same board
+        Optional<Subject> existingSubject = subjectRepository.findByBoardIdAndName(request.getBoardId(), request.getName());
+        if (existingSubject.isPresent()) {
+            throw new IllegalArgumentException("Subject with name '" + request.getName() + "' already exists for this board");
+        }
+        
         Subject subject = new Subject();
         subject.setName(request.getName());
+        subject.setBoardId(request.getBoardId());
         subject.setActive(request.getActive());
         subject.setCreatedAt(LocalDateTime.now());
         subject.setUpdatedAt(LocalDateTime.now());
 
         Subject savedSubject = subjectRepository.save(subject);
-        log.info("Created subject: {}", savedSubject.getName());
+        log.info("Created subject: {} for board ID: {}", savedSubject.getName(), savedSubject.getBoardId());
         return convertToSubjectDto(savedSubject);
     }
 
@@ -178,6 +270,72 @@ public class ContentManagementService {
         return convertToSubjectDto(savedSubject);
     }
 
+    public Map<String, Object> getSubjectDeletionImpact(Long id) {
+        Subject subject = subjectRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Subject not found with id: " + id));
+
+        Map<String, Object> impact = new HashMap<>();
+        impact.put("subjectName", subject.getName());
+        impact.put("subjectId", subject.getId());
+        
+        // Count chapters associated with this subject
+        long chaptersCount = subjectRepository.countChaptersBySubjectId(id);
+        impact.put("chaptersCount", chaptersCount);
+        
+        // Calculate total impact
+        long totalImpact = chaptersCount;
+        impact.put("totalImpact", totalImpact);
+        
+        // Subject can be deleted even with chapters (cascade delete)
+        boolean canDelete = true;
+        impact.put("canDelete", canDelete);
+        
+        List<String> warnings = new ArrayList<>();
+        if (chaptersCount > 0) {
+            warnings.add(chaptersCount + " chapter(s) will be deleted");
+            warnings.add("All topics and notes in these chapters will also be deleted");
+        }
+        impact.put("warnings", warnings);
+        
+        return impact;
+    }
+
+    public Map<String, Object> getChapterDeletionImpact(Long id) {
+        Chapter chapter = chapterRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Chapter not found with id: " + id));
+
+        Map<String, Object> impact = new HashMap<>();
+        impact.put("chapterName", chapter.getName());
+        impact.put("chapterId", chapter.getId());
+        
+        // Count topics associated with this chapter
+        long topicsCount = chapterRepository.countTopicsByChapterId(id);
+        impact.put("topicsCount", topicsCount);
+        
+        // Count notes associated with topics in this chapter
+        long notesCount = chapterRepository.countNotesByChapterId(id);
+        impact.put("notesCount", notesCount);
+        
+        // Calculate total impact
+        long totalImpact = topicsCount + notesCount;
+        impact.put("totalImpact", totalImpact);
+        
+        // Chapter can be deleted even if topics exist (cascade delete)
+        boolean canDelete = true;
+        impact.put("canDelete", canDelete);
+        
+        List<String> warnings = new ArrayList<>();
+        if (topicsCount > 0) {
+            warnings.add(topicsCount + " topic(s) will be deleted");
+        }
+        if (notesCount > 0) {
+            warnings.add(notesCount + " note(s) will be deleted");
+        }
+        impact.put("warnings", warnings);
+        
+        return impact;
+    }
+
     public Map<String, Object> deleteSubject(Long id, boolean force) {
         Subject subject = subjectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Subject not found with id: " + id));
@@ -185,9 +343,25 @@ public class ContentManagementService {
         Map<String, Object> result = new HashMap<>();
         
         if (force) {
+            // Cascade delete: First delete all notes, then topics, then chapters, then subject
+            // Get all chapters for this subject
+            List<Chapter> chapters = chapterRepository.findBySubjectIdAndDeletedAtIsNull(id);
+            
+            for (Chapter chapter : chapters) {
+                // Delete all notes associated with topics in this chapter
+                topicNoteRepository.deleteByChapterId(chapter.getId());
+                
+                // Delete all topics in this chapter
+                topicRepository.deleteByChapterId(chapter.getId());
+            }
+            
+            // Delete all chapters in this subject
+            chapterRepository.deleteBySubjectId(id);
+            
+            // Finally delete the subject
             subjectRepository.delete(subject);
             result.put("hardDeleted", true);
-            log.info("Hard deleted subject: {}", subject.getName());
+            log.info("Hard deleted subject: {} and all associated chapters, topics, and notes", subject.getName());
         } else {
             subject.setActive(false);
             subject.setUpdatedAt(LocalDateTime.now());
@@ -233,15 +407,27 @@ public class ContentManagementService {
         Subject subject = subjectRepository.findById(request.getSubjectId())
                 .orElseThrow(() -> new ResourceNotFoundException("Subject not found with id: " + request.getSubjectId()));
 
+        // Validate that the subject belongs to the specified board
+        if (!subject.getBoardId().equals(request.getBoardId())) {
+            throw new IllegalArgumentException("Subject does not belong to the specified board");
+        }
+
+        // Check for duplicate chapter name within the same subject
+        Optional<Chapter> existingChapter = chapterRepository.findBySubjectIdAndName(request.getSubjectId(), request.getName());
+        if (existingChapter.isPresent()) {
+            throw new IllegalArgumentException("Chapter with name '" + request.getName() + "' already exists for this subject");
+        }
+
         Chapter chapter = new Chapter();
         chapter.setName(request.getName());
         chapter.setSubject(subject);
+        chapter.setBoardId(request.getBoardId());
         chapter.setActive(request.getActive());
         chapter.setCreatedAt(LocalDateTime.now());
         chapter.setUpdatedAt(LocalDateTime.now());
 
         Chapter savedChapter = chapterRepository.save(chapter);
-        log.info("Created chapter: {} for subject: {}", savedChapter.getName(), subject.getName());
+        log.info("Created chapter: {} for subject: {} in board ID: {}", savedChapter.getName(), subject.getName(), request.getBoardId());
         return convertToChapterDto(savedChapter);
     }
 
@@ -283,9 +469,17 @@ public class ContentManagementService {
         Map<String, Object> result = new HashMap<>();
         
         if (force) {
+            // Cascade delete: First delete all notes, then topics, then chapter
+            // Delete all notes associated with topics in this chapter
+            topicNoteRepository.deleteByChapterId(id);
+            
+            // Delete all topics in this chapter
+            topicRepository.deleteByChapterId(id);
+            
+            // Finally delete the chapter
             chapterRepository.delete(chapter);
             result.put("hardDeleted", true);
-            log.info("Hard deleted chapter: {}", chapter.getName());
+            log.info("Hard deleted chapter: {} and all associated topics and notes", chapter.getName());
         } else {
             chapter.setDeletedAt(LocalDateTime.now());
             chapter.setUpdatedAt(LocalDateTime.now());
@@ -338,13 +532,38 @@ public class ContentManagementService {
         Chapter chapter = chapterRepository.findById(request.getChapterId())
                 .orElseThrow(() -> new ResourceNotFoundException("Chapter not found with id: " + request.getChapterId()));
 
+        // Validate that the chapter belongs to the specified subject
+        if (!chapter.getSubject().getId().equals(request.getSubjectId())) {
+            throw new IllegalArgumentException("Chapter does not belong to the specified subject");
+        }
+
+        // Validate that the subject belongs to the specified board
+        if (!chapter.getSubject().getBoardId().equals(request.getBoardId())) {
+            throw new IllegalArgumentException("Subject does not belong to the specified board");
+        }
+
+        // Check for duplicate topic title within the same chapter
+        Optional<Topic> existingTopic = topicRepository.findByChapterIdAndTitle(request.getChapterId(), request.getTitle());
+        if (existingTopic.isPresent()) {
+            throw new IllegalArgumentException("Topic with title '" + request.getTitle() + "' already exists in this chapter");
+        }
+
         Topic topic = new Topic();
         topic.setTitle(request.getTitle());
-        topic.setCode(request.getCode());
+        
+        // Generate topic code automatically if not provided
+        String topicCode = request.getCode();
+        if (topicCode == null || topicCode.trim().isEmpty()) {
+            topicCode = generateTopicCode(chapter.getSubject().getBoardId(), request.getSubjectId(), request.getChapterId(), request.getTitle());
+        }
+        topic.setCode(topicCode);
+        
         topic.setDescription(request.getDescription());
         topic.setSummary(request.getSummary());
         topic.setExpectedTimeMins(request.getExpectedTimeMins());
         topic.setChapter(chapter);
+        topic.setBoardId(request.getBoardId());
+        topic.setSubjectId(request.getSubjectId());
         topic.setActive(request.getActive());
         topic.setCreatedAt(LocalDateTime.now());
         topic.setUpdatedAt(LocalDateTime.now());
@@ -361,14 +580,31 @@ public class ContentManagementService {
         Chapter chapter = chapterRepository.findById(request.getChapterId())
                 .orElseThrow(() -> new ResourceNotFoundException("Chapter not found with id: " + request.getChapterId()));
 
+        // Validate relationships
+        if (!chapter.getSubject().getId().equals(request.getSubjectId())) {
+            throw new IllegalArgumentException("Chapter does not belong to the specified subject");
+        }
+        if (!chapter.getSubject().getBoardId().equals(request.getBoardId())) {
+            throw new IllegalArgumentException("Subject does not belong to the specified board");
+        }
+
         topic.setTitle(request.getTitle());
-        topic.setCode(request.getCode());
+        
+        // Generate topic code automatically if not provided
+        String topicCode = request.getCode();
+        if (topicCode == null || topicCode.trim().isEmpty()) {
+            topicCode = generateTopicCode(request.getBoardId(), request.getSubjectId(), request.getChapterId(), request.getTitle());
+        }
+        topic.setCode(topicCode);
+        
         topic.setDescription(request.getDescription());
         topic.setSummary(request.getSummary());
         if (request.getExpectedTimeMins() != null) {
             topic.setExpectedTimeMins(request.getExpectedTimeMins());
         }
         topic.setChapter(chapter);
+        topic.setBoardId(request.getBoardId());
+        topic.setSubjectId(request.getSubjectId());
         if (request.getActive() != null) {
             topic.setActive(request.getActive());
         }
@@ -398,9 +634,12 @@ public class ContentManagementService {
         Map<String, Object> result = new HashMap<>();
         
         if (force) {
+            // Cascade delete: First delete all notes and links, then topic
+            topicNoteRepository.deleteByTopicId(id);
+            topicLinkRepository.deleteByTopicId(id);
             topicRepository.delete(topic);
             result.put("hardDeleted", true);
-            log.info("Hard deleted topic: {}", topic.getTitle());
+            log.info("Hard deleted topic: {} and all associated notes and links", topic.getTitle());
         } else {
             topic.setDeletedAt(LocalDateTime.now());
             topic.setUpdatedAt(LocalDateTime.now());
@@ -410,6 +649,40 @@ public class ContentManagementService {
         }
 
         return result;
+    }
+
+    public Map<String, Object> getTopicDeletionImpact(Long id) {
+        Topic topic = topicRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Topic not found with id: " + id));
+
+        Map<String, Object> impact = new HashMap<>();
+        impact.put("topicId", id);
+        impact.put("topicTitle", topic.getTitle());
+        
+        // Count associated notes and links
+        long notesCount = topicRepository.countNotesByTopicId(id);
+        long linksCount = topicRepository.countLinksByTopicId(id);
+        
+        impact.put("notesCount", notesCount);
+        impact.put("linksCount", linksCount);
+        impact.put("totalImpact", notesCount + linksCount);
+        
+        List<String> warnings = new ArrayList<>();
+        if (notesCount > 0) {
+            warnings.add(notesCount + " note(s) are associated with this topic");
+        }
+        if (linksCount > 0) {
+            warnings.add(linksCount + " link(s) are associated with this topic");
+        }
+        
+        if (notesCount > 0 || linksCount > 0) {
+            warnings.add("Topic notes and links will be deleted");
+        }
+        
+        impact.put("warnings", warnings);
+        impact.put("canDelete", true); // Topics can always be deleted with confirmation
+        
+        return impact;
     }
 
     // ============ TOPIC NOTES SERVICE ============
@@ -580,6 +853,7 @@ public class ContentManagementService {
                 subject.getId(),
                 subject.getName(),
                 subject.getActive(),
+                subject.getBoardId(),
                 subject.getCreatedAt(),
                 subject.getUpdatedAt()
         );
@@ -591,6 +865,7 @@ public class ContentManagementService {
                 chapter.getName(),
                 chapter.getSubject().getId(),
                 chapter.getSubject().getName(),
+                chapter.getBoardId(),
                 chapter.getActive(),
                 chapter.getDeletedAt(),
                 chapter.getCreatedAt(),
@@ -609,11 +884,113 @@ public class ContentManagementService {
                 topic.getChapter().getId(),
                 topic.getChapter().getName(),
                 topic.getChapter().getSubject().getName(),
+                topic.getBoardId(),
+                topic.getSubjectId(),
                 topic.getActive(),
                 topic.getDeletedAt(),
                 topic.getCreatedAt(),
                 topic.getUpdatedAt()
         );
+    }
+
+    private String generateTopicCode(Long boardId, Long subjectId, Long chapterId, String topicTitle) {
+        // Get board, subject, and chapter names for code generation
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new ResourceNotFoundException("Board not found with id: " + boardId));
+        Subject subject = subjectRepository.findById(subjectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Subject not found with id: " + subjectId));
+        Chapter chapter = chapterRepository.findById(chapterId)
+                .orElseThrow(() -> new ResourceNotFoundException("Chapter not found with id: " + chapterId));
+
+        // Generate prefixes
+        String boardPrefix = getBoardPrefix(board.getName());
+        String subjectPrefix = getSubjectPrefix(subject.getName());
+        String chapterPrefix = getChapterPrefix(chapter.getName());
+        String topicPrefix = getTopicPrefix(topicTitle);
+        
+        // Create base code: BOARD_SUBJECT_CHAPTER_TOPIC (max 20 chars total)
+        String baseCode = String.format("%s_%s_%s_%s", 
+            boardPrefix, subjectPrefix, chapterPrefix, topicPrefix);
+        
+        // Ensure code is not too long (max 20 characters)
+        if (baseCode.length() > 20) {
+            baseCode = baseCode.substring(0, 20);
+        }
+        
+        // Ensure uniqueness by checking existing codes
+        String uniqueCode = baseCode;
+        int counter = 1;
+        while (topicRepository.findByCode(uniqueCode).isPresent()) {
+            String suffix = "_" + counter;
+            if (baseCode.length() + suffix.length() > 20) {
+                baseCode = baseCode.substring(0, 20 - suffix.length());
+            }
+            uniqueCode = baseCode + suffix;
+            counter++;
+        }
+        
+        return uniqueCode;
+    }
+    
+    private String getBoardPrefix(String boardName) {
+        if (boardName == null) return "BD";
+        
+        String normalized = boardName.toUpperCase().trim();
+        if (normalized.contains("CBSE")) return "CB";
+        if (normalized.contains("ICSE")) return "IC";
+        if (normalized.contains("STATE")) return "ST";
+        if (normalized.contains("IB")) return "IB";
+        if (normalized.contains("IGCSE")) return "IG";
+        
+        // Default: take first 2 characters
+        return normalized.length() >= 2 ? normalized.substring(0, 2) : normalized;
+    }
+    
+    private String getSubjectPrefix(String subjectName) {
+        if (subjectName == null) return "SUB";
+        
+        String normalized = subjectName.toUpperCase().trim();
+        if (normalized.contains("PHYSICS")) return "PHY";
+        if (normalized.contains("CHEMISTRY")) return "CHE";
+        if (normalized.contains("MATHEMATICS") || normalized.contains("MATH")) return "MAT";
+        if (normalized.contains("BIOLOGY")) return "BIO";
+        if (normalized.contains("ENGLISH")) return "ENG";
+        if (normalized.contains("HISTORY")) return "HIS";
+        if (normalized.contains("GEOGRAPHY")) return "GEO";
+        if (normalized.contains("ECONOMICS")) return "ECO";
+        if (normalized.contains("POLITICAL") || normalized.contains("POLITICS")) return "POL";
+        
+        // Default: take first 3 characters
+        return normalized.length() >= 3 ? normalized.substring(0, 3) : normalized;
+    }
+    
+    private String getChapterPrefix(String chapterName) {
+        if (chapterName == null) return "CH";
+        
+        String normalized = chapterName.toUpperCase().trim();
+        // Extract numbers from chapter name (e.g., "Chapter 1" -> "1")
+        String numbers = normalized.replaceAll("[^0-9]", "");
+        if (!numbers.isEmpty()) {
+            return "CH" + numbers;
+        }
+        
+        // Default: take first 2 characters
+        return normalized.length() >= 2 ? normalized.substring(0, 2) : normalized;
+    }
+    
+    private String getTopicPrefix(String topicTitle) {
+        if (topicTitle == null) return "TP";
+        
+        String normalized = topicTitle.toUpperCase().trim();
+        // Extract first meaningful word
+        String[] words = normalized.split("\\s+");
+        if (words.length > 0) {
+            String firstWord = words[0];
+            // Take first 2 characters of first word
+            return firstWord.length() >= 2 ? firstWord.substring(0, 2) : firstWord;
+        }
+        
+        return "TP";
     }
 
     private TopicNoteDto convertToTopicNoteDto(TopicNote note) {

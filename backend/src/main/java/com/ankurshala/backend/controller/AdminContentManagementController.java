@@ -1,7 +1,6 @@
 package com.ankurshala.backend.controller;
 
 import com.ankurshala.backend.dto.content.*;
-import com.ankurshala.backend.entity.*;
 import com.ankurshala.backend.service.ContentManagementService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -72,6 +71,12 @@ public class AdminContentManagementController {
         return ResponseEntity.ok(board);
     }
 
+    @GetMapping("/boards/{id}/deletion-impact")
+    public ResponseEntity<Map<String, Object>> getBoardDeletionImpact(@PathVariable Long id) {
+        Map<String, Object> impact = contentManagementService.getBoardDeletionImpact(id);
+        return ResponseEntity.ok(impact);
+    }
+
     @DeleteMapping("/boards/{id}")
     public ResponseEntity<Map<String, Object>> deleteBoard(
             @PathVariable Long id,
@@ -130,6 +135,18 @@ public class AdminContentManagementController {
             @RequestParam(defaultValue = "false") boolean force) {
         Map<String, Object> result = contentManagementService.deleteSubject(id, force);
         return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/subjects/{id}/deletion-impact")
+    public ResponseEntity<Map<String, Object>> getSubjectDeletionImpact(@PathVariable Long id) {
+        Map<String, Object> impact = contentManagementService.getSubjectDeletionImpact(id);
+        return ResponseEntity.ok(impact);
+    }
+
+    @GetMapping("/chapters/{id}/deletion-impact")
+    public ResponseEntity<Map<String, Object>> getChapterDeletionImpact(@PathVariable Long id) {
+        Map<String, Object> impact = contentManagementService.getChapterDeletionImpact(id);
+        return ResponseEntity.ok(impact);
     }
 
     // ============ CHAPTERS CRUD ============
@@ -229,6 +246,12 @@ public class AdminContentManagementController {
         Boolean active = statusUpdate.get("active");
         TopicDto topic = contentManagementService.updateTopicStatus(id, active);
         return ResponseEntity.ok(topic);
+    }
+
+    @GetMapping("/topics/{id}/deletion-impact")
+    public ResponseEntity<Map<String, Object>> getTopicDeletionImpact(@PathVariable Long id) {
+        Map<String, Object> impact = contentManagementService.getTopicDeletionImpact(id);
+        return ResponseEntity.ok(impact);
     }
 
     @DeleteMapping("/topics/{id}")

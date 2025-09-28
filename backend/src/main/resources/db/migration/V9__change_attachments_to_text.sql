@@ -3,3 +3,4 @@
 
 ALTER TABLE topic_notes 
 ALTER COLUMN attachments TYPE TEXT USING attachments::TEXT;
+

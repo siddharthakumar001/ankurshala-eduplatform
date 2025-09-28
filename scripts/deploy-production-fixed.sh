@@ -61,12 +61,12 @@ wait_healthy() {
   while true; do
     if ! docker inspect "$name" >/dev/null 2>&1; then sleep 1; continue; fi
 
-    # When there is no Health object, Docker prints nothing; normalize to 'none'
+    # Normalize missing Health to 'none'
     status=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$name" 2>/dev/null || true)
     status="${status:-none}"
     running=$(docker inspect --format '{{.State.Status}}' "$name" 2>/dev/null || echo "exited")
 
-    # succeed if healthy, or if there's no HC ('none') but it's running
+    # success when healthy OR (no HC and running)
     if [[ "$status" == "healthy" ]] || { [[ "$status" == "none" ]] && [[ "$running" == "running" ]]; }; then
       [[ "$status" == "healthy" ]] && log PASS "'$name' is healthy" || log PASS "'$name' is running (no healthcheck)"
       return 0
@@ -81,23 +81,26 @@ wait_healthy() {
   done
 }
 
-
 recreate_service() {
   local svc="$1"
-  if [[ "$NO_BUILD" != "true" ]]; then
-    log INFO "Building image for service: $svc"
-    $COMPOSE -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build "$svc"
+
+  # Only backend & frontend are built locally. Others are pulled from registry.
+  if [[ "$NO_BUILD" != "true" && ( "$svc" == "backend" || "$svc" == "frontend" ) ]]; then
+    log INFO "Building image for service: $svc (with --pull)"
+    $COMPOSE -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build --pull "$svc"
   else
-    log INFO "Skipping build for: $svc"
+    log INFO "Skipping local build for: $svc"
   fi
+
   log INFO "Recreating: $svc (no deps)"
   $COMPOSE -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --no-deps "$svc"
+
   case "$svc" in
     postgres)  wait_healthy "ankurshala_db_prod" 180;;
     redis)     wait_healthy "ankurshala_redis_prod" 120;;
     zookeeper) wait_healthy "ankurshala_zookeeper_prod" 120;;
     kafka)     wait_healthy "ankurshala_kafka_prod" 180;;
-    mailhog)   wait_healthy "ankurshala_mailhog_prod" 30;;  # passes on "running" (no HC)
+    mailhog)   wait_healthy "ankurshala_mailhog_prod" 30;;   # no HC -> running is OK
     backend)   wait_healthy "ankurshala_backend_prod" 240;;
     frontend)  wait_healthy "ankurshala_frontend_prod" 240;;
     nginx)     wait_healthy "ankurshala_nginx_prod" 90;;

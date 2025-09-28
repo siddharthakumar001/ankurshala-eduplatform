@@ -37,6 +37,12 @@ public class Topic {
     @Column(name = "active", nullable = false)
     private Boolean active = true;
 
+    @Column(name = "board_id", nullable = false)
+    private Long boardId;
+
+    @Column(name = "subject_id", nullable = false)
+    private Long subjectId;
+
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
@@ -85,6 +91,12 @@ public class Topic {
 
     public Boolean getActive() { return active; }
     public void setActive(Boolean active) { this.active = active; }
+
+    public Long getBoardId() { return boardId; }
+    public void setBoardId(Long boardId) { this.boardId = boardId; }
+
+    public Long getSubjectId() { return subjectId; }
+    public void setSubjectId(Long subjectId) { this.subjectId = subjectId; }
 
     public LocalDateTime getDeletedAt() { return deletedAt; }
     public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }

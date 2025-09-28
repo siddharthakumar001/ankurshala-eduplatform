@@ -19,6 +19,8 @@ public class TopicDto {
     private Long chapterId;
     private String chapterName;
     private String subjectName;
+    private Long boardId;
+    private Long subjectId;
     private Boolean active;
     private LocalDateTime deletedAt;
     private LocalDateTime createdAt;

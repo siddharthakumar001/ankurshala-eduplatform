@@ -53,4 +53,10 @@ public interface PricingRuleRepository extends JpaRepository<PricingRule, Long> 
 
     @Query("SELECT COUNT(pr) FROM PricingRule pr WHERE pr.active = true")
     long countActiveRules();
+    
+    // Count pricing rules by board ID
+    long countByBoardId(Long boardId);
+    
+    // Delete pricing rules by board ID
+    void deleteByBoardId(Long boardId);
 }

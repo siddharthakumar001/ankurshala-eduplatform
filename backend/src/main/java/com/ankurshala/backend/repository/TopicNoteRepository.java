@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -27,4 +28,12 @@ public interface TopicNoteRepository extends JpaRepository<TopicNote, Long>, Jpa
     Page<TopicNote> findByActiveAndNotDeleted(@Param("active") Boolean active, Pageable pageable);
     
     List<TopicNote> findByTopicIdAndDeletedAtIsNull(Long topicId);
+    
+    @Modifying
+    @Query("DELETE FROM TopicNote tn WHERE tn.topic.chapter.id = :chapterId")
+    void deleteByChapterId(@Param("chapterId") Long chapterId);
+    
+    @Modifying
+    @Query("DELETE FROM TopicNote tn WHERE tn.topic.id = :topicId")
+    void deleteByTopicId(@Param("topicId") Long topicId);
 }

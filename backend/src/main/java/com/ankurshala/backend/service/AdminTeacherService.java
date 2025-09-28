@@ -82,13 +82,15 @@ public class AdminTeacherService {
         return convertToTeacherDetailDto(savedProfile);
     }
 
-    public void toggleTeacherStatus(Long id) {
+    public boolean toggleTeacherStatus(Long id) {
         TeacherProfile teacherProfile = teacherProfileRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Teacher not found"));
 
         User user = teacherProfile.getUser();
         user.setEnabled(!user.getEnabled());
         userRepository.save(user);
+        
+        return user.getEnabled();
     }
 
     private TeacherListDto convertToTeacherListDto(TeacherProfile teacherProfile) {

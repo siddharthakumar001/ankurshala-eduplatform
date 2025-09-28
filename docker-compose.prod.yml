@@ -45,8 +45,8 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+    # simple TCP check; 'nc' exists in this image
     healthcheck:
-      # nc exists in this image
       test: ["CMD", "nc", "-z", "127.0.0.1", "2181"]
       interval: 10s
       timeout: 5s
@@ -82,7 +82,8 @@ services:
     networks: [ankurshala-network]
     restart: unless-stopped
 
-  # -------- MailHog (no HC; script accepts running) --------
+  # -------- MailHog --------
+  # NOTE: No healthcheck on purpose; the deploy script will treat "running" as OK.
   mailhog:
     image: mailhog/mailhog:latest
     container_name: ankurshala_mailhog_prod
@@ -126,9 +127,10 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       SMTP_FROM: ${SMTP_FROM}
       KAFKA_BROKERS: kafka:29092
+      # Safe defaults; use script --seed-once to seed when you want
       DEMO_SEED_ON_START: ${DEMO_SEED_ON_START:-false}
       DEMO_ENV: ${DEMO_ENV:-prod}
-      DEMO_FORCE: ${DEMO_FORCE:-true}
+      DEMO_FORCE: ${DEMO_FORCE:-false}
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/actuator/health"]
       interval: 30s

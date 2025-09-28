@@ -6,6 +6,7 @@ import com.ankurshala.backend.entity.EducationalBoard;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -26,6 +27,11 @@ public interface CourseContentRepository extends JpaRepository<CourseContent, Lo
     
     // Find by educational board
     List<CourseContent> findByEducationalBoard(EducationalBoard educationalBoard);
+    
+    // Update educational board to null for course content with specific board
+    @Modifying
+    @Query("UPDATE CourseContent cc SET cc.educationalBoard = NULL WHERE cc.educationalBoard = :educationalBoard")
+    void updateEducationalBoardToNull(@Param("educationalBoard") EducationalBoard educationalBoard);
     
     // Search with filters
     @Query("SELECT cc FROM CourseContent cc WHERE " +

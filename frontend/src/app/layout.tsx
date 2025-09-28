@@ -4,6 +4,7 @@ import './globals.css'
 import Providers from '@/components/providers'
 import ConditionalNavbar from '@/components/conditional-navbar'
 import ErrorBoundary from '@/components/error-boundary'
+import { SessionProvider } from '@/contexts/SessionContext'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -23,8 +24,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className}>
         <ErrorBoundary>
           <Providers>
-            <ConditionalNavbar />
-            {children}
+            <SessionProvider>
+              <ConditionalNavbar />
+              {children}
+            </SessionProvider>
           </Providers>
         </ErrorBoundary>
       </body>

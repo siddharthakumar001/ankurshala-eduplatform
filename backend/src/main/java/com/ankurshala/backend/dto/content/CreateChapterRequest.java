@@ -19,6 +19,9 @@ public class CreateChapterRequest {
     @NotNull(message = "Subject ID is required")
     private Long subjectId;
     
+    @NotNull(message = "Board ID is required")
+    private Long boardId;
+    
     private Boolean active = true;
 }
 

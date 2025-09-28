@@ -65,6 +65,14 @@ interface TeacherDetail extends Teacher {
   updatedAt?: string
 }
 
+const TEACHER_FILTER_OPTIONS = [
+  { value: 'all', label: 'All Teachers' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'active', label: 'Active' },
+  { value: 'inactive', label: 'Inactive' },
+  { value: 'suspended', label: 'Suspended' }
+]
+
 const TEACHER_STATUSES = [
   { value: 'PENDING', label: 'Pending' },
   { value: 'ACTIVE', label: 'Active' },
@@ -79,9 +87,7 @@ export default function AdminTeachersPage() {
   const [totalPages, setTotalPages] = useState(0)
   const [totalElements, setTotalElements] = useState(0)
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [enabledFilter, setEnabledFilter] = useState<string>('all')
-  const [verifiedFilter, setVerifiedFilter] = useState<string>('all')
+  const [teacherFilter, setTeacherFilter] = useState<string>('all')
   const [sortBy, setSortBy] = useState('createdAt')
   const [sortDir, setSortDir] = useState('desc')
   const [selectedTeacher, setSelectedTeacher] = useState<TeacherDetail | null>(null)
@@ -92,7 +98,7 @@ export default function AdminTeachersPage() {
 
   useEffect(() => {
     fetchTeachers()
-  }, [currentPage, search, statusFilter, enabledFilter, verifiedFilter, sortBy, sortDir])
+  }, [currentPage, search, teacherFilter, sortBy, sortDir])
 
   const fetchTeachers = async () => {
     setLoading(true)
@@ -106,9 +112,25 @@ export default function AdminTeachersPage() {
       })
       
       if (search) params.append('search', search)
-      if (enabledFilter && enabledFilter !== 'all') params.append('enabled', enabledFilter)
-      if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter)
-      if (verifiedFilter && verifiedFilter !== 'all') params.append('verified', verifiedFilter)
+      
+      // Map the single filter to backend parameters
+      if (teacherFilter && teacherFilter !== 'all') {
+        switch (teacherFilter) {
+          case 'pending':
+            params.append('status', 'PENDING')
+            break
+          case 'active':
+            params.append('enabled', 'true')
+            params.append('status', 'ACTIVE')
+            break
+          case 'inactive':
+            params.append('enabled', 'false')
+            break
+          case 'suspended':
+            params.append('status', 'SUSPENDED')
+            break
+        }
+      }
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/teachers?${params}`, {
         headers: {
@@ -216,7 +238,7 @@ export default function AdminTeachersPage() {
     try {
       const token = localStorage.getItem('accessToken')
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/teachers/${teacherId}/toggle-status`, {
-        method: 'POST',
+        method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -244,9 +266,7 @@ export default function AdminTeachersPage() {
 
   const clearFilters = () => {
     setSearch('')
-    setStatusFilter('all')
-    setEnabledFilter('all')
-    setVerifiedFilter('all')
+    setTeacherFilter('all')
     setCurrentPage(0)
   }
 
@@ -310,43 +330,20 @@ export default function AdminTeachersPage() {
             </div>
             
             <div className="flex flex-col sm:flex-row gap-3">
-              <Select value={enabledFilter} onValueChange={setEnabledFilter}>
-                <SelectTrigger className="w-full sm:w-32">
-                  <SelectValue placeholder="Status" />
+              <Select value={teacherFilter} onValueChange={setTeacherFilter}>
+                <SelectTrigger className="w-full sm:w-40">
+                  <SelectValue placeholder="Filter Teachers" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="true">Active</SelectItem>
-                  <SelectItem value="false">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-36">
-                  <SelectValue placeholder="Teacher Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Teachers</SelectItem>
-                  {TEACHER_STATUSES.map(status => (
-                    <SelectItem key={status.value} value={status.value}>
-                      {status.label}
+                  {TEACHER_FILTER_OPTIONS.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
 
-              <Select value={verifiedFilter} onValueChange={setVerifiedFilter}>
-                <SelectTrigger className="w-full sm:w-32">
-                  <SelectValue placeholder="Verified" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="true">Verified</SelectItem>
-                  <SelectItem value="false">Unverified</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {(search || (statusFilter && statusFilter !== 'all') || (enabledFilter && enabledFilter !== 'all') || (verifiedFilter && verifiedFilter !== 'all')) && (
+              {(search || (teacherFilter && teacherFilter !== 'all')) && (
                 <Button variant="outline" onClick={clearFilters}>
                   Clear
                 </Button>
@@ -376,7 +373,7 @@ export default function AdminTeachersPage() {
                 <GraduationCap className="mx-auto h-12 w-12 text-gray-400" />
                 <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No teachers found</h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  {(search || (statusFilter && statusFilter !== 'all') || (enabledFilter && enabledFilter !== 'all') || (verifiedFilter && verifiedFilter !== 'all'))
+                  {(search || (teacherFilter && teacherFilter !== 'all'))
                     ? 'Try adjusting your search criteria or filters.'
                     : 'Get started by adding a new teacher.'}
                 </p>

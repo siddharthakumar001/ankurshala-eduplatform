@@ -16,6 +16,8 @@ import java.util.Optional;
 public interface SubjectRepository extends JpaRepository<Subject, Long>, JpaSpecificationExecutor<Subject> {
     Optional<Subject> findByName(String name);
     
+    Optional<Subject> findByBoardIdAndName(Long boardId, String name);
+    
     @Query("SELECT s FROM Subject s WHERE " +
            "(:search IS NULL OR :search = '' OR LOWER(s.name) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
            "(:active IS NULL OR s.active = :active)")
@@ -25,6 +27,10 @@ public interface SubjectRepository extends JpaRepository<Subject, Long>, JpaSpec
     
     // Count methods for analytics
     long countByActiveTrue();
+    
+    // Count chapters by subject ID for deletion impact analysis
+    @Query("SELECT COUNT(c) FROM Chapter c WHERE c.subject.id = :subjectId")
+    long countChaptersBySubjectId(@Param("subjectId") Long subjectId);
     
     // Find active subjects for tree structure
     List<Subject> findByActiveTrue();

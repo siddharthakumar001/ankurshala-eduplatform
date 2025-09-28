@@ -25,6 +25,9 @@ public class Chapter {
     @Column(name = "active", nullable = false)
     private Boolean active = true;
 
+    @Column(name = "board_id", nullable = false)
+    private Long boardId;
+
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
@@ -58,6 +61,9 @@ public class Chapter {
 
     public Boolean getActive() { return active; }
     public void setActive(Boolean active) { this.active = active; }
+
+    public Long getBoardId() { return boardId; }
+    public void setBoardId(Long boardId) { this.boardId = boardId; }
 
     public LocalDateTime getDeletedAt() { return deletedAt; }
     public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }

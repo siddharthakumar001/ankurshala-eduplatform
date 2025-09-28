@@ -126,6 +126,96 @@ public class AdminCsvImportController {
         ));
     }
 
+    @DeleteMapping("/jobs/{jobId}")
+    public ResponseEntity<Map<String, Object>> deleteImportJob(@PathVariable Long jobId) {
+        try {
+            csvImportService.deleteImportJobAndContent(jobId);
+            return ResponseEntity.ok(Map.of(
+                "message", "Import job and associated content deleted successfully",
+                "jobId", jobId
+            ));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(404)
+                .body(Map.of(
+                    "type", "https://ankurshala.com/problems/job-not-found",
+                    "title", "Job Not Found",
+                    "status", 404,
+                    "detail", e.getMessage(),
+                    "instance", "/admin/content/import/jobs/" + jobId
+                ));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                .body(Map.of(
+                    "type", "https://ankurshala.com/problems/delete-failed",
+                    "title", "Delete Failed",
+                    "status", 500,
+                    "detail", "Failed to delete import job: " + e.getMessage(),
+                    "instance", "/admin/content/import/jobs/" + jobId
+                ));
+        }
+    }
+
+    @PostMapping(value = "/validate-duplicates", consumes = "text/csv")
+    public ResponseEntity<Map<String, Object>> validateDuplicatesAndUpdates(
+            @RequestBody byte[] csvContent,
+            Authentication authentication) {
+        
+        try {
+            // Validate content is not empty
+            if (csvContent == null || csvContent.length == 0) {
+                return ResponseEntity.badRequest()
+                    .body(Map.of(
+                        "type", "https://ankurshala.com/problems/invalid-file",
+                        "title", "Invalid File",
+                        "status", 400,
+                        "detail", "CSV content is empty",
+                        "instance", "/admin/content/import/validate-duplicates"
+                    ));
+            }
+            
+            // Validate CSV headers synchronously before processing
+            try {
+                csvImportService.validateCsvHeaders(csvContent);
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest()
+                    .body(Map.of(
+                        "type", "https://ankurshala.com/problems/invalid-headers",
+                        "title", "Invalid Headers",
+                        "status", 400,
+                        "detail", e.getMessage(),
+                        "instance", "/admin/content/import/validate-duplicates"
+                    ));
+            }
+            
+            // Validate for duplicates and updates
+            Map<String, Object> validationResult = csvImportService.validateForDuplicatesAndUpdates(csvContent);
+            
+            return ResponseEntity.ok(Map.of(
+                "message", "Content validation completed successfully",
+                "validation", validationResult
+            ));
+            
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                .body(Map.of(
+                    "type", "https://ankurshala.com/problems/invalid-headers",
+                    "title", "Invalid Headers",
+                    "status", 400,
+                    "detail", e.getMessage(),
+                    "instance", "/admin/content/import/validate-duplicates"
+                ));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                .body(Map.of(
+                    "type", "https://ankurshala.com/problems/validation-failed",
+                    "title", "Validation Failed",
+                    "status", 500,
+                    "detail", "Failed to validate content: " + e.getMessage(),
+                    "instance", "/admin/content/import/validate-duplicates"
+                ));
+        }
+    }
+
     @GetMapping("/sample-csv")
     public ResponseEntity<String> downloadSampleCsv() {
         String csvContent = csvImportService.generateSampleCsv();

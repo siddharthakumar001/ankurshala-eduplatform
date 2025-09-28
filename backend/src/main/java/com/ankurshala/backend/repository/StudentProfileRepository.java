@@ -7,6 +7,7 @@ import com.ankurshala.backend.entity.ClassLevel;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -21,6 +22,14 @@ public interface StudentProfileRepository extends JpaRepository<StudentProfile, 
     long countByUserEnabledTrue();
     long countByUserEnabledFalse();
     long countByUserCreatedAtBetween(LocalDateTime start, LocalDateTime end);
+
+    // Count student profiles by educational board
+    long countByEducationalBoard(EducationalBoard educationalBoard);
+    
+    // Update educational board to null for profiles with specific board
+    @Modifying
+    @Query("UPDATE StudentProfile sp SET sp.educationalBoard = NULL WHERE sp.educationalBoard = :educationalBoard")
+    void updateEducationalBoardToNull(@Param("educationalBoard") EducationalBoard educationalBoard);
 
     // Search and filter methods with COALESCE + LOWER safe version
     @Query("SELECT sp FROM StudentProfile sp JOIN sp.user u WHERE " +
@@ -45,15 +54,6 @@ public interface StudentProfileRepository extends JpaRepository<StudentProfile, 
     @Query("SELECT sp FROM StudentProfile sp JOIN sp.user u")
     Page<StudentProfile> findAllWithUser(Pageable pageable);
 
-    // Count students by educational board
-    long countByEducationalBoard(EducationalBoard educationalBoard);
-
-    // Count students by class level
-    long countByClassLevel(ClassLevel classLevel);
-
-    // Count students by school
-    long countBySchoolName(String schoolName);
-    
     // Check if mobile number exists
     boolean existsByMobileNumber(String mobileNumber);
 }

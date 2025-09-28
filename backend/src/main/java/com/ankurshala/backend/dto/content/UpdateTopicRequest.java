@@ -32,6 +32,12 @@ public class UpdateTopicRequest {
     @NotNull(message = "Chapter ID is required")
     private Long chapterId;
     
+    @NotNull(message = "Board ID is required")
+    private Long boardId;
+    
+    @NotNull(message = "Subject ID is required")
+    private Long subjectId;
+    
     private Boolean active;
 }
 

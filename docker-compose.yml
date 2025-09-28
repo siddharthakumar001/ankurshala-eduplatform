@@ -1,0 +1,192 @@
+services:
+  # -------- Postgres Database --------
+  postgres:
+    image: postgres:15-alpine
+    container_name: ankurshala_db_local
+    environment:
+      POSTGRES_DB: ankurshala
+      POSTGRES_USER: ankur
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ankur -d ankurshala"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [ankurshala-local]
+    restart: unless-stopped
+
+  # -------- Redis Cache --------
+  redis:
+    image: redis:7-alpine
+    container_name: ankurshala_redis_local
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks: [ankurshala-local]
+    restart: unless-stopped
+
+  # -------- Zookeeper (for Kafka) --------
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: ankurshala_zookeeper_local
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks: [ankurshala-local]
+    restart: unless-stopped
+
+  # -------- Kafka --------
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: ankurshala_kafka_local
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 40s
+    networks: [ankurshala-local]
+    restart: unless-stopped
+
+  # -------- MailHog (Email Testing) --------
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: ankurshala_mailhog_local
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
+    networks: [ankurshala-local]
+    restart: unless-stopped
+
+  # -------- Backend (Spring Boot) --------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ankurshala_backend_local
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      mailhog:
+        condition: service_started
+    ports:
+      - "8080:8080"
+    environment:
+      # Database Configuration
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ankurshala
+      DB_USERNAME: ankur
+      DB_PASSWORD: password
+      
+      # Redis Configuration
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      
+      # Kafka Configuration
+      KAFKA_BROKERS: kafka:29092
+      
+      # Server Configuration
+      SERVER_PORT: 8080
+      SPRING_PROFILES_ACTIVE: dev
+      
+      # JWT Configuration
+      JWT_SECRET: myVeryLongAndSecureSecretKeyForHS512AlgorithmThatIsAtLeast64CharactersLongAndSecure123456789
+      
+      # Encryption Key
+      BANK_ENC_KEY: DEFAULT_BANK_ENCRYPTION_KEY_CHANGE_IN_PRODUCTION_32_CHARS_MIN_FOR_AES256_SECURITY
+      
+      # Email Configuration (MailHog)
+      SMTP_HOST: mailhog
+      SMTP_PORT: 1025
+      SMTP_USERNAME: ""
+      SMTP_PASSWORD: ""
+      SMTP_FROM: noreply@ankurshala.local
+      
+      # Demo/Development Configuration
+      DEMO_SEED_ON_START: true
+      DEMO_ENV: dev
+      DEMO_FORCE: true
+      DEV_SEEDER_ENABLED: true
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks: [ankurshala-local]
+    restart: unless-stopped
+
+  # -------- Frontend (Next.js) --------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8080/api
+    container_name: ankurshala_frontend_local
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8080/api
+      NODE_ENV: development
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks: [ankurshala-local]
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  kafka_data:
+
+networks:
+  ankurshala-local:
+    driver: bridge

@@ -67,3 +67,4 @@ export default function ChunkLoadingFallback({ retry, error }: ChunkLoadingFallb
     </div>
   )
 }
+

@@ -13,6 +13,7 @@ public class SubjectDto {
     private Long id;
     private String name;
     private Boolean active;
+    private Long boardId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

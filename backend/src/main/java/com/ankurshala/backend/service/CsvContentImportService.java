@@ -256,6 +256,70 @@ public class CsvContentImportService {
         }
     }
 
+    private String generateTopicCode(String subject, String grade, String chapter, String topicTitle) {
+        // Generate a unique topic code based on subject, grade, chapter, and topic title
+        String subjectPrefix = getSubjectPrefix(subject);
+        String gradePrefix = grade.toUpperCase();
+        String chapterPrefix = getChapterPrefix(chapter);
+        String topicPrefix = getTopicPrefix(topicTitle);
+        
+        // Create base code: SUBJECT_GRADE_CHAPTER_TOPIC
+        String baseCode = String.format("%s%s_%s_%s", 
+            subjectPrefix, gradePrefix, chapterPrefix, topicPrefix);
+        
+        // Ensure uniqueness by checking existing codes
+        String uniqueCode = baseCode;
+        int counter = 1;
+        while (topicRepository.findByCode(uniqueCode).isPresent()) {
+            uniqueCode = baseCode + "_" + counter;
+            counter++;
+        }
+        
+        return uniqueCode;
+    }
+    
+    private String getSubjectPrefix(String subject) {
+        if (subject == null) return "SUB";
+        
+        String normalized = subject.toUpperCase().trim();
+        if (normalized.contains("PHYSICS")) return "PHY";
+        if (normalized.contains("CHEMISTRY")) return "CHEM";
+        if (normalized.contains("MATHEMATICS") || normalized.contains("MATH")) return "MATH";
+        if (normalized.contains("BIOLOGY")) return "BIO";
+        if (normalized.contains("ENGLISH")) return "ENG";
+        if (normalized.contains("HISTORY")) return "HIST";
+        if (normalized.contains("GEOGRAPHY")) return "GEO";
+        if (normalized.contains("ECONOMICS")) return "ECO";
+        if (normalized.contains("POLITICAL") || normalized.contains("POLITICS")) return "POL";
+        
+        // Default: take first 3 characters
+        return normalized.length() >= 3 ? normalized.substring(0, 3) : normalized;
+    }
+    
+    private String getChapterPrefix(String chapter) {
+        if (chapter == null) return "CH";
+        
+        // Extract first word or first few characters
+        String[] words = chapter.trim().split("\\s+");
+        if (words.length > 0) {
+            String firstWord = words[0].toUpperCase();
+            return firstWord.length() >= 3 ? firstWord.substring(0, 3) : firstWord;
+        }
+        return "CH";
+    }
+    
+    private String getTopicPrefix(String topicTitle) {
+        if (topicTitle == null) return "T";
+        
+        // Extract first word or first few characters
+        String[] words = topicTitle.trim().split("\\s+");
+        if (words.length > 0) {
+            String firstWord = words[0].toUpperCase();
+            return firstWord.length() >= 3 ? firstWord.substring(0, 3) : firstWord;
+        }
+        return "T";
+    }
+
     private String normalizeGrade(String grade) {
         if (grade == null) return null;
         
@@ -309,14 +373,19 @@ public class CsvContentImportService {
         Chapter chapter = chapterRepository.findBySubjectIdAndName(subject.getId(), chapterName)
                 .orElseGet(() -> chapterRepository.save(new Chapter(subject, chapterName)));
         
-        // Find or create Topic (by code if provided, else by chapter and title)
+        // Find or create Topic (always generate new code if not provided)
         Topic topic;
-        if (topicCode != null && !topicCode.trim().isEmpty()) {
-            topic = topicRepository.findByCode(topicCode)
-                    .orElseGet(() -> createNewTopic(chapter, record));
+        String providedTopicCode = record.get("topiccode");
+        
+        if (providedTopicCode != null && !providedTopicCode.trim().isEmpty()) {
+            // Use provided code if available
+            topic = topicRepository.findByCode(providedTopicCode)
+                    .orElseGet(() -> createNewTopic(chapter, record, providedTopicCode));
         } else {
-            topic = topicRepository.findByChapterIdAndTitle(chapter.getId(), topicTitle)
-                    .orElseGet(() -> createNewTopic(chapter, record));
+            // Generate unique code automatically
+            String generatedCode = generateTopicCode(subjectName, gradeName, chapterName, topicTitle);
+            topic = topicRepository.findByCode(generatedCode)
+                    .orElseGet(() -> createNewTopic(chapter, record, generatedCode));
         }
         
         // Update topic with new data
@@ -324,8 +393,9 @@ public class CsvContentImportService {
         topicRepository.save(topic);
     }
 
-    private Topic createNewTopic(Chapter chapter, Map<String, String> record) {
+    private Topic createNewTopic(Chapter chapter, Map<String, String> record, String topicCode) {
         Topic topic = new Topic(chapter, record.get("topictitle"));
+        topic.setCode(topicCode); // Set the provided or generated code
         updateTopicFromRecord(topic, record);
         return topic;
     }
@@ -333,9 +403,10 @@ public class CsvContentImportService {
     private void updateTopicFromRecord(Topic topic, Map<String, String> record) {
         topic.setTitle(record.get("topictitle"));
         
-        String topicCode = record.get("topiccode");
-        if (topicCode != null && !topicCode.trim().isEmpty()) {
-            topic.setCode(topicCode.trim());
+        // Only update code if it's not already set (for auto-generated codes)
+        String providedTopicCode = record.get("topiccode");
+        if (providedTopicCode != null && !providedTopicCode.trim().isEmpty() && topic.getCode() == null) {
+            topic.setCode(providedTopicCode.trim());
         }
         
         String description = record.get("description");
@@ -360,11 +431,197 @@ public class CsvContentImportService {
     }
 
     public String generateSampleCsv() {
-        return "Board,Grade,Subject,Chapter,TopicTitle,Hours,Description,Summary,TopicCode,Prerequisites,RelatedTopics,Active\n" +
-               "CBSE,9,Physics,Motion,Introduction to Motion,1.5,Basic concepts of motion,Understanding motion and its types,PHY901,Basic Mathematics,Force and Energy,true\n" +
-               "CBSE,9,Physics,Motion,Types of Motion,2.0,Different types of motion,Linear rotational and oscillatory motion,PHY902,Introduction to Motion,,true\n" +
-               "CBSE,9,Chemistry,Atoms and Molecules,Atomic Structure,1.0,Structure of atoms,Protons neutrons and electrons,CHEM901,Basic Chemistry,,true\n" +
-               "CBSE,10,Mathematics,Algebra,Quadratic Equations,2.5,Solving quadratic equations,Methods to solve quadratic equations,MATH1001,Linear Equations,Polynomials,true";
+        return "Board,Grade,Subject,Chapter,TopicTitle,Hours,Description,Summary,Prerequisites,RelatedTopics,Active\n" +
+               "CBSE,9,Physics,Motion,Introduction to Motion,1.5,Basic concepts of motion,Understanding motion and its types,Basic Mathematics,Force and Energy,true\n" +
+               "CBSE,9,Physics,Motion,Types of Motion,2.0,Different types of motion,Linear rotational and oscillatory motion,Introduction to Motion,,true\n" +
+               "CBSE,9,Chemistry,Atoms and Molecules,Atomic Structure,1.0,Structure of atoms,Protons neutrons and electrons,Basic Chemistry,,true\n" +
+               "CBSE,10,Mathematics,Algebra,Quadratic Equations,2.5,Solving quadratic equations,Methods to solve quadratic equations,Linear Equations,Polynomials,true";
+    }
+
+    @Transactional
+    public void deleteImportJobAndContent(Long jobId) {
+        ImportJob importJob = importJobRepository.findById(jobId)
+            .orElseThrow(() -> new RuntimeException("Import job not found with id: " + jobId));
+        
+        // Delete all topics created by this import job
+        // Note: This is a simplified approach. In a real implementation, you might want to
+        // track which topics were created by which import job for more precise deletion
+        // For now, we'll delete the import job record itself
+        
+        importJobRepository.delete(importJob);
+    }
+
+    public Map<String, Object> validateForDuplicatesAndUpdates(byte[] csvContent) {
+        try {
+            List<Map<String, String>> records = parseCsvContent(csvContent, null);
+            Map<String, Object> result = new HashMap<>();
+            
+            List<Map<String, Object>> duplicates = new ArrayList<>();
+            List<Map<String, Object>> updates = new ArrayList<>();
+            List<Map<String, Object>> newContent = new ArrayList<>();
+            
+            for (Map<String, String> record : records) {
+                String boardName = record.get("board");
+                String gradeName = record.get("grade");
+                String subjectName = record.get("subject");
+                String chapterName = record.get("chapter");
+                String topicTitle = record.get("topictitle");
+                
+                // Find existing content
+                Optional<Topic> existingTopic = findExistingTopic(boardName, gradeName, subjectName, chapterName, topicTitle);
+                
+                if (existingTopic.isPresent()) {
+                    Topic topic = existingTopic.get();
+                    Map<String, Object> comparison = compareContent(topic, record);
+                    
+                    if (comparison.get("isDuplicate").equals(true)) {
+                        duplicates.add(Map.of(
+                            "board", boardName,
+                            "grade", gradeName,
+                            "subject", subjectName,
+                            "chapter", chapterName,
+                            "topicTitle", topicTitle,
+                            "existingId", topic.getId(),
+                            "message", "Content is identical to existing record"
+                        ));
+                    } else {
+                        updates.add(Map.of(
+                            "board", boardName,
+                            "grade", gradeName,
+                            "subject", subjectName,
+                            "chapter", chapterName,
+                            "topicTitle", topicTitle,
+                            "existingId", topic.getId(),
+                            "changes", comparison.get("changes"),
+                            "message", "Content has updates"
+                        ));
+                    }
+                } else {
+                    newContent.add(Map.of(
+                        "board", boardName,
+                        "grade", gradeName,
+                        "subject", subjectName,
+                        "chapter", chapterName,
+                        "topicTitle", topicTitle,
+                        "message", "New content to be added"
+                    ));
+                }
+            }
+            
+            result.put("duplicates", duplicates);
+            result.put("updates", updates);
+            result.put("newContent", newContent);
+            result.put("totalRecords", records.size());
+            result.put("duplicateCount", duplicates.size());
+            result.put("updateCount", updates.size());
+            result.put("newCount", newContent.size());
+            
+            return result;
+            
+        } catch (Exception e) {
+            throw new RuntimeException("Error validating content: " + e.getMessage(), e);
+        }
+    }
+    
+    private Optional<Topic> findExistingTopic(String boardName, String gradeName, String subjectName, String chapterName, String topicTitle) {
+        try {
+            // Find board
+            Optional<Board> board = boardRepository.findByName(boardName);
+            if (!board.isPresent()) return Optional.empty();
+            
+            // Find grade
+            Optional<Grade> grade = gradeRepository.findByName(gradeName);
+            if (!grade.isPresent()) return Optional.empty();
+            
+            // Find subject
+            Optional<Subject> subject = subjectRepository.findByName(subjectName);
+            if (!subject.isPresent()) return Optional.empty();
+            
+            // Find chapter
+            Optional<Chapter> chapter = chapterRepository.findBySubjectIdAndName(subject.get().getId(), chapterName);
+            if (!chapter.isPresent()) return Optional.empty();
+            
+            // Find topic
+            return topicRepository.findByChapterIdAndTitle(chapter.get().getId(), topicTitle);
+            
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+    }
+    
+    private Map<String, Object> compareContent(Topic existingTopic, Map<String, String> newRecord) {
+        Map<String, Object> result = new HashMap<>();
+        List<Map<String, Object>> changes = new ArrayList<>();
+        boolean isDuplicate = true;
+        
+        // Compare title
+        if (!Objects.equals(existingTopic.getTitle(), newRecord.get("topictitle"))) {
+            changes.add(Map.of(
+                "field", "title",
+                "oldValue", existingTopic.getTitle(),
+                "newValue", newRecord.get("topictitle")
+            ));
+            isDuplicate = false;
+        }
+        
+        // Compare description
+        String newDescription = newRecord.get("description");
+        if (newDescription != null && !newDescription.trim().isEmpty()) {
+            if (!Objects.equals(existingTopic.getDescription(), newDescription.trim())) {
+                changes.add(Map.of(
+                    "field", "description",
+                    "oldValue", existingTopic.getDescription(),
+                    "newValue", newDescription.trim()
+                ));
+                isDuplicate = false;
+            }
+        }
+        
+        // Compare summary
+        String newSummary = newRecord.get("summary");
+        if (newSummary != null && !newSummary.trim().isEmpty()) {
+            if (!Objects.equals(existingTopic.getSummary(), newSummary.trim())) {
+                changes.add(Map.of(
+                    "field", "summary",
+                    "oldValue", existingTopic.getSummary(),
+                    "newValue", newSummary.trim()
+                ));
+                isDuplicate = false;
+            }
+        }
+        
+        // Compare expected time
+        String newHours = newRecord.get("hours");
+        if (newHours != null && !newHours.trim().isEmpty()) {
+            Integer newTimeMins = parseHoursToMinutes(newHours);
+            if (newTimeMins != null && !Objects.equals(existingTopic.getExpectedTimeMins(), newTimeMins)) {
+                changes.add(Map.of(
+                    "field", "expectedTimeMins",
+                    "oldValue", existingTopic.getExpectedTimeMins(),
+                    "newValue", newTimeMins
+                ));
+                isDuplicate = false;
+            }
+        }
+        
+        // Compare active status
+        String newActive = newRecord.get("active");
+        if (newActive != null) {
+            boolean newActiveValue = Boolean.parseBoolean(newActive);
+            if (!Objects.equals(existingTopic.getActive(), newActiveValue)) {
+                changes.add(Map.of(
+                    "field", "active",
+                    "oldValue", existingTopic.getActive(),
+                    "newValue", newActiveValue
+                ));
+                isDuplicate = false;
+            }
+        }
+        
+        result.put("isDuplicate", isDuplicate);
+        result.put("changes", changes);
+        
+        return result;
     }
 
     public org.springframework.data.domain.Page<ImportJob> getAllImportJobs(int page, int size) {

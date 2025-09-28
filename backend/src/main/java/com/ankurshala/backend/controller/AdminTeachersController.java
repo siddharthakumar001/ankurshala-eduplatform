@@ -78,12 +78,16 @@ public class AdminTeachersController {
         }
     }
 
-    @PostMapping("/{id}/toggle-status")
+    @PatchMapping("/{id}/toggle-status")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Map<String, String>> toggleTeacherStatus(@PathVariable Long id) {
+    public ResponseEntity<Map<String, Object>> toggleTeacherStatus(@PathVariable Long id) {
         try {
-            adminTeacherService.toggleTeacherStatus(id);
-            return ResponseEntity.ok(Map.of("message", "Teacher status updated successfully"));
+            boolean newStatus = adminTeacherService.toggleTeacherStatus(id);
+            return ResponseEntity.ok(Map.of(
+                "id", id,
+                "enabled", newStatus,
+                "message", "Teacher status updated successfully"
+            ));
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         }
