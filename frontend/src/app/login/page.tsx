@@ -14,12 +14,11 @@ interface LoginFormData {
 interface LoginResponse {
   accessToken: string
   refreshToken: string
-  user: {
-    id: string
-    email: string
-    name: string
-    roles: string[]
-  }
+  tokenType: string
+  userId: number
+  name: string
+  email: string
+  role: string
 }
 
 export default function LoginPage() {
@@ -34,10 +33,29 @@ export default function LoginPage() {
   const router = useRouter()
 
   useEffect(() => {
-    // Redirect if already authenticated
-    if (authManager.isAuthenticated()) {
-      router.push('/admin')
+    // Clear any invalid tokens and redirect if already authenticated
+    const checkAuth = async () => {
+      try {
+        if (authManager.isAuthenticated()) {
+          // Double-check token validity by making a test API call
+          try {
+            await api.get('/user/me')
+            // If successful, redirect to dashboard
+            router.push('/admin/dashboard')
+          } catch (error) {
+            // Token is invalid, clear it and stay on login page
+            console.log('Token validation failed, clearing auth state')
+            authManager.logout()
+          }
+        }
+      } catch (error) {
+        console.error('Auth check error:', error)
+        // Clear any invalid auth state
+        authManager.logout()
+      }
     }
+    
+    checkAuth()
   }, [router])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -105,15 +123,23 @@ export default function LoginPage() {
       }, { requireAuth: false })
 
       if (response.data) {
+        // Transform the response data to match expected user structure
+        const userData = {
+          id: response.data.userId.toString(),
+          email: response.data.email,
+          name: response.data.name,
+          roles: [response.data.role] // Convert single role to array
+        }
+
         // Set authentication data
         authManager.setAuth(
           response.data.accessToken,
           response.data.refreshToken,
-          response.data.user
+          userData
         )
 
         // Redirect to admin dashboard
-        router.push('/admin')
+        router.push('/admin/dashboard')
       }
     } catch (err) {
       console.error('Login error:', err)
@@ -126,6 +152,15 @@ export default function LoginPage() {
   const handleForgotPassword = () => {
     // TODO: Implement forgot password functionality
     setError('Forgot password functionality not implemented yet')
+  }
+
+  const handleClearStorage = () => {
+    // Clear all authentication data
+    authManager.logout()
+    setError('')
+    // Show success message
+    setError('Storage cleared. Please try logging in again.')
+    setTimeout(() => setError(''), 3000)
   }
 
   return (
@@ -203,13 +238,20 @@ export default function LoginPage() {
               </label>
             </div>
 
-            <div className="text-sm">
+            <div className="text-sm space-y-2">
               <button
                 type="button"
                 onClick={handleForgotPassword}
-                className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+                className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 block"
               >
                 Forgot your password?
+              </button>
+              <button
+                type="button"
+                onClick={handleClearStorage}
+                className="font-medium text-gray-500 hover:text-gray-400 dark:text-gray-400 dark:hover:text-gray-300 block text-xs"
+              >
+                Clear Storage (Debug)
               </button>
             </div>
           </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { authManager } from '@/utils/auth'
+import { api } from '@/utils/api'
 
 interface AuthGuardProps {
   children: React.ReactNode
@@ -29,21 +30,43 @@ export default function AuthGuard({
           return
         }
 
+        // Validate token by making a test API call
+        try {
+          await api.get('/user/me')
+        } catch (error) {
+          console.log('Token validation failed, redirecting to login')
+          authManager.logout()
+          router.push('/login')
+          return
+        }
+
         // Check if user has required roles
         if (requiredRoles.length > 0) {
           const user = authManager.getUser()
-          if (!user || !user.roles) {
-            console.log('User roles not found')
+          if (!user) {
+            console.log('User not found')
+            router.push('/unauthorized')
+            return
+          }
+
+          // Handle both single role and roles array formats
+          let userRoles: string[] = []
+          if (user.roles && Array.isArray(user.roles)) {
+            userRoles = user.roles
+          } else if (user.role && typeof user.role === 'string') {
+            userRoles = [user.role]
+          } else {
+            console.log('User roles not found or invalid format:', user)
             router.push('/unauthorized')
             return
           }
 
           const hasRequiredRole = requiredRoles.some(role => 
-            user.roles.includes(role)
+            userRoles.includes(role)
           )
 
           if (!hasRequiredRole) {
-            console.log('User does not have required role')
+            console.log('User does not have required role. User roles:', userRoles, 'Required roles:', requiredRoles)
             router.push('/unauthorized')
             return
           }
@@ -52,6 +75,7 @@ export default function AuthGuard({
         setIsAuthorized(true)
       } catch (error) {
         console.error('Auth check error:', error)
+        authManager.logout()
         router.push('/login')
       } finally {
         setIsLoading(false)

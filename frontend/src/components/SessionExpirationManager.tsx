@@ -101,7 +101,7 @@ export default function SessionExpirationManager({
     }
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setIsWarningVisible(false)
     if (countdownInterval) {
       clearInterval(countdownInterval)
@@ -113,10 +113,10 @@ export default function SessionExpirationManager({
       duration: 2000
     })
     
-    authManager.logout()
+    await authManager.logout()
   }
 
-  const handleForceLogout = () => {
+  const handleForceLogout = async () => {
     setIsWarningVisible(false)
     if (countdownInterval) {
       clearInterval(countdownInterval)
@@ -128,7 +128,7 @@ export default function SessionExpirationManager({
       duration: 5000
     })
     
-    authManager.forceLogout('Your session has expired. Please log in again.')
+    await authManager.forceLogout('Your session has expired. Please log in again.')
   }
 
   const formatTime = (milliseconds: number): string => {

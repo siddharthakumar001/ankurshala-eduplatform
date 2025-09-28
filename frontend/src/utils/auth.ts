@@ -96,6 +96,11 @@ class AuthManager {
    * Load authentication state from localStorage
    */
   private loadFromStorage(): void {
+    // Only access localStorage on client side
+    if (typeof window === 'undefined') {
+      return;
+    }
+    
     try {
       const token = localStorage.getItem('accessToken');
       const refreshToken = localStorage.getItem('refreshToken');
@@ -125,6 +130,11 @@ class AuthManager {
    * Save authentication state to localStorage
    */
   private saveToStorage(): void {
+    // Only access localStorage on client side
+    if (typeof window === 'undefined') {
+      return;
+    }
+    
     try {
       if (this.authState.token) {
         localStorage.setItem('accessToken', this.authState.token);
@@ -154,10 +164,13 @@ class AuthManager {
       isTokenExpired: false
     };
     
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-    localStorage.removeItem('lastActivity');
+    // Only access localStorage on client side
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      localStorage.removeItem('lastActivity');
+    }
     
     this.stopHeartbeat();
     this.clearIdleTimeout();
@@ -167,6 +180,11 @@ class AuthManager {
    * Setup event listeners for user activity
    */
   private setupEventListeners(): void {
+    // Only setup event listeners on client side
+    if (typeof window === 'undefined') {
+      return;
+    }
+    
     const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
     
     events.forEach(event => {
@@ -350,21 +368,42 @@ class AuthManager {
   /**
    * Logout user
    */
-  public logout(): void {
-    this.clearAuthState();
-    
-    // Redirect to login page
-    if (typeof window !== 'undefined') {
-      window.location.href = '/login';
+  public async logout(): Promise<void> {
+    try {
+      // Call backend logout API to invalidate refresh token
+      const refreshToken = this.authState.refreshToken;
+      if (refreshToken) {
+        try {
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'}/auth/logout`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ refreshToken })
+          });
+        } catch (error) {
+          console.warn('Failed to call logout API:', error);
+          // Continue with logout even if API call fails
+        }
+      }
+    } catch (error) {
+      console.warn('Error during logout:', error);
+    } finally {
+      this.clearAuthState();
+      
+      // Redirect to login page
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
     }
   }
 
   /**
    * Force logout with message
    */
-  public forceLogout(message: string = 'Session expired. Please log in again.'): void {
+  public async forceLogout(message: string = 'Session expired. Please log in again.'): Promise<void> {
     console.log('Force logout:', message);
-    this.logout();
+    await this.logout();
   }
 
   /**

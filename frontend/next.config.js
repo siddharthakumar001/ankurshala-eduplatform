@@ -12,7 +12,6 @@ const nextConfig = {
   },
   experimental: {
     // Enable faster refresh in development
-    optimizeCss: true,
     optimizePackageImports: ['@/components/ui'],
   },
   // Security configurations

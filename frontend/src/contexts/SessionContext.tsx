@@ -9,7 +9,7 @@ interface SessionContextType {
   user: any | null
   timeUntilExpiry: number | null
   extendSession: () => Promise<boolean>
-  logout: () => void
+  logout: () => Promise<void>
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined)
@@ -58,8 +58,8 @@ export function SessionProvider({ children }: SessionProviderProps) {
     }
   }
 
-  const logout = () => {
-    authManager.logout()
+  const logout = async () => {
+    await authManager.logout()
     setIsAuthenticated(false)
     setUser(null)
     setTimeUntilExpiry(null)
