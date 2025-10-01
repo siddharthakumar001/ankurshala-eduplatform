@@ -242,9 +242,11 @@ function TeacherProfileContent() {
       setProfile(data);
     } catch (error) {
       console.log('Fetch error:', error);
-      console.log('Error details:', error.message);
-      console.log('Error stack:', error.stack);
-      setMessage('Error loading profile: ' + error.message);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : 'No stack trace available';
+      console.log('Error details:', errorMessage);
+      console.log('Error stack:', errorStack);
+      setMessage('Error loading profile: ' + errorMessage);
     } finally {
       console.log('Setting loading to false');
       setLoading(false);

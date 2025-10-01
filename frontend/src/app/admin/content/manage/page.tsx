@@ -269,15 +269,18 @@ function BoardsTab() {
 
   if (error) {
     console.error('BoardsTab: Error details:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    const errorName = error instanceof Error ? error.name : 'Unknown';
+    const errorStack = error instanceof Error ? error.stack : 'No stack trace available';
     return (
       <div className="text-red-500 text-center space-y-2">
-        <div>Error loading boards: {error.message}</div>
+        <div>Error loading boards: {errorMessage}</div>
         <details className="text-sm text-gray-600">
           <summary className="cursor-pointer">Debug Information</summary>
           <div className="mt-2 text-left">
-            <div><strong>Error Type:</strong> {error.name}</div>
-            <div><strong>Message:</strong> {error.message}</div>
-            <div><strong>Stack:</strong> <pre className="text-xs">{error.stack}</pre></div>
+            <div><strong>Error Type:</strong> {errorName}</div>
+            <div><strong>Message:</strong> {errorMessage}</div>
+            <div><strong>Stack:</strong> <pre className="text-xs">{errorStack}</pre></div>
           </div>
         </details>
       </div>
@@ -589,15 +592,18 @@ function GradesTab() {
 
   if (error) {
     console.error('GradesTab: Error details:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    const errorName = error instanceof Error ? error.name : 'Unknown';
+    const errorStack = error instanceof Error ? error.stack : 'No stack trace available';
     return (
       <div className="text-red-500 text-center space-y-2">
-        <div>Error loading grades: {error.message}</div>
+        <div>Error loading grades: {errorMessage}</div>
         <details className="text-sm text-gray-600">
           <summary className="cursor-pointer">Debug Information</summary>
           <div className="mt-2 text-left">
-            <div><strong>Error Type:</strong> {error.name}</div>
-            <div><strong>Message:</strong> {error.message}</div>
-            <div><strong>Stack:</strong> <pre className="text-xs">{error.stack}</pre></div>
+            <div><strong>Error Type:</strong> {errorName}</div>
+            <div><strong>Message:</strong> {errorMessage}</div>
+            <div><strong>Stack:</strong> <pre className="text-xs">{errorStack}</pre></div>
           </div>
         </details>
       </div>
@@ -982,15 +988,18 @@ function SubjectsTab() {
 
   if (error) {
     console.error('SubjectsTab: Error details:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    const errorName = error instanceof Error ? error.name : 'Unknown';
+    const errorStack = error instanceof Error ? error.stack : 'No stack trace available';
     return (
       <div className="text-red-500 text-center space-y-2">
-        <div>Error loading subjects: {error.message}</div>
+        <div>Error loading subjects: {errorMessage}</div>
         <details className="text-sm text-gray-600">
           <summary className="cursor-pointer">Debug Information</summary>
           <div className="mt-2 text-left">
-            <div><strong>Error Type:</strong> {error.name}</div>
-            <div><strong>Message:</strong> {error.message}</div>
-            <div><strong>Stack:</strong> <pre className="text-xs">{error.stack}</pre></div>
+            <div><strong>Error Type:</strong> {errorName}</div>
+            <div><strong>Message:</strong> {errorMessage}</div>
+            <div><strong>Stack:</strong> <pre className="text-xs">{errorStack}</pre></div>
           </div>
         </details>
       </div>
