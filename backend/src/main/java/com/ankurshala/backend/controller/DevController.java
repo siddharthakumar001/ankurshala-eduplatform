@@ -12,7 +12,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/admin")
 @ConditionalOnProperty(name = "app.dev.seeder.enabled", havingValue = "true", matchIfMissing = false)
-@CrossOrigin(origins = "http://localhost:3000", maxAge = 3600)
+@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3001", "http://localhost:3002"}, maxAge = 3600)
 public class DevController {
 
     @Autowired

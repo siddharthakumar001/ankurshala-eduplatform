@@ -8,9 +8,11 @@ import com.ankurshala.backend.repository.TeacherProfileRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Transactional
+@Slf4j
 public class TeacherService {
 
     @Autowired
@@ -20,6 +22,8 @@ public class TeacherService {
     private TeacherProfileRepository teacherProfileRepository;
 
     public Teacher createTeacher(User user) {
+        log.info("Creating teacher for user ID: {}, email: {}", user.getId(), user.getEmail());
+        
         Teacher teacher = new Teacher();
         teacher.setUser(user);
         teacher.setName(user.getName());
@@ -27,12 +31,14 @@ public class TeacherService {
         teacher.setStatus(com.ankurshala.backend.entity.TeacherStatus.PENDING);
 
         Teacher savedTeacher = teacherRepository.save(teacher);
+        log.info("Teacher created with ID: {}", savedTeacher.getId());
 
         // Create teacher profile
         TeacherProfile profile = new TeacherProfile();
         profile.setUser(user);
         profile.setTeacher(savedTeacher);
-        teacherProfileRepository.save(profile);
+        TeacherProfile savedProfile = teacherProfileRepository.save(profile);
+        log.info("Teacher profile created with ID: {} for user ID: {}", savedProfile.getId(), user.getId());
 
         return savedTeacher;
     }

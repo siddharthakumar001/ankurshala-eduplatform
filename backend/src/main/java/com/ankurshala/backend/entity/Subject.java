@@ -23,11 +23,22 @@ public class Subject {
     @Column(name = "active", nullable = false)
     private Boolean active = true;
 
+    @Column(name = "soft_deleted", nullable = false)
+    private Boolean softDeleted = false;
+
     @Column(name = "board_id", nullable = false)
     private Long boardId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "board_id", insertable = false, updatable = false)
+    private Board board;
+
     @Column(name = "grade_id", nullable = false)
     private Long gradeId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "grade_id", insertable = false, updatable = false)
+    private Grade grade;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -70,4 +81,13 @@ public class Subject {
 
     public List<Chapter> getChapters() { return chapters; }
     public void setChapters(List<Chapter> chapters) { this.chapters = chapters; }
+
+    public Boolean getSoftDeleted() { return softDeleted; }
+    public void setSoftDeleted(Boolean softDeleted) { this.softDeleted = softDeleted; }
+
+    public Board getBoard() { return board; }
+    public void setBoard(Board board) { this.board = board; }
+
+    public Grade getGrade() { return grade; }
+    public void setGrade(Grade grade) { this.grade = grade; }
 }

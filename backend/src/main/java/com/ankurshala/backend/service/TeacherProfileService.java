@@ -2,6 +2,7 @@ package com.ankurshala.backend.service;
 
 import com.ankurshala.backend.dto.teacher.*;
 import com.ankurshala.backend.entity.*;
+import com.ankurshala.backend.exception.ResourceNotFoundException;
 import com.ankurshala.backend.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -26,7 +27,7 @@ public class TeacherProfileService {
     // Profile Management
     public TeacherProfileDto getTeacherProfile(Long userId) {
         TeacherProfile profile = teacherProfileRepository.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("Teacher profile not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Teacher profile not found for user ID: " + userId));
         return convertToDto(profile);
     }
 

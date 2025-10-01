@@ -4,6 +4,8 @@ import type { NextRequest } from 'next/server'
 // Define protected routes that require authentication
 const protectedRoutes = [
   '/admin',
+  '/student',
+  '/teacher',
   '/dashboard',
   '/profile',
   '/settings'
@@ -11,31 +13,31 @@ const protectedRoutes = [
 
 // Define admin-only routes
 const adminRoutes = [
-  '/admin/users',
-  '/admin/content',
-  '/admin/settings',
-  '/admin/reports'
+  '/admin'
 ]
 
 // Define public routes that don't require authentication
 const publicRoutes = [
   '/',
   '/login',
-  '/register',
+  '/register-student',
+  '/register-teacher',
   '/forgot-password',
   '/unauthorized',
-  '/api/auth'
+  '/forbidden',
+  '/not-found',
+  '/test-login'
 ]
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   
-  // Skip middleware for static files and API routes (except auth)
+  // Skip middleware for static files and API routes
   if (
     pathname.startsWith('/_next/') ||
     pathname.startsWith('/static/') ||
     pathname.startsWith('/favicon.ico') ||
-    (pathname.startsWith('/api/') && !pathname.startsWith('/api/auth'))
+    pathname.startsWith('/api/')
   ) {
     return NextResponse.next()
   }
@@ -58,18 +60,19 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // If accessing protected route without token, redirect to login
+  // If accessing protected route without token, redirect to login with proper message
   if (isProtectedRoute && !token) {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('redirect', pathname)
+    loginUrl.searchParams.set('message', 'Please login to access this page')
     return NextResponse.redirect(loginUrl)
   }
 
-  // If accessing admin route, we'll let the AuthGuard component handle role checking
-  // since we can't easily decode JWT tokens in middleware without additional setup
+  // If accessing admin route without token, redirect to login
   if (isAdminRoute && !token) {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('redirect', pathname)
+    loginUrl.searchParams.set('message', 'Admin access required. Please login with admin credentials')
     return NextResponse.redirect(loginUrl)
   }
 

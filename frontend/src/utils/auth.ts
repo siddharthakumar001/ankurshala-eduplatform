@@ -374,13 +374,17 @@ class AuthManager {
       const refreshToken = this.authState.refreshToken;
       if (refreshToken) {
         try {
-          await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'}/auth/logout`, {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'}/auth/logout`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({ refreshToken })
           });
+          
+          if (!response.ok) {
+            console.warn('Logout API returned non-OK status:', response.status);
+          }
         } catch (error) {
           console.warn('Failed to call logout API:', error);
           // Continue with logout even if API call fails
@@ -391,8 +395,18 @@ class AuthManager {
     } finally {
       this.clearAuthState();
       
-      // Redirect to login page
+      // Clear any existing intervals and timeouts
+      this.stopHeartbeat();
+      this.clearIdleTimeout();
+      
+      // Force clear all localStorage
       if (typeof window !== 'undefined') {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        localStorage.removeItem('lastActivity');
+        
+        // Force a page reload to clear any in-memory state
         window.location.href = '/login';
       }
     }

@@ -19,6 +19,18 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
     public void commence(HttpServletRequest httpServletRequest,
                          HttpServletResponse httpServletResponse,
                          AuthenticationException e) throws IOException {
+        
+        String requestURI = httpServletRequest.getRequestURI();
+        
+        // Skip authentication entry point for permitAll endpoints
+        if (requestURI.startsWith("/api/auth/") || 
+            requestURI.startsWith("/api/actuator/") || 
+            requestURI.startsWith("/api/test/")) {
+            // For permitAll endpoints, let Spring Security handle the request normally
+            // Don't send any response here, let the filter chain continue
+            return;
+        }
+        
         logger.error("Responding with unauthorized error. Message - {}", e.getMessage());
         httpServletResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED,
                 "Sorry, You're not authorized to access this resource.");

@@ -23,18 +23,21 @@ export default function SessionExpirationManager({
   const [timeRemaining, setTimeRemaining] = useState(0)
   const [isExtending, setIsExtending] = useState(false)
   const [countdownInterval, setCountdownInterval] = useState<NodeJS.Timeout | null>(null)
+  const [hasShownWarning, setHasShownWarning] = useState(false) // Prevent multiple warnings
 
   const checkSessionExpiration = useCallback(() => {
     if (!authManager.isAuthenticated()) {
       setIsWarningVisible(false)
+      setHasShownWarning(false)
       return
     }
 
     const timeUntilExpiry = authManager.getTimeUntilExpiry()
     
     if (timeUntilExpiry && timeUntilExpiry <= warningThreshold && timeUntilExpiry > 0) {
-      if (!isWarningVisible) {
+      if (!isWarningVisible && !hasShownWarning) {
         setIsWarningVisible(true)
+        setHasShownWarning(true)
         setTimeRemaining(timeUntilExpiry)
         startCountdown()
         toast.warning('Your session will expire soon', {
@@ -45,8 +48,11 @@ export default function SessionExpirationManager({
     } else if (timeUntilExpiry && timeUntilExpiry <= 0) {
       // Token has expired, force logout
       handleForceLogout()
+    } else if (timeUntilExpiry && timeUntilExpiry > warningThreshold) {
+      // Reset warning flag if session is extended beyond threshold
+      setHasShownWarning(false)
     }
-  }, [isWarningVisible, warningThreshold])
+  }, [isWarningVisible, hasShownWarning, warningThreshold])
 
   const startCountdown = useCallback(() => {
     if (countdownInterval) {
@@ -76,6 +82,7 @@ export default function SessionExpirationManager({
       const refreshed = await authManager.refreshToken()
       if (refreshed) {
         setIsWarningVisible(false)
+        setHasShownWarning(false) // Reset warning flag after successful extension
         if (countdownInterval) {
           clearInterval(countdownInterval)
           setCountdownInterval(null)

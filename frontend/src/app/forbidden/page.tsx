@@ -1,44 +1,90 @@
-import Link from 'next/link'
-import Image from 'next/image'
+'use client'
 
-// Stage-1 FE complete: Forbidden page for role mismatch
+import { useRouter } from 'next/navigation'
+import { authManager } from '@/utils/auth'
+import { Button } from '@/components/ui/button'
+import { AlertTriangle, Home, LogIn, ArrowLeft } from 'lucide-react'
+
 export default function ForbiddenPage() {
+  const router = useRouter()
+
+  const handleGoBack = () => {
+    router.back()
+  }
+
+  const handleGoHome = () => {
+    router.push('/')
+  }
+
+  const handleLogin = () => {
+    router.push('/login')
+  }
+
+  const handleLogout = () => {
+    authManager.logout()
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
-      <div className="text-center">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 via-white to-orange-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
+      <div className="max-w-md w-full text-center px-4">
         <div className="mb-8">
-          <Image
-            src="/ankurshala.svg"
-            alt="Ankurshala Logo"
-            width={80}
-            height={80}
-            className="mx-auto rounded-lg"
-          />
+          <div className="mx-auto w-24 h-24 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mb-6">
+            <AlertTriangle className="h-12 w-12 text-red-600 dark:text-red-400" />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            Access Forbidden
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">
+            You don't have permission to access this page. Please login with appropriate credentials to continue.
+          </p>
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+            <p className="text-sm text-yellow-800 dark:text-yellow-200">
+              <strong>Need access?</strong> Contact your administrator or login with the correct role.
+            </p>
+          </div>
         </div>
-        
-        <h1 className="text-6xl font-bold text-red-600 mb-4">403</h1>
-        <h2 className="text-2xl font-semibold text-gray-700 mb-4">Access Forbidden</h2>
-        <p className="text-gray-600 mb-8 max-w-md">
-          You don't have permission to access this page. Please check your account permissions or contact support if you believe this is an error.
-        </p>
-        
-        <div className="space-x-4">
-          <Link
-            href="/"
-            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+
+        <div className="space-y-3">
+          <Button
+            onClick={handleLogin}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
           >
+            <LogIn className="h-4 w-4 mr-2" />
+            Login
+          </Button>
+          
+          <Button
+            onClick={handleGoBack}
+            variant="outline"
+            className="w-full"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Go Back
+          </Button>
+          
+          <Button
+            onClick={handleGoHome}
+            variant="outline"
+            className="w-full"
+          >
+            <Home className="h-4 w-4 mr-2" />
             Go Home
-          </Link>
-          <Link
-            href="/login"
-            className="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            Sign In
-          </Link>
+          </Button>
+          
+          {authManager.isAuthenticated() && (
+            <Button
+              onClick={handleLogout}
+              variant="destructive"
+              className="w-full"
+            >
+              Logout
+            </Button>
+          )}
         </div>
-        
-        <div className="mt-8 text-sm text-gray-500">
-          <p>Need help? Contact us at support@ankurshala.com</p>
+
+        <div className="mt-8 text-xs text-gray-500 dark:text-gray-400">
+          <p>If you believe this is an error, please contact support.</p>
+          <p className="mt-1">Error Code: 403 - Forbidden</p>
         </div>
       </div>
     </div>

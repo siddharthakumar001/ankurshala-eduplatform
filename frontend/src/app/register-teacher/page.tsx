@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuthStore } from '@/store/auth'
 import { authAPI } from '@/lib/apiClient'
+import { authManager } from '@/utils/auth'
 import { useTheme } from '@/components/theme-provider'
 import { Sun, Moon, Eye, EyeOff, ArrowLeft, User, Mail, Lock, CheckCircle, GraduationCap } from 'lucide-react'
 
@@ -58,17 +59,23 @@ export default function RegisterTeacherPage() {
     try {
       const response = await authAPI.signupTeacher(data.name, data.email, data.password)
       
-      // Store tokens
-      localStorage.setItem('accessToken', response.accessToken)
-      localStorage.setItem('refreshToken', response.refreshToken)
+      // Extract data from the API response
+      const userData = {
+        id: response.data.userId.toString(),
+        email: response.data.email,
+        name: response.data.name,
+        role: response.data.role
+      }
+
+      // Set authentication data in both systems
+      authManager.setAuth(
+        response.data.accessToken,
+        response.data.refreshToken,
+        userData
+      )
       
-      // Update auth store
-      login({
-        id: response.userId.toString(),
-        email: response.email,
-        name: response.name,
-        role: response.role,
-      })
+      // Also update Zustand store for RouteGuard compatibility
+      login(userData)
 
       toast.success('Teacher account created successfully!')
       router.push('/teacher/profile')
@@ -123,10 +130,10 @@ export default function RegisterTeacherPage() {
             </div>
           </div>
           <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            Join as Teacher
+            AnkurShala
           </h1>
           <p className="mt-3 text-lg text-gray-600 dark:text-gray-300">
-            Share your knowledge and inspire students worldwide
+            Join as Teacher - Share your knowledge and inspire students worldwide
           </p>
         </div>
         
@@ -178,7 +185,7 @@ export default function RegisterTeacherPage() {
                       ? 'border-red-500 focus:border-red-500' 
                       : 'border-gray-200 dark:border-gray-600 focus:border-indigo-500'
                   }`}
-                  placeholder="Enter your email address"
+                  placeholder="Enter your email"
                 />
                 {errors.email && (
                   <p className="text-sm text-red-600 dark:text-red-400">{errors.email.message}</p>
@@ -200,7 +207,7 @@ export default function RegisterTeacherPage() {
                         ? 'border-red-500 focus:border-red-500' 
                         : 'border-gray-200 dark:border-gray-600 focus:border-indigo-500'
                     }`}
-                    placeholder="Create a strong password"
+                    placeholder="Enter your password"
                   />
                   <button
                     type="button"

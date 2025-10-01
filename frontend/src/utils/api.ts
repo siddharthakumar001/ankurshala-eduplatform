@@ -11,6 +11,16 @@ interface RequestOptions extends RequestInit {
 }
 
 interface ApiResponse<T = any> {
+  success: boolean
+  message?: string
+  data: T
+  errors?: string[]
+  timestamp?: string
+  path?: string
+  traceId?: string
+}
+
+interface HttpResponse<T = any> {
   data: T
   status: number
   statusText: string
@@ -22,7 +32,7 @@ class SecureApiClient {
   private defaultTimeout: number = 30000 // 30 seconds
 
   constructor(baseURL?: string) {
-    this.baseURL = baseURL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+    this.baseURL = baseURL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'
   }
 
   /**
@@ -97,9 +107,9 @@ class SecureApiClient {
   }
 
   /**
-   * Handle API response
+   * Handle API response with standardized response format
    */
-  private async handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
+  private async handleResponse<T>(response: Response): Promise<HttpResponse<T>> {
     // Check for token expiration
     if (response.status === 401) {
       console.log('Unauthorized response, checking token')
@@ -123,7 +133,15 @@ class SecureApiClient {
       
       try {
         const errorData = JSON.parse(errorText)
-        errorMessage = errorData.message || errorData.detail || errorMessage
+        // Handle standardized error responses
+        if (errorData.success === false) {
+          errorMessage = errorData.message || errorMessage
+          if (errorData.errors && errorData.errors.length > 0) {
+            errorMessage += ': ' + errorData.errors.join(', ')
+          }
+        } else {
+          errorMessage = errorData.message || errorData.detail || errorMessage
+        }
       } catch {
         // Use default error message if JSON parsing fails
       }
@@ -136,7 +154,26 @@ class SecureApiClient {
     const contentType = response.headers.get('content-type')
     
     if (contentType && contentType.includes('application/json')) {
-      data = await response.json()
+      const jsonResponse = await response.json()
+      
+      // Check if it's a standardized API response
+      if (jsonResponse && typeof jsonResponse === 'object' && 'success' in jsonResponse) {
+        const apiResponse: ApiResponse<T> = jsonResponse
+        
+        // Handle standardized API responses
+        if (apiResponse.success === false) {
+          let errorMessage = apiResponse.message || 'An unexpected error occurred'
+          if (apiResponse.errors && apiResponse.errors.length > 0) {
+            errorMessage += ': ' + apiResponse.errors.join(', ')
+          }
+          throw new Error(errorMessage)
+        }
+        
+        data = apiResponse.data
+      } else {
+        // Handle direct responses (like /user/me)
+        data = jsonResponse as T
+      }
     } else {
       data = await response.text() as unknown as T
     }
@@ -155,7 +192,7 @@ class SecureApiClient {
   private async makeRequest<T>(
     url: string, 
     options: RequestOptions = {}
-  ): Promise<ApiResponse<T>> {
+  ): Promise<HttpResponse<T>> {
     const {
       requireAuth = true,
       timeout = this.defaultTimeout,
@@ -187,6 +224,24 @@ class SecureApiClient {
 
     // Create full URL
     const fullUrl = url.startsWith('http') ? url : `${this.baseURL}${url}`
+    
+    // Log request without sensitive data
+    const logOptions = { ...fetchOptions }
+    if (logOptions.body && typeof logOptions.body === 'string') {
+      try {
+        const parsed = JSON.parse(logOptions.body)
+        if (parsed.password) {
+          parsed.password = '[REDACTED]'
+        }
+        logOptions.body = JSON.stringify(parsed)
+      } catch {
+        // If not JSON, don't log the body
+        logOptions.body = '[REDACTED]'
+      }
+    }
+    
+    console.log('API Client: Making request to:', fullUrl)
+    console.log('API Client: Request options:', { ...logOptions, headers })
 
     // Create request with timeout
     const requestPromise = fetch(fullUrl, {
@@ -199,8 +254,10 @@ class SecureApiClient {
 
     try {
       const response = await Promise.race([requestPromise, timeoutPromise])
+      console.log('API Client: Response status:', response.status, response.statusText)
       return await this.handleResponse<T>(response)
     } catch (error) {
+      console.error('API Client: Request failed:', error)
       if (error instanceof Error) {
         throw error
       }
@@ -212,11 +269,11 @@ class SecureApiClient {
    * Public API methods
    */
 
-  public async get<T>(url: string, options: RequestOptions = {}): Promise<ApiResponse<T>> {
+  public async get<T>(url: string, options: RequestOptions = {}): Promise<HttpResponse<T>> {
     return this.makeRequest<T>(url, { ...options, method: 'GET' })
   }
 
-  public async post<T>(url: string, data?: any, options: RequestOptions = {}): Promise<ApiResponse<T>> {
+  public async post<T>(url: string, data?: any, options: RequestOptions = {}): Promise<HttpResponse<T>> {
     return this.makeRequest<T>(url, {
       ...options,
       method: 'POST',
@@ -224,7 +281,7 @@ class SecureApiClient {
     })
   }
 
-  public async put<T>(url: string, data?: any, options: RequestOptions = {}): Promise<ApiResponse<T>> {
+  public async put<T>(url: string, data?: any, options: RequestOptions = {}): Promise<HttpResponse<T>> {
     return this.makeRequest<T>(url, {
       ...options,
       method: 'PUT',
@@ -232,7 +289,7 @@ class SecureApiClient {
     })
   }
 
-  public async patch<T>(url: string, data?: any, options: RequestOptions = {}): Promise<ApiResponse<T>> {
+  public async patch<T>(url: string, data?: any, options: RequestOptions = {}): Promise<HttpResponse<T>> {
     return this.makeRequest<T>(url, {
       ...options,
       method: 'PATCH',
@@ -240,7 +297,7 @@ class SecureApiClient {
     })
   }
 
-  public async delete<T>(url: string, options: RequestOptions = {}): Promise<ApiResponse<T>> {
+  public async delete<T>(url: string, options: RequestOptions = {}): Promise<HttpResponse<T>> {
     return this.makeRequest<T>(url, { ...options, method: 'DELETE' })
   }
 
@@ -252,7 +309,7 @@ class SecureApiClient {
     file: File, 
     onProgress?: (progress: number) => void,
     options: RequestOptions = {}
-  ): Promise<ApiResponse<T>> {
+  ): Promise<HttpResponse<T>> {
     const formData = new FormData()
     formData.append('file', file)
 

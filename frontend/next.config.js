@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
+  // Only use standalone output for Docker/production builds
+  ...(process.env.DOCKER_BUILD === 'true' && { output: 'standalone' }),
   typescript: {
     ignoreBuildErrors: process.env.DOCKER_BUILD === 'true',
   },

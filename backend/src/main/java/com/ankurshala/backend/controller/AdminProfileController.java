@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 // NOTE: server.servlet.context-path=/api is set for the app.
 // Therefore controller @RequestMapping must NOT start with "/api".
-@CrossOrigin(origins = "http://localhost:3000", maxAge = 3600)
+@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3001", "http://localhost:3002"}, maxAge = 3600)
 @RestController
 @RequestMapping("/admin")
 @PreAuthorize("hasRole('ADMIN')")

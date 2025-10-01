@@ -11,6 +11,12 @@ interface AuthGuardProps {
   fallback?: React.ReactNode
 }
 
+const USER_DASHBOARD_ROUTES = {
+  ADMIN: '/admin/dashboard',
+  TEACHER: '/teacher/profile',
+  STUDENT: '/student/profile'
+} as const
+
 export default function AuthGuard({ 
   children, 
   requiredRoles = [], 
@@ -18,6 +24,7 @@ export default function AuthGuard({
 }: AuthGuardProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
+  const [authError, setAuthError] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -26,63 +33,62 @@ export default function AuthGuard({
         // Check if user is authenticated
         if (!authManager.isAuthenticated()) {
           console.log('User not authenticated, redirecting to login')
-          router.push('/login')
+          // Use replace instead of push to avoid navigation interruption
+          router.replace('/login')
           return
         }
 
         // Validate token by making a test API call
+        let userData: any = null
         try {
-          await api.get('/user/me')
+          const response = await api.get('/user/me')
+          userData = response.data
         } catch (error) {
           console.log('Token validation failed, redirecting to login')
           authManager.logout()
-          router.push('/login')
+          // Use replace instead of push to avoid navigation interruption
+          router.replace('/login')
           return
         }
 
         // Check if user has required roles
         if (requiredRoles.length > 0) {
-          const user = authManager.getUser()
-          if (!user) {
-            console.log('User not found')
-            router.push('/unauthorized')
+          const userRole = (userData as any)?.role
+
+          if (!userRole) {
+            console.log('User role not found')
+            router.replace('/unauthorized')
             return
           }
 
-          // Handle both single role and roles array formats
-          let userRoles: string[] = []
-          if (user.roles && Array.isArray(user.roles)) {
-            userRoles = user.roles
-          } else if (user.role && typeof user.role === 'string') {
-            userRoles = [user.role]
-          } else {
-            console.log('User roles not found or invalid format:', user)
-            router.push('/unauthorized')
-            return
-          }
-
-          const hasRequiredRole = requiredRoles.some(role => 
-            userRoles.includes(role)
-          )
+          const hasRequiredRole = requiredRoles.includes(userRole)
 
           if (!hasRequiredRole) {
-            console.log('User does not have required role. User roles:', userRoles, 'Required roles:', requiredRoles)
-            router.push('/unauthorized')
+            console.log('User does not have required role. User role:', userRole, 'Required roles:', requiredRoles)
+            
+            // Redirect to forbidden page for better UX
+            router.replace('/forbidden')
             return
           }
         }
 
         setIsAuthorized(true)
+        setAuthError(null)
       } catch (error) {
         console.error('Auth check error:', error)
+        setAuthError('Authentication failed')
         authManager.logout()
-        router.push('/login')
+        // Use replace instead of push to avoid navigation interruption
+        router.replace('/login')
       } finally {
         setIsLoading(false)
       }
     }
 
-    checkAuth()
+    // Add a small delay to prevent rapid navigation issues in WebKit
+    const timeoutId = setTimeout(checkAuth, 100)
+    
+    return () => clearTimeout(timeoutId)
   }, [requiredRoles, router])
 
   // Show loading state
@@ -92,6 +98,29 @@ export default function AuthGuard({
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600 dark:text-gray-400">Verifying authentication...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show error state
+  if (authError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="text-center">
+          <div className="text-red-500 text-6xl mb-4">⚠️</div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            Authentication Error
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">
+            {authError}
+          </p>
+          <button
+            onClick={() => router.replace('/login')}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Go to Login
+          </button>
         </div>
       </div>
     )
@@ -110,7 +139,7 @@ export default function AuthGuard({
             You don't have permission to access this page.
           </p>
           <button
-            onClick={() => router.push('/login')}
+            onClick={() => router.replace('/login')}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
             Go to Login

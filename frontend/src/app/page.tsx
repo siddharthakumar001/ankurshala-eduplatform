@@ -1,11 +1,51 @@
+'use client'
+
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Sparkles, CalendarDays, ShieldCheck, Brain } from 'lucide-react'
+import { authManager } from '@/utils/auth'
+import { api } from '@/utils/api'
 
-export const dynamic = 'force-static'
+const USER_DASHBOARD_ROUTES = {
+  ADMIN: '/admin/dashboard',
+  TEACHER: '/teacher/profile',
+  STUDENT: '/student/profile'
+} as const
 
 export default function Home() {
+  const router = useRouter()
+
+  useEffect(() => {
+    // Check if user is authenticated and redirect to appropriate dashboard
+    const checkAuthAndRedirect = async () => {
+      try {
+        if (authManager.isAuthenticated()) {
+          try {
+            const response = await api.get('/user/me')
+            const userRole = (response.data as any).role
+            
+            // Redirect to appropriate dashboard based on role
+            const redirectTo = USER_DASHBOARD_ROUTES[userRole as keyof typeof USER_DASHBOARD_ROUTES]
+            if (redirectTo) {
+              router.replace(redirectTo)
+            }
+          } catch (error) {
+            // Token is invalid, clear it and stay on homepage
+            console.log('Token validation failed, clearing auth state')
+            authManager.logout()
+          }
+        }
+      } catch (error) {
+        console.error('Auth check error:', error)
+        authManager.logout()
+      }
+    }
+
+    checkAuthAndRedirect()
+  }, [router])
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#0B1220] via-[#0E1730] to-[#0B1220] text-white">
       {/* HERO */}
@@ -16,14 +56,14 @@ export default function Home() {
         <div className="flex flex-col items-center text-center">
           <Image
             src="/ankurshala.svg"
-            alt="Ankurshala"
+            alt="Ankurshala Logo"
             width={200}
             height={200}
             priority
             className="drop-shadow-[0_10px_20px_rgba(16,185,129,0.35)]"
           />
           <h1 className="mt-8 text-4xl md:text-6xl font-extrabold tracking-tight">
-            Smart Learning, On&nbsp;Demand
+            Welcome to Ankurshala
           </h1>
           <p className="mt-4 max-w-2xl text-lg md:text-xl text-slate-300">
             Book 1:1 sessions by topic. Get matched with verified teachers in minutes.
@@ -38,10 +78,10 @@ export default function Home() {
               </Link>
             </Button>
             <Button size="lg" variant="outline" className="border-emerald-400 text-emerald-300 hover:bg-emerald-500/10" asChild>
-              <Link href="/register-student">I'm a Student</Link>
+              <Link href="/register-student">Register as Student</Link>
             </Button>
             <Button size="lg" variant="outline" className="border-blue-400 text-blue-300 hover:bg-blue-500/10" asChild>
-              <Link href="/register-teacher">I'm a Teacher</Link>
+              <Link href="/register-teacher">Register as Teacher</Link>
             </Button>
           </div>
 

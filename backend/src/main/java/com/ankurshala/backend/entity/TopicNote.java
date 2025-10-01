@@ -17,6 +17,9 @@ public class TopicNote {
     @JoinColumn(name = "topic_id", nullable = false)
     private Topic topic;
 
+    @Column(name = "topic_id", insertable = false, updatable = false)
+    private Long topicId;
+
     @Column(name = "title", nullable = false, length = 300)
     private String title;
 
@@ -26,8 +29,24 @@ public class TopicNote {
     @Column(name = "active", nullable = false)
     private Boolean active = true;
 
+    @Column(name = "soft_deleted", nullable = false)
+    private Boolean softDeleted = false;
+
     @Column(name = "attachments", columnDefinition = "TEXT", nullable = true)
     private String attachments;
+    
+    // Denormalized hierarchy fields for easier querying and reporting
+    @Column(name = "board_id")
+    private Long boardId;
+    
+    @Column(name = "grade_id")
+    private Long gradeId;
+    
+    @Column(name = "subject_id")
+    private Long subjectId;
+    
+    @Column(name = "chapter_id")
+    private Long chapterId;
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
@@ -75,4 +94,22 @@ public class TopicNote {
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    public Boolean getSoftDeleted() { return softDeleted; }
+    public void setSoftDeleted(Boolean softDeleted) { this.softDeleted = softDeleted; }
+
+    public Long getTopicId() { return topicId; }
+    public void setTopicId(Long topicId) { this.topicId = topicId; }
+    
+    public Long getBoardId() { return boardId; }
+    public void setBoardId(Long boardId) { this.boardId = boardId; }
+    
+    public Long getGradeId() { return gradeId; }
+    public void setGradeId(Long gradeId) { this.gradeId = gradeId; }
+    
+    public Long getSubjectId() { return subjectId; }
+    public void setSubjectId(Long subjectId) { this.subjectId = subjectId; }
+    
+    public Long getChapterId() { return chapterId; }
+    public void setChapterId(Long chapterId) { this.chapterId = chapterId; }
 }

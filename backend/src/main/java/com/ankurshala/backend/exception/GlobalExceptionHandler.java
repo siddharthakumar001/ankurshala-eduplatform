@@ -1,167 +1,276 @@
 package com.ankurshala.backend.exception;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.ankurshala.backend.dto.common.ApiResponse;
+import com.ankurshala.backend.service.LoggingService;
+import com.ankurshala.backend.util.TraceUtil;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.validation.FieldError;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
-import java.net.URI;
-import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
-@RestControllerAdvice
+/**
+ * Enhanced Global Exception Handler
+ * Handles all exceptions globally and returns standardized error responses
+ * Implements comprehensive logging and error tracking
+ */
+@ControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
-    private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    @Autowired
+    private LoggingService loggingService;
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ApiResponse<Object>> handleResourceNotFoundException(
+            ResourceNotFoundException ex, 
+            HttpServletRequest request) {
+        
+        String traceId = TraceUtil.getTraceId();
+        String requestId = TraceUtil.getRequestId();
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put("path", request.getRequestURI());
+        context.put("method", request.getMethod());
+        context.put("errorType", "RESOURCE_NOT_FOUND");
+        
+        loggingService.logErrorWithContext("RESOURCE_NOT_FOUND", ex, context);
+        loggingService.logSystemEvent("RESOURCE_NOT_FOUND", "WARN", 
+                "Resource not found: " + ex.getMessage(), context);
+        
+        ApiResponse<Object> response = ApiResponse.error(ex.getMessage(), request.getRequestURI(), traceId);
+        response.setRequestId(requestId);
+        
+        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ApiResponse<Object>> handleBusinessException(
+            BusinessException ex, 
+            HttpServletRequest request) {
+        
+        String traceId = TraceUtil.getTraceId();
+        String requestId = TraceUtil.getRequestId();
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put("path", request.getRequestURI());
+        context.put("method", request.getMethod());
+        context.put("errorType", "BUSINESS_EXCEPTION");
+        
+        loggingService.logErrorWithContext("BUSINESS_EXCEPTION", ex, context);
+        loggingService.logSystemEvent("BUSINESS_EXCEPTION", "WARN", 
+                "Business logic error: " + ex.getMessage(), context);
+        
+        ApiResponse<Object> response = ApiResponse.error(ex.getMessage(), request.getRequestURI(), traceId);
+        response.setRequestId(requestId);
+        
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(ValidationException.class)
+    public ResponseEntity<ApiResponse<Object>> handleValidationException(
+            ValidationException ex, 
+            HttpServletRequest request) {
+        
+        String traceId = TraceUtil.getTraceId();
+        String requestId = TraceUtil.getRequestId();
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put("path", request.getRequestURI());
+        context.put("method", request.getMethod());
+        context.put("errorType", "VALIDATION_EXCEPTION");
+        context.put("fieldName", ex.getFieldName());
+        context.put("fieldValue", ex.getFieldValue());
+        
+        loggingService.logErrorWithContext("VALIDATION_EXCEPTION", ex, context);
+        loggingService.logSystemEvent("VALIDATION_EXCEPTION", "WARN", 
+                "Validation failed: " + ex.getMessage(), context);
+        
+        ApiResponse<Object> response = ApiResponse.error(ex.getMessage(), request.getRequestURI(), traceId);
+        response.setRequestId(requestId);
+        
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ProblemDetail> handleValidationException(
-            MethodArgumentNotValidException ex, WebRequest request) {
+    public ResponseEntity<ApiResponse<Object>> handleMethodArgumentNotValid(
+            MethodArgumentNotValidException ex, 
+            HttpServletRequest request) {
         
-        logger.warn("Validation error: {}", ex.getMessage());
+        String traceId = TraceUtil.getTraceId();
+        String requestId = TraceUtil.getRequestId();
         
-        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-            HttpStatus.BAD_REQUEST, "Validation failed for one or more fields");
+        List<String> errors = ex.getBindingResult().getFieldErrors().stream()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .collect(Collectors.toList());
         
-        problemDetail.setType(URI.create("https://ankurshala.com/problems/validation-error"));
-        problemDetail.setTitle("Validation Error");
-        problemDetail.setProperty("timestamp", Instant.now());
-        problemDetail.setProperty("path", request.getDescription(false).replace("uri=", ""));
+        Map<String, Object> context = new HashMap<>();
+        context.put("path", request.getRequestURI());
+        context.put("method", request.getMethod());
+        context.put("errorType", "METHOD_ARGUMENT_NOT_VALID");
+        context.put("validationErrors", errors);
         
-        Map<String, String> fieldErrors = new HashMap<>();
-        for (FieldError fieldError : ex.getBindingResult().getFieldErrors()) {
-            fieldErrors.put(fieldError.getField(), fieldError.getDefaultMessage());
-        }
-        problemDetail.setProperty("fields", fieldErrors);
+        loggingService.logErrorWithContext("METHOD_ARGUMENT_NOT_VALID", ex, context);
+        loggingService.logSystemEvent("METHOD_ARGUMENT_NOT_VALID", "WARN", 
+                "Method argument validation failed", context);
         
-        return ResponseEntity.badRequest().body(problemDetail);
+        ApiResponse<Object> response = ApiResponse.error("Validation failed", errors, request.getRequestURI(), traceId);
+        response.setRequestId(requestId);
+        
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(BadCredentialsException.class)
-    public ResponseEntity<ProblemDetail> handleBadCredentialsException(
-            BadCredentialsException ex, WebRequest request) {
+    public ResponseEntity<ApiResponse<Object>> handleBadCredentialsException(
+            BadCredentialsException ex, 
+            HttpServletRequest request) {
         
-        logger.warn("Authentication failed: {}", ex.getMessage());
+        String traceId = TraceUtil.getTraceId();
+        String requestId = TraceUtil.getRequestId();
         
-        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-            HttpStatus.UNAUTHORIZED, "Invalid email or password");
+        Map<String, Object> context = new HashMap<>();
+        context.put("path", request.getRequestURI());
+        context.put("method", request.getMethod());
+        context.put("errorType", "BAD_CREDENTIALS");
+        context.put("clientIp", TraceUtil.getClientIp());
+        context.put("userAgent", TraceUtil.getUserAgent());
         
-        problemDetail.setType(URI.create("https://ankurshala.com/problems/authentication-error"));
-        problemDetail.setTitle("Authentication Error");
-        problemDetail.setProperty("timestamp", Instant.now());
-        problemDetail.setProperty("path", request.getDescription(false).replace("uri=", ""));
+        loggingService.logErrorWithContext("BAD_CREDENTIALS", ex, context);
+        loggingService.logAuthenticationEvent("AUTHENTICATION_FAILED", null, null, false, ex.getMessage());
         
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(problemDetail);
+        ApiResponse<Object> response = ApiResponse.error("Invalid email or password", request.getRequestURI(), traceId);
+        response.setRequestId(requestId);
+        
+        return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
     }
 
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ProblemDetail> handleAccessDeniedException(
-            AccessDeniedException ex, WebRequest request) {
+    public ResponseEntity<ApiResponse<Object>> handleAccessDeniedException(
+            AccessDeniedException ex, 
+            HttpServletRequest request) {
         
-        logger.warn("Access denied: {}", ex.getMessage());
+        String traceId = TraceUtil.getTraceId();
+        String requestId = TraceUtil.getRequestId();
         
-        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-            HttpStatus.FORBIDDEN, "You don't have permission to access this resource");
+        Map<String, Object> context = new HashMap<>();
+        context.put("path", request.getRequestURI());
+        context.put("method", request.getMethod());
+        context.put("errorType", "ACCESS_DENIED");
+        context.put("clientIp", TraceUtil.getClientIp());
         
-        problemDetail.setType(URI.create("https://ankurshala.com/problems/access-denied"));
-        problemDetail.setTitle("Access Denied");
-        problemDetail.setProperty("timestamp", Instant.now());
-        problemDetail.setProperty("path", request.getDescription(false).replace("uri=", ""));
+        loggingService.logErrorWithContext("ACCESS_DENIED", ex, context);
+        loggingService.logSystemEvent("ACCESS_DENIED", "WARN", 
+                "Access denied for resource: " + request.getRequestURI(), context);
         
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problemDetail);
+        ApiResponse<Object> response = ApiResponse.error("Access Denied: You do not have permission to access this resource", request.getRequestURI(), traceId);
+        response.setRequestId(requestId);
+        
+        return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
     }
 
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ProblemDetail> handleResourceNotFoundException(
-            ResourceNotFoundException ex, WebRequest request) {
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Object>> handleNoResourceFoundException(
+            NoResourceFoundException ex, 
+            HttpServletRequest request) {
         
-        logger.warn("Resource not found: {}", ex.getMessage());
+        String traceId = TraceUtil.getTraceId();
+        String requestId = TraceUtil.getRequestId();
         
-        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-            HttpStatus.NOT_FOUND, ex.getMessage());
+        Map<String, Object> context = new HashMap<>();
+        context.put("path", request.getRequestURI());
+        context.put("method", request.getMethod());
+        context.put("errorType", "NO_RESOURCE_FOUND");
         
-        problemDetail.setType(URI.create("https://ankurshala.com/problems/resource-not-found"));
-        problemDetail.setTitle("Resource Not Found");
-        problemDetail.setProperty("timestamp", Instant.now());
-        problemDetail.setProperty("path", request.getDescription(false).replace("uri=", ""));
+        loggingService.logErrorWithContext("NO_RESOURCE_FOUND", ex, context);
+        loggingService.logSystemEvent("NO_RESOURCE_FOUND", "WARN", 
+                "No resource found: " + request.getRequestURI(), context);
         
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
+        ApiResponse<Object> response = ApiResponse.error("Resource not found", request.getRequestURI(), traceId);
+        response.setRequestId(requestId);
+        
+        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
     }
 
-    @ExceptionHandler(DuplicateResourceException.class)
-    public ResponseEntity<ProblemDetail> handleDuplicateResourceException(
-            DuplicateResourceException ex, WebRequest request) {
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiResponse<Object>> handleHttpRequestMethodNotSupported(
+            HttpRequestMethodNotSupportedException ex, 
+            HttpServletRequest request) {
         
-        logger.warn("Duplicate resource: {}", ex.getMessage());
+        String traceId = TraceUtil.getTraceId();
+        String requestId = TraceUtil.getRequestId();
         
-        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-            HttpStatus.CONFLICT, ex.getMessage());
+        Map<String, Object> context = new HashMap<>();
+        context.put("path", request.getRequestURI());
+        context.put("method", request.getMethod());
+        context.put("errorType", "METHOD_NOT_SUPPORTED");
+        context.put("supportedMethods", ex.getSupportedMethods());
         
-        problemDetail.setType(URI.create("https://ankurshala.com/problems/duplicate-resource"));
-        problemDetail.setTitle("Duplicate Resource");
-        problemDetail.setProperty("timestamp", Instant.now());
-        problemDetail.setProperty("path", request.getDescription(false).replace("uri=", ""));
+        loggingService.logErrorWithContext("METHOD_NOT_SUPPORTED", ex, context);
+        loggingService.logSystemEvent("METHOD_NOT_SUPPORTED", "WARN", 
+                "HTTP method not supported: " + ex.getMethod(), context);
         
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(problemDetail);
+        ApiResponse<Object> response = ApiResponse.error("HTTP method '" + ex.getMethod() + "' not supported for this endpoint", request.getRequestURI(), traceId);
+        response.setRequestId(requestId);
+        
+        return new ResponseEntity<>(response, HttpStatus.METHOD_NOT_ALLOWED);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ProblemDetail> handleIllegalArgumentException(
-            IllegalArgumentException ex, WebRequest request) {
+    public ResponseEntity<ApiResponse<Object>> handleIllegalArgumentException(
+            IllegalArgumentException ex, 
+            HttpServletRequest request) {
         
-        logger.warn("Invalid argument: {}", ex.getMessage());
+        String traceId = TraceUtil.getTraceId();
+        String requestId = TraceUtil.getRequestId();
         
-        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-            HttpStatus.BAD_REQUEST, ex.getMessage());
+        Map<String, Object> context = new HashMap<>();
+        context.put("path", request.getRequestURI());
+        context.put("method", request.getMethod());
+        context.put("errorType", "ILLEGAL_ARGUMENT");
         
-        problemDetail.setType(URI.create("https://ankurshala.com/problems/invalid-argument"));
-        problemDetail.setTitle("Invalid Argument");
-        problemDetail.setProperty("timestamp", Instant.now());
-        problemDetail.setProperty("path", request.getDescription(false).replace("uri=", ""));
+        loggingService.logErrorWithContext("ILLEGAL_ARGUMENT", ex, context);
+        loggingService.logSystemEvent("ILLEGAL_ARGUMENT", "WARN", 
+                "Illegal argument provided: " + ex.getMessage(), context);
         
-        return ResponseEntity.badRequest().body(problemDetail);
-    }
-
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<ProblemDetail> handleRuntimeException(
-            RuntimeException ex, WebRequest request) {
+        ApiResponse<Object> response = ApiResponse.error("Invalid argument: " + ex.getMessage(), request.getRequestURI(), traceId);
+        response.setRequestId(requestId);
         
-        logger.error("Runtime exception: {}", ex.getMessage(), ex);
-        
-        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-            HttpStatus.INTERNAL_SERVER_ERROR, "An internal server error occurred");
-        
-        problemDetail.setType(URI.create("https://ankurshala.com/problems/internal-server-error"));
-        problemDetail.setTitle("Internal Server Error");
-        problemDetail.setProperty("timestamp", Instant.now());
-        problemDetail.setProperty("path", request.getDescription(false).replace("uri=", ""));
-        
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(problemDetail);
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ProblemDetail> handleGenericException(
-            Exception ex, WebRequest request) {
+    public ResponseEntity<ApiResponse<Object>> handleAllUncaughtException(
+            Exception ex, 
+            HttpServletRequest request) {
         
-        logger.error("Unexpected exception: {}", ex.getMessage(), ex);
+        String traceId = TraceUtil.getTraceId();
+        String requestId = TraceUtil.getRequestId();
         
-        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-            HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
+        Map<String, Object> context = new HashMap<>();
+        context.put("path", request.getRequestURI());
+        context.put("method", request.getMethod());
+        context.put("errorType", "UNEXPECTED_ERROR");
+        context.put("exceptionClass", ex.getClass().getSimpleName());
         
-        problemDetail.setType(URI.create("https://ankurshala.com/problems/unexpected-error"));
-        problemDetail.setTitle("Unexpected Error");
-        problemDetail.setProperty("timestamp", Instant.now());
-        problemDetail.setProperty("path", request.getDescription(false).replace("uri=", ""));
+        loggingService.logErrorWithContext("UNEXPECTED_ERROR", ex, context);
+        loggingService.logSystemEvent("UNEXPECTED_ERROR", "ERROR", 
+                "Unexpected error occurred: " + ex.getMessage(), context);
         
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(problemDetail);
+        ApiResponse<Object> response = ApiResponse.error("An unexpected error occurred", request.getRequestURI(), traceId);
+        response.setRequestId(requestId);
+        
+        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }

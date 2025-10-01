@@ -74,10 +74,11 @@ test.describe('Stage-1 E2E Tests', () => {
       // Test profile update
       await page.click('text=Personal Information')
       await page.fill('input[placeholder="Enter your first name"]', 'Updated Student')
+      await page.fill('input[type="date"]', '2000-01-01')
       await page.click('button:has-text("Save Personal Information")')
       
       // Should show success message
-      await expect(page.locator('text=updated successfully')).toBeVisible()
+      await expect(page.locator('text=Personal information updated successfully!')).toBeVisible()
     })
   })
 
@@ -217,7 +218,7 @@ test.describe('Stage-1 E2E Tests', () => {
       await page.click('button[type="submit"]')
       
       // Check if navbar shows user info
-      await expect(page.locator('text=Student 1')).toBeVisible()
+      await expect(page.locator('p.text-sm.font-medium:has-text("Student 1")')).toBeVisible()
       await expect(page.locator('text=student', { exact: true }).first()).toBeVisible()
       
       // Check logout functionality

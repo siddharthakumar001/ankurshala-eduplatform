@@ -11,6 +11,11 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.DefaultTransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -84,8 +89,18 @@ public class BulkDemoSeeder implements CommandLineRunner {
     @Autowired
     private IndianDataGenerator dataGenerator;
 
+    @Autowired
+    private PlatformTransactionManager transactionManager;
+
+    private TransactionTemplate transactionTemplate;
+
     @Override
     public void run(String... args) throws Exception {
+        // Initialize TransactionTemplate
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
+        this.transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        this.transactionTemplate.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
+        
         if (!shouldRunSeeder()) {
             logger.info("Bulk demo seeder skipped. DEMO_ENV={}, DEMO_BULK_SEED={}, DEMO_FORCE={}", 
                        demoEnv, demoBulkSeed, demoForce);
@@ -120,15 +135,23 @@ public class BulkDemoSeeder implements CommandLineRunner {
         return true;
     }
 
-    @Transactional
     public SeedingResult seedAllUsers() {
         SeedingResult result = new SeedingResult();
 
-        // Seed students
+        // Seed students in batches to avoid transaction issues
         for (int i = 1; i <= 15; i++) {
             try {
-                String email = "student" + i + "@ankurshala.com";
-                UserSeedResult userResult = seedStudent(email, "Maza@123");
+                final String email = "student" + i + "@ankurshala.com";
+                final int studentIndex = i;
+                UserSeedResult userResult = transactionTemplate.execute(status -> {
+                    try {
+                        return seedStudent(email, "Maza@123");
+                    } catch (Exception e) {
+                        logger.error("Failed to seed student {} in transaction", studentIndex, e);
+                        status.setRollbackOnly();
+                        throw e;
+                    }
+                });
                 result.addStudentResult(userResult);
             } catch (Exception e) {
                 logger.error("Failed to seed student {}", i, e);
@@ -136,11 +159,20 @@ public class BulkDemoSeeder implements CommandLineRunner {
             }
         }
 
-        // Seed teachers
+        // Seed teachers in batches to avoid transaction issues
         for (int i = 1; i <= 15; i++) {
             try {
-                String email = "teacher" + i + "@ankurshala.com";
-                UserSeedResult userResult = seedTeacher(email, "Maza@123");
+                final String email = "teacher" + i + "@ankurshala.com";
+                final int teacherIndex = i;
+                UserSeedResult userResult = transactionTemplate.execute(status -> {
+                    try {
+                        return seedTeacher(email, "Maza@123");
+                    } catch (Exception e) {
+                        logger.error("Failed to seed teacher {} in transaction", teacherIndex, e);
+                        status.setRollbackOnly();
+                        throw e;
+                    }
+                });
                 result.addTeacherResult(userResult);
             } catch (Exception e) {
                 logger.error("Failed to seed teacher {}", i, e);
@@ -148,14 +180,26 @@ public class BulkDemoSeeder implements CommandLineRunner {
             }
         }
 
-        // Seed admins
+        // Seed admins in batches to avoid transaction issues
         String[] adminEmails = {"sidd@ankurshala.com", "mayank@ankurshala.com", "tejas@ankurshala.com"};
         String[] adminPasswords = {"ankur@123", "mayank@123", "tejas@123"};
         String[] adminNames = {"Sidd", "Mayank", "Tejas"};
 
         for (int i = 0; i < adminEmails.length; i++) {
             try {
-                UserSeedResult userResult = seedAdmin(adminEmails[i], adminPasswords[i], adminNames[i]);
+                final String email = adminEmails[i];
+                final String password = adminPasswords[i];
+                final String name = adminNames[i];
+                final int adminIndex = i;
+                UserSeedResult userResult = transactionTemplate.execute(status -> {
+                    try {
+                        return seedAdmin(email, password, name);
+                    } catch (Exception e) {
+                        logger.error("Failed to seed admin {} in transaction", email, e);
+                        status.setRollbackOnly();
+                        throw e;
+                    }
+                });
                 result.addAdminResult(userResult);
             } catch (Exception e) {
                 logger.error("Failed to seed admin {}", adminEmails[i], e);
@@ -206,7 +250,10 @@ public class BulkDemoSeeder implements CommandLineRunner {
         StudentProfile profile = createStudentProfileData(user, mobileNumber);
         profile = studentProfileRepository.save(profile);
 
-        // Create student documents
+        // Flush to ensure entities are persisted before creating related entities
+        studentProfileRepository.flush();
+
+        // Create student documents in the same transaction
         createStudentDocuments(profile);
 
         return new UserSeedResult(true, false, email);
@@ -215,23 +262,34 @@ public class BulkDemoSeeder implements CommandLineRunner {
     private UserSeedResult updateStudentProfile(User user) {
         StudentProfile profile = user.getStudentProfile();
         if (profile == null) {
-            // Create missing profile with unique mobile number
-            String mobileNumber = dataGenerator.generatePhoneNumber();
-            int attempts = 0;
-            while (studentProfileRepository.existsByMobileNumber(mobileNumber) && attempts < 10) {
-                mobileNumber = dataGenerator.generatePhoneNumber();
-                attempts++;
-            }
-            
-            if (attempts >= 10) {
-                logger.warn("Could not generate unique mobile number for existing student {}, skipping", user.getEmail());
-                return new UserSeedResult(false, false, user.getEmail());
-            }
-            
+            // Check if profile exists in database but not loaded
+            Optional<StudentProfile> existingProfile = studentProfileRepository.findByUserId(user.getId());
+            if (existingProfile.isPresent()) {
+                profile = existingProfile.get();
+                logger.debug("Found existing student profile for user {}", user.getEmail());
+            } else {
+                // Create missing profile with unique mobile number
+                String mobileNumber = dataGenerator.generatePhoneNumber();
+                int attempts = 0;
+                while (studentProfileRepository.existsByMobileNumber(mobileNumber) && attempts < 10) {
+                    mobileNumber = dataGenerator.generatePhoneNumber();
+                    attempts++;
+                }
+                
+                if (attempts >= 10) {
+                    logger.warn("Could not generate unique mobile number for existing student {}, skipping", user.getEmail());
+                    return new UserSeedResult(false, false, user.getEmail());
+                }
+                
             profile = createStudentProfileData(user, mobileNumber);
             profile = studentProfileRepository.save(profile);
+            // Flush to ensure the profile is persisted before creating documents
+            studentProfileRepository.flush();
+            // Create student documents in the same transaction
             createStudentDocuments(profile);
+            }
         }
+        // Profile already exists, just return updated result
         return new UserSeedResult(false, true, user.getEmail());
     }
 
@@ -264,6 +322,23 @@ public class BulkDemoSeeder implements CommandLineRunner {
         profile.setSchoolIdCardUrl(dataGenerator.generateDocumentUrl("school-id-card"));
         
         return profile;
+    }
+
+    private void createStudentDocumentsInTransaction(StudentProfile profile) {
+        try {
+            transactionTemplate.execute(status -> {
+                try {
+                    createStudentDocuments(profile);
+                    return null;
+                } catch (Exception e) {
+                    logger.error("Failed to create student documents for profile {}", profile.getId(), e);
+                    status.setRollbackOnly();
+                    throw e;
+                }
+            });
+        } catch (Exception e) {
+            logger.warn("Could not create student documents for profile {}, continuing without them", profile.getId());
+        }
     }
 
     private void createStudentDocuments(StudentProfile profile) {
@@ -337,15 +412,12 @@ public class BulkDemoSeeder implements CommandLineRunner {
         TeacherProfile profile = createTeacherProfileData(user, teacher);
         profile = teacherProfileRepository.save(profile);
 
-        // Create all related entities
-        createTeacherProfessionalInfo(teacher);
-        createTeacherQualifications(teacher);
-        createTeacherExperiences(teacher);
-        createTeacherCertifications(teacher);
-        createTeacherAvailability(teacher);
-        createTeacherDocuments(teacher);
-        createTeacherBankDetails(teacher);
-        createTeacherAddresses(teacher);
+        // Flush to ensure entities are persisted before creating related entities
+        teacherRepository.flush();
+        teacherProfileRepository.flush();
+
+        // Create all related entities in the same transaction
+        createTeacherRelatedEntities(teacher);
 
         return new UserSeedResult(true, false, email);
     }
@@ -353,9 +425,17 @@ public class BulkDemoSeeder implements CommandLineRunner {
     private UserSeedResult updateTeacherProfile(User user) {
         Teacher teacher = user.getTeacher();
         if (teacher == null) {
-            // Create missing teacher entity and all related data with unique mobile number
-            return createTeacherProfile(user.getEmail(), "Maza@123");
+            // Check if teacher exists in database but not loaded
+            Optional<Teacher> existingTeacher = teacherRepository.findByUserId(user.getId());
+            if (existingTeacher.isPresent()) {
+                teacher = existingTeacher.get();
+                logger.debug("Found existing teacher for user {}", user.getEmail());
+            } else {
+                // Create missing teacher entity and all related data
+                return createTeacherProfileForExistingUser(user);
+            }
         }
+        // Teacher already exists, just return updated result
         return new UserSeedResult(false, true, user.getEmail());
     }
 
@@ -466,7 +546,24 @@ public class BulkDemoSeeder implements CommandLineRunner {
         teacherCertificationRepository.save(cert);
     }
 
+    private void createTeacherRelatedEntities(Teacher teacher) {
+        createTeacherProfessionalInfo(teacher);
+        createTeacherQualifications(teacher);
+        createTeacherExperiences(teacher);
+        createTeacherCertifications(teacher);
+        createTeacherAvailability(teacher);
+        createTeacherDocuments(teacher);
+        createTeacherBankDetails(teacher);
+        createTeacherAddresses(teacher);
+    }
+
     private void createTeacherAvailability(Teacher teacher) {
+        // Check if availability already exists for this teacher
+        if (teacherAvailabilityRepository.existsByTeacher(teacher)) {
+            logger.debug("TeacherAvailability already exists for teacher {}, skipping creation", teacher.getId());
+            return;
+        }
+        
         TeacherAvailability availability = new TeacherAvailability();
         availability.setTeacher(teacher);
         availability.setAvailableFrom(dataGenerator.generateAvailableFrom());
@@ -560,19 +657,72 @@ public class BulkDemoSeeder implements CommandLineRunner {
         profile.setIsSuperAdmin(false); // All seeded admins are regular admins
         profile = adminProfileRepository.save(profile);
 
+        // Flush to ensure entities are persisted
+        adminProfileRepository.flush();
+
         return new UserSeedResult(true, false, email);
+    }
+
+    private UserSeedResult createTeacherProfileForExistingUser(User user) {
+        // Check if mobile number is already in use before creating teacher
+        String mobileNumber = dataGenerator.generatePhoneNumber();
+        int attempts = 0;
+        while (teacherProfileRepository.existsByMobileNumber(mobileNumber) && attempts < 10) {
+            mobileNumber = dataGenerator.generatePhoneNumber();
+            attempts++;
+        }
+        
+        if (attempts >= 10) {
+            logger.warn("Could not generate unique mobile number for existing teacher {}, skipping", user.getEmail());
+            return new UserSeedResult(false, false, user.getEmail());
+        }
+
+        // Create teacher entity
+        Teacher teacher = new Teacher();
+        teacher.setUser(user);
+        teacher.setName(user.getName());
+        teacher.setEmail(user.getEmail());
+        teacher.setPhoneNumber(mobileNumber);
+        teacher.setAlternatePhoneNumber(dataGenerator.generateAlternatePhoneNumber());
+        teacher.setDateOfBirth(dataGenerator.generateDateOfBirth(25, 50)); // 25-50 years old
+        teacher.setGender(dataGenerator.generateGender());
+        teacher.setProfilePictureUrl(dataGenerator.generatePhotoUrl("teacher"));
+        teacher.setBio(dataGenerator.generateBio());
+        teacher.setStatus(dataGenerator.generateTeacherStatus());
+        teacher = teacherRepository.save(teacher);
+
+        // Create teacher profile
+        TeacherProfile profile = createTeacherProfileData(user, teacher);
+        profile = teacherProfileRepository.save(profile);
+
+        // Flush to ensure entities are persisted before creating related entities
+        teacherRepository.flush();
+        teacherProfileRepository.flush();
+
+        // Create all related entities in the same transaction
+        createTeacherRelatedEntities(teacher);
+
+        return new UserSeedResult(false, true, user.getEmail());
     }
 
     private UserSeedResult updateAdminProfile(User user) {
         AdminProfile profile = user.getAdminProfile();
         if (profile == null) {
-            // Create missing profile
-            profile = new AdminProfile();
-            profile.setUser(user);
-            profile.setPhoneNumber(dataGenerator.generatePhoneNumber());
-            profile.setIsSuperAdmin(false);
-            adminProfileRepository.save(profile);
+            // Check if profile exists in database but not loaded
+            Optional<AdminProfile> existingProfile = adminProfileRepository.findByUserId(user.getId());
+            if (existingProfile.isPresent()) {
+                profile = existingProfile.get();
+                logger.debug("Found existing admin profile for user {}", user.getEmail());
+            } else {
+                // Create missing profile
+                profile = new AdminProfile();
+                profile.setUser(user);
+                profile.setPhoneNumber(dataGenerator.generatePhoneNumber());
+                profile.setIsSuperAdmin(false);
+                adminProfileRepository.save(profile);
+            }
         }
+        // Profile already exists, just return updated result
         return new UserSeedResult(false, true, user.getEmail());
     }
 

@@ -2,7 +2,9 @@ package com.ankurshala.backend.entity;
 
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -24,9 +26,11 @@ public class TeacherAvailability {
     @Column(name = "available_to")
     private LocalTime availableTo;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "preferred_student_levels", columnDefinition = "jsonb")
     private String preferredStudentLevels;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "languages_spoken", columnDefinition = "jsonb")
     private String languagesSpoken;
 

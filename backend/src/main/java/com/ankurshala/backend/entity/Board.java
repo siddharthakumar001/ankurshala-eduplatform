@@ -21,6 +21,12 @@ public class Board {
     @Column(name = "active", nullable = false)
     private Boolean active = true;
 
+    @Column(name = "soft_deleted", nullable = false)
+    private Boolean softDeleted = false;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -28,6 +34,13 @@ public class Board {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    // Relationships
+    @OneToMany(mappedBy = "board", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Grade> grades = new ArrayList<>();
+
+    @OneToMany(mappedBy = "board", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Subject> subjects = new ArrayList<>();
 
     public Board() {}
 
@@ -50,4 +63,16 @@ public class Board {
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    public Boolean getSoftDeleted() { return softDeleted; }
+    public void setSoftDeleted(Boolean softDeleted) { this.softDeleted = softDeleted; }
+
+    public LocalDateTime getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
+
+    public List<Grade> getGrades() { return grades; }
+    public void setGrades(List<Grade> grades) { this.grades = grades; }
+
+    public List<Subject> getSubjects() { return subjects; }
+    public void setSubjects(List<Subject> subjects) { this.subjects = subjects; }
 }

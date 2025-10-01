@@ -193,6 +193,14 @@ interface TeacherBankDetails {
 }
 
 export default function TeacherProfilePage() {
+  return (
+    <TeacherRoute>
+      <TeacherProfileContent />
+    </TeacherRoute>
+  )
+}
+
+function TeacherProfileContent() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const [activeTab, setActiveTab] = useState('profile');
@@ -234,7 +242,9 @@ export default function TeacherProfilePage() {
       setProfile(data);
     } catch (error) {
       console.log('Fetch error:', error);
-      setMessage('Error loading profile');
+      console.log('Error details:', error.message);
+      console.log('Error stack:', error.stack);
+      setMessage('Error loading profile: ' + error.message);
     } finally {
       console.log('Setting loading to false');
       setLoading(false);
@@ -323,7 +333,7 @@ export default function TeacherProfilePage() {
   if (!profile) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-xl text-red-600">Failed to load profile</div>
+        <div className="text-xl text-red-600">{message || 'Failed to load profile'}</div>
       </div>
     );
   }

@@ -1,13 +1,14 @@
 package com.ankurshala.backend.controller;
 
-import com.ankurshala.backend.dto.content.*;
-import com.ankurshala.backend.dto.admin.GradeDto;
-import com.ankurshala.backend.dto.admin.CreateGradeRequest;
-import com.ankurshala.backend.dto.admin.UpdateGradeRequest;
-import com.ankurshala.backend.service.ContentManagementService;
+import com.ankurshala.backend.dto.admin.content.*;
+import com.ankurshala.backend.dto.common.ApiResponse;
+import com.ankurshala.backend.service.AdminContentManagementService;
+import com.ankurshala.backend.service.LoggingService;
+import com.ankurshala.backend.util.TraceUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -20,426 +21,564 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Enhanced Admin Content Management Controller
+ * Handles CRUD operations for educational content management
+ * Implements proper design patterns with comprehensive logging and error handling
+ */
+@Slf4j
 @RestController
 @RequestMapping("/admin/content")
-@CrossOrigin(origins = "http://localhost:3000", maxAge = 3600)
 @PreAuthorize("hasRole('ADMIN')")
-@RequiredArgsConstructor
-@Slf4j
+@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3001", "http://localhost:3002"}, maxAge = 3600)
 public class AdminContentManagementController {
 
-    private final ContentManagementService contentManagementService;
+    private final AdminContentManagementService contentManagementService;
+    
+    @Autowired
+    private LoggingService loggingService;
+    
+    public AdminContentManagementController(AdminContentManagementService contentManagementService) {
+        this.contentManagementService = contentManagementService;
+    }
 
     // ============ BOARDS CRUD ============
     
     @GetMapping("/boards")
-    public ResponseEntity<Page<BoardDto>> getBoards(
+    public ResponseEntity<ApiResponse<Page<BoardDto>>> getBoards(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Boolean active,
             @RequestParam(defaultValue = "name") String sortBy,
-            @RequestParam(defaultValue = "asc") String sortDir) {
+            @RequestParam(defaultValue = "asc") String sortDir,
+            HttpServletRequest request) {
         
+        String traceId = TraceUtil.getTraceId();
+        String requestId = TraceUtil.getRequestId();
+        long startTime = System.currentTimeMillis();
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put("page", page);
+        context.put("size", size);
+        context.put("search", search);
+        context.put("active", active);
+        context.put("sortBy", sortBy);
+        context.put("sortDir", sortDir);
+        
+        loggingService.logBusinessOperationStart("GET_BOARDS", null, context);
+        
+        try {
         Sort sort = sortDir.equalsIgnoreCase("desc") ? 
             Sort.by(sortBy).descending() : 
             Sort.by(sortBy).ascending();
         
         Pageable pageable = PageRequest.of(page, size, sort);
-        Page<BoardDto> boards = contentManagementService.getBoards(pageable, search, active);
+            Page<BoardDto> boards = contentManagementService.getBoards(search, active, pageable);
+            
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("GET_BOARDS", null, true, executionTime);
+            
+            ApiResponse<Page<BoardDto>> response = ApiResponse.success(boards, "Boards retrieved successfully");
+            response.setTraceId(traceId);
+            response.setRequestId(requestId);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("GET_BOARDS", null, false, executionTime);
+            loggingService.logError("GET_BOARDS", e, context);
+            throw e;
+        }
+    }
+
+    @GetMapping("/boards/{id}")
+    public ResponseEntity<ApiResponse<BoardDto>> getBoardById(@PathVariable Long id, HttpServletRequest request) {
+        String traceId = TraceUtil.getTraceId();
+        String requestId = TraceUtil.getRequestId();
+        long startTime = System.currentTimeMillis();
         
-        return ResponseEntity.ok(boards);
+        Map<String, Object> context = new HashMap<>();
+        context.put("boardId", id);
+        
+        loggingService.logBusinessOperationStart("GET_BOARD_BY_ID", null, context);
+        
+        try {
+            BoardDto board = contentManagementService.getBoardById(id);
+            
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("GET_BOARD_BY_ID", id.toString(), true, executionTime);
+            
+            ApiResponse<BoardDto> response = ApiResponse.success(board, "Board retrieved successfully");
+            response.setTraceId(traceId);
+            response.setRequestId(requestId);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("GET_BOARD_BY_ID", id.toString(), false, executionTime);
+            loggingService.logError("GET_BOARD_BY_ID", e, context);
+            throw e;
+        }
     }
 
     @PostMapping("/boards")
-    public ResponseEntity<BoardDto> createBoard(@Valid @RequestBody CreateBoardRequest request) {
+    public ResponseEntity<ApiResponse<BoardDto>> createBoard(
+            @Valid @RequestBody CreateBoardRequest request,
+            HttpServletRequest httpRequest) {
+        
+        String traceId = TraceUtil.getTraceId();
+        String requestId = TraceUtil.getRequestId();
+        long startTime = System.currentTimeMillis();
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put("boardName", request.getName());
+        context.put("boardActive", request.getActive());
+        
+        loggingService.logBusinessOperationStart("CREATE_BOARD", null, context);
+        
+        try {
         BoardDto board = contentManagementService.createBoard(request);
-        return ResponseEntity.ok(board);
+            
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("CREATE_BOARD", board.getId().toString(), true, executionTime);
+            
+            ApiResponse<BoardDto> response = ApiResponse.success(board, "Board created successfully");
+            response.setTraceId(traceId);
+            response.setRequestId(requestId);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("CREATE_BOARD", null, false, executionTime);
+            loggingService.logError("CREATE_BOARD", e, context);
+            throw e;
+        }
     }
 
     @PutMapping("/boards/{id}")
-    public ResponseEntity<BoardDto> updateBoard(
+    public ResponseEntity<ApiResponse<BoardDto>> updateBoard(
             @PathVariable Long id, 
-            @Valid @RequestBody UpdateBoardRequest request) {
+            @Valid @RequestBody UpdateBoardRequest request,
+            HttpServletRequest httpRequest) {
+        
+        String traceId = TraceUtil.getTraceId();
+        String requestId = TraceUtil.getRequestId();
+        long startTime = System.currentTimeMillis();
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put("boardId", id);
+        context.put("boardName", request.getName());
+        context.put("boardActive", request.getActive());
+        
+        loggingService.logBusinessOperationStart("UPDATE_BOARD", id.toString(), context);
+        
+        try {
         BoardDto board = contentManagementService.updateBoard(id, request);
-        return ResponseEntity.ok(board);
-    }
-
-    @PatchMapping("/boards/{id}/active")
-    public ResponseEntity<BoardDto> updateBoardStatus(
-            @PathVariable Long id, 
-            @RequestBody Map<String, Boolean> statusUpdate) {
-        Boolean active = statusUpdate.get("active");
-        BoardDto board = contentManagementService.updateBoardStatus(id, active);
-        return ResponseEntity.ok(board);
-    }
-
-    @GetMapping("/boards/{id}/deletion-impact")
-    public ResponseEntity<Map<String, Object>> getBoardDeletionImpact(@PathVariable Long id) {
-        Map<String, Object> impact = contentManagementService.getBoardDeletionImpact(id);
-        return ResponseEntity.ok(impact);
+            
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("UPDATE_BOARD", id.toString(), true, executionTime);
+            
+            ApiResponse<BoardDto> response = ApiResponse.success(board, "Board updated successfully");
+            response.setTraceId(traceId);
+            response.setRequestId(requestId);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("UPDATE_BOARD", id.toString(), false, executionTime);
+            loggingService.logError("UPDATE_BOARD", e, context);
+            throw e;
+        }
     }
 
     @DeleteMapping("/boards/{id}")
-    public ResponseEntity<Map<String, Object>> deleteBoard(
-            @PathVariable Long id,
-            @RequestParam(defaultValue = "false") boolean force) {
-        Map<String, Object> result = contentManagementService.deleteBoard(id, force);
-        return ResponseEntity.ok(result);
-    }
-
-    // ============ SUBJECTS CRUD ============
-    
-    @GetMapping("/subjects")
-    public ResponseEntity<Page<SubjectDto>> getSubjects(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String search,
-            @RequestParam(required = false) Boolean active,
-            @RequestParam(required = false) Long boardId,
-            @RequestParam(required = false) Long gradeId,
-            @RequestParam(defaultValue = "name") String sortBy,
-            @RequestParam(defaultValue = "asc") String sortDir) {
+    public ResponseEntity<ApiResponse<Void>> deleteBoard(@PathVariable Long id, HttpServletRequest request) {
+        String traceId = TraceUtil.getTraceId();
+        String requestId = TraceUtil.getRequestId();
+        long startTime = System.currentTimeMillis();
         
-        Sort sort = sortDir.equalsIgnoreCase("desc") ? 
-            Sort.by(sortBy).descending() : 
-            Sort.by(sortBy).ascending();
+        Map<String, Object> context = new HashMap<>();
+        context.put("boardId", id);
         
-        Pageable pageable = PageRequest.of(page, size, sort);
-        Page<SubjectDto> subjects = contentManagementService.getSubjects(pageable, search, active, boardId, gradeId);
+        loggingService.logBusinessOperationStart("DELETE_BOARD", id.toString(), context);
         
-        return ResponseEntity.ok(subjects);
+        try {
+            contentManagementService.deleteBoard(id, false); // false = soft delete
+            
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("DELETE_BOARD", id.toString(), true, executionTime);
+            
+            ApiResponse<Void> response = ApiResponse.success(null, "Board deleted successfully");
+            response.setTraceId(traceId);
+            response.setRequestId(requestId);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("DELETE_BOARD", id.toString(), false, executionTime);
+            loggingService.logError("DELETE_BOARD", e, context);
+            throw e;
+        }
     }
 
-    @PostMapping("/subjects")
-    public ResponseEntity<SubjectDto> createSubject(@RequestBody CreateSubjectRequest request) {
-        log.info("=== CONTROLLER DEBUG ===");
-        log.info("Received createSubject request: {}", request);
-        log.info("Request gradeId: {}", request.getGradeId());
-        log.info("Request boardId: {}", request.getBoardId());
-        log.info("Request name: {}", request.getName());
-        log.info("Request active: {}", request.getActive());
-        log.info("=== END CONTROLLER DEBUG ===");
-        
-        SubjectDto subject = contentManagementService.createSubject(request);
-        return ResponseEntity.ok(subject);
-    }
-
-    @PostMapping("/subjects/debug")
-    public ResponseEntity<Map<String, Object>> debugSubjectCreation(@RequestBody Map<String, Object> rawRequest) {
-        log.info("=== RAW REQUEST DEBUG ===");
-        log.info("Raw request: {}", rawRequest);
-        log.info("Raw request type: {}", rawRequest.getClass());
-        log.info("Raw request keys: {}", rawRequest.keySet());
-        log.info("Raw request values: {}", rawRequest.values());
-        log.info("=== END RAW REQUEST DEBUG ===");
-        
-        Map<String, Object> response = new HashMap<>();
-        response.put("received", rawRequest);
-        response.put("message", "Debug endpoint working");
-        return ResponseEntity.ok(response);
-    }
-
-    @PutMapping("/subjects/{id}")
-    public ResponseEntity<SubjectDto> updateSubject(
-            @PathVariable Long id, 
-            @Valid @RequestBody UpdateSubjectRequest request) {
-        SubjectDto subject = contentManagementService.updateSubject(id, request);
-        return ResponseEntity.ok(subject);
-    }
-
-    @PatchMapping("/subjects/{id}/active")
-    public ResponseEntity<SubjectDto> updateSubjectStatus(
-            @PathVariable Long id, 
-            @RequestBody Map<String, Boolean> statusUpdate) {
-        Boolean active = statusUpdate.get("active");
-        SubjectDto subject = contentManagementService.updateSubjectStatus(id, active);
-        return ResponseEntity.ok(subject);
-    }
-
-    @DeleteMapping("/subjects/{id}")
-    public ResponseEntity<Map<String, Object>> deleteSubject(
-            @PathVariable Long id,
-            @RequestParam(defaultValue = "false") boolean force) {
-        Map<String, Object> result = contentManagementService.deleteSubject(id, force);
-        return ResponseEntity.ok(result);
-    }
-
-    @GetMapping("/subjects/{id}/deletion-impact")
-    public ResponseEntity<Map<String, Object>> getSubjectDeletionImpact(@PathVariable Long id) {
-        Map<String, Object> impact = contentManagementService.getSubjectDeletionImpact(id);
-        return ResponseEntity.ok(impact);
-    }
-
-    @GetMapping("/chapters/{id}/deletion-impact")
-    public ResponseEntity<Map<String, Object>> getChapterDeletionImpact(@PathVariable Long id) {
-        Map<String, Object> impact = contentManagementService.getChapterDeletionImpact(id);
-        return ResponseEntity.ok(impact);
-    }
-
-    // ============ CHAPTERS CRUD ============
-    
-    @GetMapping("/chapters")
-    public ResponseEntity<Page<ChapterDto>> getChapters(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String search,
-            @RequestParam(required = false) Boolean active,
-            @RequestParam(required = false) Long subjectId,
-            @RequestParam(defaultValue = "name") String sortBy,
-            @RequestParam(defaultValue = "asc") String sortDir) {
-        
-        Sort sort = sortDir.equalsIgnoreCase("desc") ? 
-            Sort.by(sortBy).descending() : 
-            Sort.by(sortBy).ascending();
-        
-        Pageable pageable = PageRequest.of(page, size, sort);
-        Page<ChapterDto> chapters = contentManagementService.getChapters(pageable, search, active, subjectId);
-        
-        return ResponseEntity.ok(chapters);
-    }
-
-    @PostMapping("/chapters")
-    public ResponseEntity<ChapterDto> createChapter(@Valid @RequestBody CreateChapterRequest request) {
-        ChapterDto chapter = contentManagementService.createChapter(request);
-        return ResponseEntity.ok(chapter);
-    }
-
-    @PutMapping("/chapters/{id}")
-    public ResponseEntity<ChapterDto> updateChapter(
-            @PathVariable Long id, 
-            @Valid @RequestBody UpdateChapterRequest request) {
-        ChapterDto chapter = contentManagementService.updateChapter(id, request);
-        return ResponseEntity.ok(chapter);
-    }
-
-    @PatchMapping("/chapters/{id}/active")
-    public ResponseEntity<ChapterDto> updateChapterStatus(
-            @PathVariable Long id, 
-            @RequestBody Map<String, Boolean> statusUpdate) {
-        Boolean active = statusUpdate.get("active");
-        ChapterDto chapter = contentManagementService.updateChapterStatus(id, active);
-        return ResponseEntity.ok(chapter);
-    }
-
-    @DeleteMapping("/chapters/{id}")
-    public ResponseEntity<Map<String, Object>> deleteChapter(
-            @PathVariable Long id,
-            @RequestParam(defaultValue = "false") boolean force) {
-        Map<String, Object> result = contentManagementService.deleteChapter(id, force);
-        return ResponseEntity.ok(result);
-    }
-
-    // ============ TOPICS CRUD ============
-    
-    @GetMapping("/topics")
-    public ResponseEntity<Page<TopicDto>> getTopics(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String search,
-            @RequestParam(required = false) Boolean active,
-            @RequestParam(required = false) Long chapterId,
-            @RequestParam(required = false) Long subjectId,
-            @RequestParam(defaultValue = "title") String sortBy,
-            @RequestParam(defaultValue = "asc") String sortDir) {
-        
-        Sort sort = sortDir.equalsIgnoreCase("desc") ? 
-            Sort.by(sortBy).descending() : 
-            Sort.by(sortBy).ascending();
-        
-        Pageable pageable = PageRequest.of(page, size, sort);
-        Page<TopicDto> topics = contentManagementService.getTopics(pageable, search, active, chapterId, subjectId);
-        
-        return ResponseEntity.ok(topics);
-    }
-
-    @PostMapping("/topics")
-    public ResponseEntity<TopicDto> createTopic(@Valid @RequestBody CreateTopicRequest request) {
-        TopicDto topic = contentManagementService.createTopic(request);
-        return ResponseEntity.ok(topic);
-    }
-
-    @PutMapping("/topics/{id}")
-    public ResponseEntity<TopicDto> updateTopic(
-            @PathVariable Long id, 
-            @Valid @RequestBody UpdateTopicRequest request) {
-        TopicDto topic = contentManagementService.updateTopic(id, request);
-        return ResponseEntity.ok(topic);
-    }
-
-    @PatchMapping("/topics/{id}/active")
-    public ResponseEntity<TopicDto> updateTopicStatus(
-            @PathVariable Long id, 
-            @RequestBody Map<String, Boolean> statusUpdate) {
-        Boolean active = statusUpdate.get("active");
-        TopicDto topic = contentManagementService.updateTopicStatus(id, active);
-        return ResponseEntity.ok(topic);
-    }
-
-    @GetMapping("/topics/{id}/deletion-impact")
-    public ResponseEntity<Map<String, Object>> getTopicDeletionImpact(@PathVariable Long id) {
-        Map<String, Object> impact = contentManagementService.getTopicDeletionImpact(id);
-        return ResponseEntity.ok(impact);
-    }
-
-    @DeleteMapping("/topics/{id}")
-    public ResponseEntity<Map<String, Object>> deleteTopic(
-            @PathVariable Long id,
-            @RequestParam(defaultValue = "false") boolean force) {
-        Map<String, Object> result = contentManagementService.deleteTopic(id, force);
-        return ResponseEntity.ok(result);
-    }
-
-    // ============ TOPIC NOTES CRUD ============
-    
-    @GetMapping("/topics/{topicId}/notes")
-    public ResponseEntity<Page<TopicNoteDto>> getTopicNotes(
-            @PathVariable Long topicId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String search,
-            @RequestParam(required = false) Boolean active,
-            @RequestParam(defaultValue = "title") String sortBy,
-            @RequestParam(defaultValue = "asc") String sortDir) {
-        
-        Sort sort = sortDir.equalsIgnoreCase("desc") ? 
-            Sort.by(sortBy).descending() : 
-            Sort.by(sortBy).ascending();
-        
-        Pageable pageable = PageRequest.of(page, size, sort);
-        Page<TopicNoteDto> notes = contentManagementService.getTopicNotes(topicId, pageable, search, active);
-        
-        return ResponseEntity.ok(notes);
-    }
-
-    @GetMapping("/notes")
-    public ResponseEntity<Page<TopicNoteDto>> getAllTopicNotes(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String search,
-            @RequestParam(required = false) Boolean active,
-            @RequestParam(required = false) Long topicId,
-            @RequestParam(defaultValue = "title") String sortBy,
-            @RequestParam(defaultValue = "asc") String sortDir) {
-        
-        Sort sort = sortDir.equalsIgnoreCase("desc") ? 
-            Sort.by(sortBy).descending() : 
-            Sort.by(sortBy).ascending();
-        
-        Pageable pageable = PageRequest.of(page, size, sort);
-        Page<TopicNoteDto> notes = contentManagementService.getAllTopicNotes(pageable, search, active, topicId);
-        
-        return ResponseEntity.ok(notes);
-    }
-
-    @PostMapping("/topics/{topicId}/notes")
-    public ResponseEntity<TopicNoteDto> createTopicNote(
-            @PathVariable Long topicId,
-            @Valid @RequestBody CreateTopicNoteRequest request) {
-        TopicNoteDto note = contentManagementService.createTopicNote(topicId, request);
-        return ResponseEntity.ok(note);
-    }
-
-    @PostMapping("/notes")
-    public ResponseEntity<TopicNoteDto> createTopicNoteGeneral(@Valid @RequestBody CreateTopicNoteRequest request) {
-        TopicNoteDto note = contentManagementService.createTopicNoteGeneral(request);
-        return ResponseEntity.ok(note);
-    }
-
-    @PutMapping("/notes/{id}")
-    public ResponseEntity<TopicNoteDto> updateTopicNote(
-            @PathVariable Long id, 
-            @Valid @RequestBody UpdateTopicNoteRequest request) {
-        TopicNoteDto note = contentManagementService.updateTopicNote(id, request);
-        return ResponseEntity.ok(note);
-    }
-
-    @PatchMapping("/notes/{id}/active")
-    public ResponseEntity<TopicNoteDto> updateTopicNoteStatus(
-            @PathVariable Long id, 
-            @RequestBody Map<String, Boolean> statusUpdate) {
-        Boolean active = statusUpdate.get("active");
-        TopicNoteDto note = contentManagementService.updateTopicNoteStatus(id, active);
-        return ResponseEntity.ok(note);
-    }
-
-    @DeleteMapping("/notes/{id}")
-    public ResponseEntity<Map<String, Object>> deleteTopicNote(
-            @PathVariable Long id,
-            @RequestParam(defaultValue = "false") boolean force) {
-        Map<String, Object> result = contentManagementService.deleteTopicNote(id, force);
-        return ResponseEntity.ok(result);
-    }
-
-    // ============ GRADES MANAGEMENT ============
+    // ============ GRADES CRUD ============
     
     @GetMapping("/grades")
-    public ResponseEntity<Page<GradeDto>> getGrades(
+    public ResponseEntity<ApiResponse<Page<GradeDto>>> getGrades(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "100") int size,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Long boardId,
+            @RequestParam(required = false) Boolean active,
             @RequestParam(defaultValue = "name") String sortBy,
             @RequestParam(defaultValue = "asc") String sortDir,
-            @RequestParam(required = false) String search,
-            @RequestParam(required = false) Boolean active,
-            @RequestParam(required = false) Long boardId) {
-        Page<GradeDto> grades = contentManagementService.getGrades(page, size, sortBy, sortDir, search, active, boardId);
-        return ResponseEntity.ok(grades);
+            HttpServletRequest request) {
+        
+        String traceId = TraceUtil.getTraceId();
+        String requestId = TraceUtil.getRequestId();
+        long startTime = System.currentTimeMillis();
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put("page", page);
+        context.put("size", size);
+        context.put("search", search);
+        context.put("boardId", boardId);
+        context.put("active", active);
+        context.put("sortBy", sortBy);
+        context.put("sortDir", sortDir);
+        
+        loggingService.logBusinessOperationStart("GET_GRADES", null, context);
+        
+        try {
+        Sort sort = sortDir.equalsIgnoreCase("desc") ? 
+            Sort.by(sortBy).descending() : 
+            Sort.by(sortBy).ascending();
+        
+        Pageable pageable = PageRequest.of(page, size, sort);
+            Page<GradeDto> grades = contentManagementService.getGrades(search, boardId, active, pageable);
+            
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("GET_GRADES", null, true, executionTime);
+            
+            ApiResponse<Page<GradeDto>> response = ApiResponse.success(grades, "Grades retrieved successfully");
+            response.setTraceId(traceId);
+            response.setRequestId(requestId);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("GET_GRADES", null, false, executionTime);
+            loggingService.logError("GET_GRADES", e, context);
+            throw e;
+        }
+    }
+
+    @GetMapping("/grades/{id}")
+    public ResponseEntity<ApiResponse<GradeDto>> getGradeById(@PathVariable Long id, HttpServletRequest request) {
+        String traceId = TraceUtil.getTraceId();
+        String requestId = TraceUtil.getRequestId();
+        long startTime = System.currentTimeMillis();
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put("gradeId", id);
+        
+        loggingService.logBusinessOperationStart("GET_GRADE_BY_ID", null, context);
+        
+        try {
+            GradeDto grade = contentManagementService.getGradeById(id);
+            
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("GET_GRADE_BY_ID", id.toString(), true, executionTime);
+            
+            ApiResponse<GradeDto> response = ApiResponse.success(grade, "Grade retrieved successfully");
+            response.setTraceId(traceId);
+            response.setRequestId(requestId);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("GET_GRADE_BY_ID", id.toString(), false, executionTime);
+            loggingService.logError("GET_GRADE_BY_ID", e, context);
+            throw e;
+        }
     }
 
     @PostMapping("/grades")
-    public ResponseEntity<GradeDto> createGrade(@Valid @RequestBody CreateGradeRequest request) {
-        GradeDto grade = contentManagementService.createGrade(request);
-        return ResponseEntity.ok(grade);
+    public ResponseEntity<ApiResponse<GradeDto>> createGrade(
+            @Valid @RequestBody CreateGradeRequest request,
+            HttpServletRequest httpRequest) {
+        
+        String traceId = TraceUtil.getTraceId();
+        String requestId = TraceUtil.getRequestId();
+        long startTime = System.currentTimeMillis();
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put("gradeName", request.getName());
+        context.put("gradeDisplayName", request.getDisplayName());
+        context.put("boardId", request.getBoardId());
+        
+        loggingService.logBusinessOperationStart("CREATE_GRADE", null, context);
+        
+        try {
+            GradeDto grade = contentManagementService.createGrade(request);
+            
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("CREATE_GRADE", grade.getId().toString(), true, executionTime);
+            
+            ApiResponse<GradeDto> response = ApiResponse.success(grade, "Grade created successfully");
+            response.setTraceId(traceId);
+            response.setRequestId(requestId);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("CREATE_GRADE", null, false, executionTime);
+            loggingService.logError("CREATE_GRADE", e, context);
+            throw e;
+        }
     }
 
     @PutMapping("/grades/{id}")
-    public ResponseEntity<GradeDto> updateGrade(
-            @PathVariable Long id, 
-            @Valid @RequestBody UpdateGradeRequest request) {
-        GradeDto grade = contentManagementService.updateGrade(id, request);
-        return ResponseEntity.ok(grade);
-    }
-
-    @PatchMapping("/grades/{id}/active")
-    public ResponseEntity<GradeDto> updateGradeStatus(
-            @PathVariable Long id, 
-            @RequestBody Map<String, Boolean> statusUpdate) {
-        Boolean active = statusUpdate.get("active");
-        GradeDto grade = contentManagementService.updateGradeStatus(id, active);
-        return ResponseEntity.ok(grade);
+    public ResponseEntity<ApiResponse<GradeDto>> updateGrade(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateGradeRequest request,
+            HttpServletRequest httpRequest) {
+        
+        String traceId = TraceUtil.getTraceId();
+        String requestId = TraceUtil.getRequestId();
+        long startTime = System.currentTimeMillis();
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put("gradeId", id);
+        context.put("gradeName", request.getName());
+        context.put("gradeDisplayName", request.getDisplayName());
+        context.put("gradeActive", request.getActive());
+        
+        loggingService.logBusinessOperationStart("UPDATE_GRADE", id.toString(), context);
+        
+        try {
+            GradeDto grade = contentManagementService.updateGrade(id, request);
+            
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("UPDATE_GRADE", id.toString(), true, executionTime);
+            
+            ApiResponse<GradeDto> response = ApiResponse.success(grade, "Grade updated successfully");
+            response.setTraceId(traceId);
+            response.setRequestId(requestId);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("UPDATE_GRADE", id.toString(), false, executionTime);
+            loggingService.logError("UPDATE_GRADE", e, context);
+            throw e;
+        }
     }
 
     @DeleteMapping("/grades/{id}")
-    public ResponseEntity<Map<String, Object>> deleteGrade(
-            @PathVariable Long id,
-            @RequestParam(defaultValue = "false") boolean force) {
-        Map<String, Object> result = contentManagementService.deleteGrade(id, force);
-        return ResponseEntity.ok(result);
+    public ResponseEntity<ApiResponse<Void>> deleteGrade(@PathVariable Long id, HttpServletRequest request) {
+        String traceId = TraceUtil.getTraceId();
+        String requestId = TraceUtil.getRequestId();
+        long startTime = System.currentTimeMillis();
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put("gradeId", id);
+        
+        loggingService.logBusinessOperationStart("DELETE_GRADE", id.toString(), context);
+        
+        try {
+            contentManagementService.deleteGrade(id, false); // false = soft delete
+            
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("DELETE_GRADE", id.toString(), true, executionTime);
+            
+            ApiResponse<Void> response = ApiResponse.success(null, "Grade deleted successfully");
+            response.setTraceId(traceId);
+            response.setRequestId(requestId);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("DELETE_GRADE", id.toString(), false, executionTime);
+            loggingService.logError("DELETE_GRADE", e, context);
+            throw e;
+        }
     }
+
+    // ============ DROPDOWN UTILITIES ============
     
-    @GetMapping("/grades/{id}/deletion-impact")
-    public ResponseEntity<Map<String, Object>> getGradeDeletionImpact(@PathVariable Long id) {
-        Map<String, Object> impact = contentManagementService.getGradeDeletionImpact(id);
-        return ResponseEntity.ok(impact);
+    @GetMapping("/boards/dropdown")
+    public ResponseEntity<ApiResponse<List<BoardDropdownDto>>> getBoardsDropdown(HttpServletRequest request) {
+        String traceId = TraceUtil.getTraceId();
+        String requestId = TraceUtil.getRequestId();
+        long startTime = System.currentTimeMillis();
+        
+        loggingService.logBusinessOperationStart("GET_BOARDS_DROPDOWN", null, new HashMap<>());
+        
+        try {
+            List<BoardDropdownDto> boards = contentManagementService.getBoardsForDropdown();
+            
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("GET_BOARDS_DROPDOWN", null, true, executionTime);
+            
+            ApiResponse<List<BoardDropdownDto>> response = ApiResponse.success(boards, "Boards dropdown retrieved successfully");
+            response.setTraceId(traceId);
+            response.setRequestId(requestId);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("GET_BOARDS_DROPDOWN", null, false, executionTime);
+            loggingService.logError("GET_BOARDS_DROPDOWN", e, new HashMap<>());
+            throw e;
+        }
     }
-    
-    @GetMapping("/grades-list")
-    public ResponseEntity<List<Map<String, Object>>> getGradesList() {
-        List<Map<String, Object>> grades = List.of(
-            Map.of("id", 1, "name", "7", "displayName", "Grade 7", "active", true),
-            Map.of("id", 2, "name", "8", "displayName", "Grade 8", "active", true),
-            Map.of("id", 3, "name", "9", "displayName", "Grade 9", "active", true),
-            Map.of("id", 4, "name", "10", "displayName", "Grade 10", "active", true),
-            Map.of("id", 5, "name", "11", "displayName", "Grade 11", "active", true),
-            Map.of("id", 6, "name", "12", "displayName", "Grade 12", "active", true)
-        );
-        return ResponseEntity.ok(grades);
+
+    @GetMapping("/grades/dropdown")
+    public ResponseEntity<ApiResponse<List<GradeDropdownDto>>> getGradesDropdown(
+            @RequestParam(required = false) Long boardId,
+            HttpServletRequest request) {
+        
+        String traceId = TraceUtil.getTraceId();
+        String requestId = TraceUtil.getRequestId();
+        long startTime = System.currentTimeMillis();
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put("boardId", boardId);
+        
+        loggingService.logBusinessOperationStart("GET_GRADES_DROPDOWN", null, context);
+        
+        try {
+            List<GradeDropdownDto> grades = contentManagementService.getGradesForDropdown(boardId);
+            
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("GET_GRADES_DROPDOWN", null, true, executionTime);
+            
+            ApiResponse<List<GradeDropdownDto>> response = ApiResponse.success(grades, "Grades dropdown retrieved successfully");
+            response.setTraceId(traceId);
+            response.setRequestId(requestId);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("GET_GRADES_DROPDOWN", null, false, executionTime);
+            loggingService.logError("GET_GRADES_DROPDOWN", e, context);
+            throw e;
+        }
     }
-    
-    @GetMapping("/content-tree")
-    public ResponseEntity<Map<String, Object>> getContentTree() {
-        Map<String, Object> tree = new HashMap<>();
-        tree.put("test", "working");
-        return ResponseEntity.ok(tree);
+
+    @GetMapping("/subjects/dropdown")
+    public ResponseEntity<ApiResponse<List<SubjectDropdownDto>>> getSubjectsDropdown(
+            @RequestParam(required = false) Long gradeId,
+            HttpServletRequest request) {
+        
+        String traceId = TraceUtil.getTraceId();
+        String requestId = TraceUtil.getRequestId();
+        long startTime = System.currentTimeMillis();
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put("gradeId", gradeId);
+        
+        loggingService.logBusinessOperationStart("GET_SUBJECTS_DROPDOWN", null, context);
+        
+        try {
+            List<SubjectDropdownDto> subjects = contentManagementService.getSubjectsForDropdown(gradeId);
+            
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("GET_SUBJECTS_DROPDOWN", null, true, executionTime);
+            
+            ApiResponse<List<SubjectDropdownDto>> response = ApiResponse.success(subjects, "Subjects dropdown retrieved successfully");
+            response.setTraceId(traceId);
+            response.setRequestId(requestId);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("GET_SUBJECTS_DROPDOWN", null, false, executionTime);
+            loggingService.logError("GET_SUBJECTS_DROPDOWN", e, context);
+            throw e;
+        }
+    }
+
+    @GetMapping("/chapters/dropdown")
+    public ResponseEntity<ApiResponse<List<ChapterDropdownDto>>> getChaptersDropdown(
+            @RequestParam(required = false) Long subjectId,
+            HttpServletRequest request) {
+        
+        String traceId = TraceUtil.getTraceId();
+        String requestId = TraceUtil.getRequestId();
+        long startTime = System.currentTimeMillis();
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put("subjectId", subjectId);
+        
+        loggingService.logBusinessOperationStart("GET_CHAPTERS_DROPDOWN", null, context);
+        
+        try {
+            List<ChapterDropdownDto> chapters = contentManagementService.getChaptersForDropdown(subjectId);
+            
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("GET_CHAPTERS_DROPDOWN", null, true, executionTime);
+            
+            ApiResponse<List<ChapterDropdownDto>> response = ApiResponse.success(chapters, "Chapters dropdown retrieved successfully");
+            response.setTraceId(traceId);
+            response.setRequestId(requestId);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("GET_CHAPTERS_DROPDOWN", null, false, executionTime);
+            loggingService.logError("GET_CHAPTERS_DROPDOWN", e, context);
+            throw e;
+        }
+    }
+
+    @GetMapping("/topics/dropdown")
+    public ResponseEntity<ApiResponse<List<TopicDropdownDto>>> getTopicsDropdown(
+            @RequestParam(required = false) Long chapterId,
+            HttpServletRequest request) {
+        
+        String traceId = TraceUtil.getTraceId();
+        String requestId = TraceUtil.getRequestId();
+        long startTime = System.currentTimeMillis();
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put("chapterId", chapterId);
+        
+        loggingService.logBusinessOperationStart("GET_TOPICS_DROPDOWN", null, context);
+        
+        try {
+            List<TopicDropdownDto> topics = contentManagementService.getTopicsForDropdown(chapterId);
+            
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("GET_TOPICS_DROPDOWN", null, true, executionTime);
+            
+            ApiResponse<List<TopicDropdownDto>> response = ApiResponse.success(topics, "Topics dropdown retrieved successfully");
+            response.setTraceId(traceId);
+            response.setRequestId(requestId);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("GET_TOPICS_DROPDOWN", null, false, executionTime);
+            loggingService.logError("GET_TOPICS_DROPDOWN", e, context);
+            throw e;
+        }
     }
 }

@@ -2,6 +2,7 @@ package com.ankurshala.backend.config;
 
 import com.ankurshala.backend.converter.EncryptedAccountNumberConverter;
 import com.ankurshala.backend.util.AESGCMEncryption;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.DependsOn;
@@ -12,6 +13,7 @@ import org.springframework.context.annotation.DependsOn;
  * JPA converters try to use it.
  */
 @Configuration
+@Slf4j
 public class EncryptionConfig {
 
     /**

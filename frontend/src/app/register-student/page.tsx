@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuthStore } from '@/store/auth'
 import { authAPI } from '@/lib/apiClient'
+import { authManager } from '@/utils/auth'
 import { useTheme } from '@/components/theme-provider'
 import { Sun, Moon, Eye, EyeOff, ArrowLeft, User, Mail, Lock, CheckCircle } from 'lucide-react'
 
@@ -58,17 +59,23 @@ export default function RegisterStudentPage() {
     try {
       const response = await authAPI.signupStudent(data.name, data.email, data.password)
       
-      // Store tokens
-      localStorage.setItem('accessToken', response.accessToken)
-      localStorage.setItem('refreshToken', response.refreshToken)
+      // Extract data from the API response
+      const userData = {
+        id: response.data.userId.toString(),
+        email: response.data.email,
+        name: response.data.name,
+        role: response.data.role
+      }
+
+      // Set authentication data in both systems
+      authManager.setAuth(
+        response.data.accessToken,
+        response.data.refreshToken,
+        userData
+      )
       
-      // Update auth store
-      login({
-        id: response.userId.toString(),
-        email: response.email,
-        name: response.name,
-        role: response.role,
-      })
+      // Also update Zustand store for RouteGuard compatibility
+      login(userData)
 
       toast.success('Account created successfully!')
       router.push('/student/profile')
@@ -123,10 +130,10 @@ export default function RegisterStudentPage() {
             </div>
           </div>
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            Join as Student
+            AnkurShala
           </h1>
           <p className="mt-3 text-lg text-gray-600 dark:text-gray-300">
-            Start your learning journey with personalized 1:1 sessions
+            Join as Student - Start your learning journey with personalized 1:1 sessions
           </p>
         </div>
         
@@ -177,7 +184,7 @@ export default function RegisterStudentPage() {
                       ? 'border-red-500 focus:border-red-500' 
                       : 'border-gray-200 dark:border-gray-600 focus:border-blue-500'
                   }`}
-                  placeholder="Enter your email address"
+                  placeholder="Enter your email"
                 />
                 {errors.email && (
                   <p className="text-sm text-red-600 dark:text-red-400">{errors.email.message}</p>
@@ -199,7 +206,7 @@ export default function RegisterStudentPage() {
                         ? 'border-red-500 focus:border-red-500' 
                         : 'border-gray-200 dark:border-gray-600 focus:border-blue-500'
                     }`}
-                    placeholder="Create a strong password"
+                    placeholder="Enter your password"
                   />
                   <button
                     type="button"

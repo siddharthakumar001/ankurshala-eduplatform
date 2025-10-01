@@ -14,7 +14,7 @@ import java.util.List;
 // Therefore controller @RequestMapping must NOT start with "/api".
 @RestController
 @RequestMapping("/admin/dashboard")
-@CrossOrigin(origins = "http://localhost:3000", maxAge = 3600)
+@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3001", "http://localhost:3002"}, maxAge = 3600)
 public class AdminDashboardController {
 
     @Autowired

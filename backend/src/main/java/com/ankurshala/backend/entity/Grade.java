@@ -5,6 +5,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "grades")
@@ -22,8 +24,15 @@ public class Grade {
     @Column(name = "board_id", nullable = false)
     private Long boardId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "board_id", insertable = false, updatable = false)
+    private Board board;
+
     @Column(name = "active", nullable = false)
     private Boolean active = true;
+
+    @Column(name = "soft_deleted", nullable = false)
+    private Boolean softDeleted = false;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -32,6 +41,10 @@ public class Grade {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    // Relationships
+    @OneToMany(mappedBy = "grade", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Subject> subjects = new ArrayList<>();
 
     public Grade() {}
 
@@ -62,4 +75,13 @@ public class Grade {
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    public Boolean getSoftDeleted() { return softDeleted; }
+    public void setSoftDeleted(Boolean softDeleted) { this.softDeleted = softDeleted; }
+
+    public Board getBoard() { return board; }
+    public void setBoard(Board board) { this.board = board; }
+
+    public List<Subject> getSubjects() { return subjects; }
+    public void setSubjects(List<Subject> subjects) { this.subjects = subjects; }
 }

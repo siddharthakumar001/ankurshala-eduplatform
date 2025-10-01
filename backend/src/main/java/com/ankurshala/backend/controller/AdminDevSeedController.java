@@ -18,7 +18,7 @@ import java.util.Map;
  * Provides REST endpoint for bulk seeding with proper security and environment guards.
  */
 @RestController
-@RequestMapping("/api/admin/dev-seed")
+@RequestMapping("/admin/dev-seed")
 public class AdminDevSeedController {
 
     private static final Logger logger = LoggerFactory.getLogger(AdminDevSeedController.class);

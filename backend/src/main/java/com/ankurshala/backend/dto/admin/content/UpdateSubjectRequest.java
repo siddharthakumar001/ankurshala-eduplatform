@@ -1,0 +1,32 @@
+package com.ankurshala.backend.dto.admin.content;
+
+import jakarta.validation.constraints.Size;
+
+/**
+ * Request DTO for updating Subject
+ * All fields are optional since it's an update operation
+ */
+public class UpdateSubjectRequest {
+    
+    @Size(max = 100, message = "Subject name cannot exceed 100 characters")
+    private String name;
+    
+    private Long boardId;
+    
+    private Long gradeId;
+    
+    private Boolean active;
+
+    // Getters and Setters
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+
+    public Long getBoardId() { return boardId; }
+    public void setBoardId(Long boardId) { this.boardId = boardId; }
+
+    public Long getGradeId() { return gradeId; }
+    public void setGradeId(Long gradeId) { this.gradeId = gradeId; }
+
+    public Boolean getActive() { return active; }
+    public void setActive(Boolean active) { this.active = active; }
+}
