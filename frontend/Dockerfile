@@ -34,6 +34,7 @@ RUN mkdir -p public
 # Set build-time environment variables
 ARG NEXT_PUBLIC_API_URL=http://localhost:8080/api
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV DOCKER_BUILD=true
 
 # Build the application
 RUN npm run build
