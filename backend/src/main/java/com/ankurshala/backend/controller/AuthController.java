@@ -25,7 +25,7 @@ import java.util.Map;
  * Implements proper design patterns with comprehensive logging and error handling
  */
 @Slf4j
-@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3001", "http://localhost:3002"}, maxAge = 3600)
+@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "https://ankurshala.com", "https://www.ankurshala.com"}, maxAge = 3600)
 @RestController
 @RequestMapping("/auth")
 public class AuthController {

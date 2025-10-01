@@ -12,7 +12,7 @@ import java.util.Map;
 // Stage-1 FE complete: User context endpoint for navbar and guards
 @RestController
 @RequestMapping("/user")
-@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3001", "http://localhost:3002"}, maxAge = 3600)
+@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "https://ankurshala.com", "https://www.ankurshala.com"}, maxAge = 3600)
 public class UserController {
 
     @GetMapping("/me")
