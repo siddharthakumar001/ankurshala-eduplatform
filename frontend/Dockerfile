@@ -9,8 +9,11 @@ LABEL com.ankurshala=1
 
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci --only=production && npm cache clean --force
+
+# Clear npm cache and install production dependencies
+RUN npm cache clean --force && \
+    npm ci --only=production --no-audit --no-fund && \
+    npm cache clean --force
 
 ############################
 # Stage 2: Builder
@@ -22,8 +25,11 @@ WORKDIR /app
 
 # Copy package files and install all dependencies
 COPY package.json package-lock.json* ./
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci && npm cache clean --force
+
+# Clear npm cache and install all dependencies
+RUN npm cache clean --force && \
+    npm ci --no-audit --no-fund && \
+    npm cache clean --force
 
 # Copy source code
 COPY . .

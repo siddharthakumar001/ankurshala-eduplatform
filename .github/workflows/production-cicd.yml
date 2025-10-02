@@ -74,16 +74,21 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
       
+    - name: Clean Docker Resources
+      run: |
+        docker system prune -f || true
+        docker builder prune -f || true
+        
     - name: Build Backend image
       run: |
         cd backend
-        docker build -t ankurshala/backend:prod-${{ github.sha }} .
+        docker build --no-cache -t ankurshala/backend:prod-${{ github.sha }} .
         docker tag ankurshala/backend:prod-${{ github.sha }} ankurshala/backend:latest
         
     - name: Build Frontend image
       run: |
         cd frontend
-        docker build -t ankurshala/frontend:prod-${{ github.sha }} .
+        docker build --no-cache -t ankurshala/frontend:prod-${{ github.sha }} .
         docker tag ankurshala/frontend:prod-${{ github.sha }} ankurshala/frontend:latest
         
     - name: Save Backend image
