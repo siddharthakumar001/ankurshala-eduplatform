@@ -32,7 +32,7 @@ COPY . .
 RUN mkdir -p public
 
 # Set build-time environment variables
-ARG NEXT_PUBLIC_API_URL=http://localhost:8080/api
+ARG NEXT_PUBLIC_API_URL=https://ankurshala.com/api
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV DOCKER_BUILD=true
 
