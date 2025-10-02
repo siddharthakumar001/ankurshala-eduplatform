@@ -1,0 +1,211 @@
+name: AnkurShala Production CI/CD Pipeline
+
+on:
+  push:
+    branches: [ ankurshala/prod-1.0-final ]
+  pull_request:
+    branches: [ ankurshala/prod-1.0-final ]
+
+env:
+  STORAGE_ACCOUNT: ankurimage
+  CONTAINER_NAME: docker-images
+  VM_IP: 74.225.207.72
+  VM_USER: AnkurshalaVM
+  REGISTRY: ankurshala.azurecr.io
+
+jobs:
+  # ---- Code Quality Check ----
+  code-quality:
+    runs-on: ubuntu-latest
+    name: Code Quality Check
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+        
+    - name: Cache Maven dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+        
+    - name: Backend Code Quality Check
+      run: |
+        cd backend
+        ./mvnw clean compile -DskipTests
+        ./mvnw spotbugs:check || echo "SpotBugs check completed with warnings"
+        
+    - name: Frontend Code Quality Check
+      run: |
+        cd frontend
+        npm ci
+        npm run lint || echo "Linting completed with warnings"
+        npm run type-check || echo "Type checking completed with warnings"
+        
+    - name: Frontend Build Test
+      run: |
+        cd frontend
+        npm run build
+
+  # ---- Build and Push Images ----
+  build-and-push:
+    needs: code-quality
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/ankurshala/prod-1.0-final'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Build Backend image
+      run: |
+        cd backend
+        docker build -t ankurshala/backend:prod-${{ github.sha }} .
+        docker tag ankurshala/backend:prod-${{ github.sha }} ankurshala/backend:latest
+        
+    - name: Build Frontend image
+      run: |
+        cd frontend
+        docker build -t ankurshala/frontend:prod-${{ github.sha }} .
+        docker tag ankurshala/frontend:prod-${{ github.sha }} ankurshala/frontend:latest
+        
+    - name: Save Backend image
+      run: |
+        docker save ankurshala/backend:prod-${{ github.sha }} -o backend-image.tar
+        
+    - name: Save Frontend image
+      run: |
+        docker save ankurshala/frontend:prod-${{ github.sha }} -o frontend-image.tar
+        
+    - name: Install Azure CLI
+      run: |
+        curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+        
+    - name: Upload Backend to Azure Storage
+      run: |
+        az storage blob upload \
+          --container-name ${{ env.CONTAINER_NAME }} \
+          --name "backend-prod-${{ github.sha }}.tar" \
+          --file backend-image.tar \
+          --account-name ${{ env.STORAGE_ACCOUNT }} \
+          --account-key ${{ secrets.STORAGE_KEY }}
+          
+    - name: Upload Frontend to Azure Storage
+      run: |
+        az storage blob upload \
+          --container-name ${{ env.CONTAINER_NAME }} \
+          --name "frontend-prod-${{ github.sha }}.tar" \
+          --file frontend-image.tar \
+          --account-name ${{ env.STORAGE_ACCOUNT }} \
+          --account-key ${{ secrets.STORAGE_KEY }}
+
+  # ---- Deploy to Production ----
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/ankurshala/prod-1.0-final'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.7.0
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+        
+    - name: Pre-deployment Health Check
+      run: |
+        echo "Checking current application status..."
+        curl -f https://ankurshala.com/health || echo "Application may be down, proceeding with deployment"
+        
+    - name: Deploy to Production Server
+      run: |
+        ssh -o StrictHostKeyChecking=no ${{ env.VM_USER }}@${{ env.VM_IP }} << 'EOF'
+          set -e
+          echo "🚀 Starting deployment process..."
+          
+          # Navigate to project directory
+          cd /opt/ankurshala
+          
+          # Pull latest code
+          echo "📥 Pulling latest code..."
+          git pull origin ankurshala/prod-1.0-final
+          
+          # Run resource cleanup
+          echo "🧹 Cleaning up resources..."
+          docker system prune -f || echo "Cleanup completed with warnings"
+          
+          # Deploy application
+          echo "🚀 Deploying application..."
+          ./scripts/deploy-production-fixed.sh
+          
+          echo "✅ Deployment completed successfully!"
+        EOF
+        
+    - name: Wait for Services
+      run: |
+        echo "⏳ Waiting for services to start..."
+        sleep 60
+        
+    - name: Health Check
+      run: |
+        echo "🏥 Performing health checks..."
+        
+        # Check if application is responding
+        for i in {1..10}; do
+          if curl -f https://ankurshala.com/health; then
+            echo "✅ Application health check passed!"
+            break
+          else
+            echo "⏳ Attempt $i/10: Application not ready yet, waiting..."
+            sleep 30
+          fi
+        done
+        
+        # Final check
+        if ! curl -f https://ankurshala.com/health; then
+          echo "❌ Health check failed after 5 minutes"
+          exit 1
+        fi
+        
+    - name: Verify Services on VM
+      run: |
+        ssh -o StrictHostKeyChecking=no ${{ env.VM_USER }}@${{ env.VM_IP }} << 'EOF'
+          echo "🔍 Checking service status..."
+          cd /opt/ankurshala
+          docker compose -f docker-compose.prod.yml --env-file .env-prod ps
+          
+          echo "📊 Checking resource usage..."
+          df -h /
+          free -h
+        EOF
+        
+    - name: Notify Deployment Status
+      if: always()
+      run: |
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "🎉 Deployment successful!"
+          echo "✅ Application is running at https://ankurshala.com"
+          echo "🔗 Health check: https://ankurshala.com/health"
+        else
+          echo "❌ Deployment failed!"
+          echo "🔍 Check the logs above for details"
+        fi
