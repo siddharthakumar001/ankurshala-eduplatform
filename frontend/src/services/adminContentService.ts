@@ -265,7 +265,6 @@ export interface ContentTreeDto {
 
 class AdminContentService {
   private baseUrl = '/admin/content'
-  private utilsUrl = '/admin/content-utils'
 
   // ============ BOARD OPERATIONS ============
   
@@ -516,44 +515,31 @@ class AdminContentService {
   // ============ UTILITY OPERATIONS ============
 
   async getBoardsDropdown(): Promise<BoardDropdownDto[]> {
-    const response = await api.get<BoardDropdownDto[]>(`${this.utilsUrl}/boards/dropdown`)
+    const response = await api.get<BoardDropdownDto[]>(`${this.baseUrl}/boards/dropdown`)
     return response.data
   }
 
   async getGradesDropdown(boardId?: number): Promise<GradeDropdownDto[]> {
     const params = boardId ? `?boardId=${boardId}` : ''
-    const response = await api.get<GradeDropdownDto[]>(`${this.utilsUrl}/grades/dropdown${params}`)
+    const response = await api.get<GradeDropdownDto[]>(`${this.baseUrl}/grades/dropdown${params}`)
     return response.data
   }
 
   async getSubjectsDropdown(gradeId?: number): Promise<SubjectDropdownDto[]> {
     const params = gradeId ? `?gradeId=${gradeId}` : ''
-    const response = await api.get<SubjectDropdownDto[]>(`${this.utilsUrl}/subjects/dropdown${params}`)
+    const response = await api.get<SubjectDropdownDto[]>(`${this.baseUrl}/subjects/dropdown${params}`)
     return response.data
   }
 
   async getChaptersDropdown(subjectId?: number): Promise<ChapterDropdownDto[]> {
     const params = subjectId ? `?subjectId=${subjectId}` : ''
-    const response = await api.get<ChapterDropdownDto[]>(`${this.utilsUrl}/chapters/dropdown${params}`)
+    const response = await api.get<ChapterDropdownDto[]>(`${this.baseUrl}/chapters/dropdown${params}`)
     return response.data
   }
 
   async getTopicsDropdown(chapterId?: number): Promise<TopicDropdownDto[]> {
     const params = chapterId ? `?chapterId=${chapterId}` : ''
-    const response = await api.get<TopicDropdownDto[]>(`${this.utilsUrl}/topics/dropdown${params}`)
-    return response.data
-  }
-
-  async getContentTree(boardId?: number, gradeId?: number, subjectId?: number, chapterId?: number): Promise<ContentTreeDto> {
-    const params = new URLSearchParams()
-    if (boardId) params.append('boardId', boardId.toString())
-    if (gradeId) params.append('gradeId', gradeId.toString())
-    if (subjectId) params.append('subjectId', subjectId.toString())
-    if (chapterId) params.append('chapterId', chapterId.toString())
-    
-    const queryString = params.toString()
-    const url = `${this.utilsUrl}/content-tree${queryString ? `?${queryString}` : ''}`
-    const response = await api.get<ContentTreeDto>(url)
+    const response = await api.get<TopicDropdownDto[]>(`${this.baseUrl}/topics/dropdown${params}`)
     return response.data
   }
 }
