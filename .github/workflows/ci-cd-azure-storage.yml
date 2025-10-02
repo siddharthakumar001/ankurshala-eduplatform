@@ -1,0 +1,171 @@
+name: AnkurShala CI/CD with Azure Storage
+
+on:
+  push:
+    branches: [ ankurshala/prod-1.0-cicd ]
+  pull_request:
+    branches: [ ankurshala/prod-1.0-cicd ]
+
+env:
+  STORAGE_ACCOUNT: ankurimage
+  CONTAINER_NAME: docker-images
+  VM_IP: 74.225.207.72
+  VM_USER: AnkurshalaVM
+
+jobs:
+  # ---- Test Job ----
+  test:
+    runs-on: ubuntu-latest
+    name: Run Tests
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+        
+    - name: Cache Maven dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+        
+    - name: Run Backend Tests
+      run: |
+        cd backend
+        ./mvnw clean test
+      env:
+        SPRING_PROFILES_ACTIVE: test
+        
+    - name: Run Frontend Tests
+      run: |
+        cd frontend
+        npm ci
+        npm run test:ci
+      env:
+        CI: true
+        
+    - name: Generate Test Coverage Report
+      run: |
+        cd backend
+        ./mvnw jacoco:report
+        cd ../frontend
+        npm run test:coverage
+        
+    - name: Upload Backend Coverage
+      uses: codecov/codecov-action@v3
+      with:
+        file: backend/target/site/jacoco/jacoco.xml
+        flags: backend
+        
+    - name: Upload Frontend Coverage
+      uses: codecov/codecov-action@v3
+      with:
+        file: frontend/coverage/lcov.info
+        flags: frontend
+
+  # ---- Build and Push Job ----
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/ankurshala/prod-1.0-cicd'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Log in to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
+    - name: Build Backend image
+      run: |
+        cd backend
+        docker build -t ankurshala/backend:prod-${{ github.sha }} .
+        docker tag ankurshala/backend:prod-${{ github.sha }} ankurshala/backend:latest
+        
+    - name: Build Frontend image
+      run: |
+        cd frontend
+        docker build -t ankurshala/frontend:prod-${{ github.sha }} .
+        docker tag ankurshala/frontend:prod-${{ github.sha }} ankurshala/frontend:latest
+        
+    - name: Save Backend image
+      run: |
+        docker save ankurshala/backend:prod-${{ github.sha }} -o backend-image.tar
+        
+    - name: Save Frontend image
+      run: |
+        docker save ankurshala/frontend:prod-${{ github.sha }} -o frontend-image.tar
+        
+    - name: Upload Backend to Azure Storage
+      run: |
+        az storage blob upload \
+          --container-name ${{ env.CONTAINER_NAME }} \
+          --name "backend-prod-${{ github.sha }}.tar" \
+          --file backend-image.tar \
+          --account-name ${{ env.STORAGE_ACCOUNT }} \
+          --account-key ${{ secrets.STORAGE_KEY }}
+          
+    - name: Upload Frontend to Azure Storage
+      run: |
+        az storage blob upload \
+          --container-name ${{ env.CONTAINER_NAME }} \
+          --name "frontend-prod-${{ github.sha }}.tar" \
+          --file frontend-image.tar \
+          --account-name ${{ env.STORAGE_ACCOUNT }} \
+          --account-key ${{ secrets.STORAGE_KEY }}
+
+  # ---- Deploy Job ----
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/ankurshala/prod-1.0-cicd'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.7.0
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+        
+    - name: Deploy to Production Server
+      run: |
+        ssh -o StrictHostKeyChecking=no ${{ env.VM_USER }}@${{ env.VM_IP }} << 'EOF'
+          cd /opt/ankurshala
+          git pull origin ankurshala/prod-1.0-cicd
+          ./scripts/deploy-production-enhanced.sh
+        EOF
+        
+    - name: Health Check
+      run: |
+        sleep 30
+        curl -f https://ankurshala.com/health || exit 1
+        
+    - name: Notify Deployment Status
+      if: always()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        channel: '#deployments'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
