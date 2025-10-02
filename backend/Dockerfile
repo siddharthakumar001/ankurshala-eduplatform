@@ -9,15 +9,20 @@ LABEL com.ankurshala=1
 
 WORKDIR /app
 
-# Cache deps
+# Cache deps with retry mechanism
 COPY pom.xml ./
 COPY .mvn ./.mvn
 COPY mvnw ./
-RUN --mount=type=cache,target=/root/.m2 ./mvnw dependency:go-offline -B
+RUN --mount=type=cache,target=/root/.m2 \
+    ./mvnw dependency:resolve -B || \
+    (echo "First attempt failed, retrying..." && sleep 5 && ./mvnw dependency:resolve -B) || \
+    (echo "Second attempt failed, trying without cache..." && ./mvnw dependency:resolve -B -U)
 
-# Build
+# Build with retry mechanism
 COPY src ./src
-RUN --mount=type=cache,target=/root/.m2 ./mvnw clean package -DskipTests -Dmaven.test.skip=true -B
+RUN --mount=type=cache,target=/root/.m2 \
+    ./mvnw clean package -DskipTests -Dmaven.test.skip=true -B || \
+    (echo "Build failed, retrying without cache..." && ./mvnw clean package -DskipTests -Dmaven.test.skip=true -B -U)
 
 ############################
 # Stage 2: Runtime (Minimal JRE)
