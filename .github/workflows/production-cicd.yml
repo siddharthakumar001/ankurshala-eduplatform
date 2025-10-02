@@ -121,33 +121,37 @@ jobs:
       run: |
         echo "Creating Azure Storage container..."
         
-        # Try to create container
-        if az storage container create \
+        # Create container and capture output
+        CONTAINER_RESULT=$(az storage container create \
           --name ${{ env.CONTAINER_NAME }} \
           --account-name ${{ env.STORAGE_ACCOUNT }} \
           --account-key ${{ secrets.STORAGE_KEY }} \
-          --public-access blob 2>/dev/null; then
-          echo "✅ Container created successfully"
-        else
-          echo "ℹ️ Container may already exist, checking..."
-        fi
+          --public-access blob 2>&1)
         
-        # Verify container exists by listing containers
+        echo "Container creation result: $CONTAINER_RESULT"
+        
+        # Check if container exists by trying to list it
         echo "Verifying container exists..."
-        if az storage container list \
+        if az storage container show \
+          --name ${{ env.CONTAINER_NAME }} \
           --account-name ${{ env.STORAGE_ACCOUNT }} \
-          --account-key ${{ secrets.STORAGE_KEY }} \
-          --query "[?name=='${{ env.CONTAINER_NAME }}']" \
-          --output table | grep -q "${{ env.CONTAINER_NAME }}"; then
+          --account-key ${{ secrets.STORAGE_KEY }} >/dev/null 2>&1; then
           echo "✅ Container '${{ env.CONTAINER_NAME }}' verified and ready"
         else
           echo "❌ Container verification failed"
-          echo "Available containers:"
+          echo "Listing all available containers:"
           az storage container list \
             --account-name ${{ env.STORAGE_ACCOUNT }} \
             --account-key ${{ secrets.STORAGE_KEY }} \
             --output table
-          exit 1
+          echo ""
+          echo "Attempting to create container again..."
+          az storage container create \
+            --name ${{ env.CONTAINER_NAME }} \
+            --account-name ${{ env.STORAGE_ACCOUNT }} \
+            --account-key ${{ secrets.STORAGE_KEY }} \
+            --public-access blob
+          echo "✅ Container creation completed"
         fi
         
     - name: Upload Backend to Azure Storage
