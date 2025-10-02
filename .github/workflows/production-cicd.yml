@@ -142,7 +142,7 @@ jobs:
         
         # Debug: Test storage account access
         echo "Testing storage account access..."
-        if ! az storage account show --name ${{ env.STORAGE_ACCOUNT }} --key ${{ secrets.STORAGE_KEY }} >/dev/null 2>&1; then
+        if ! az storage container list --account-name ${{ env.STORAGE_ACCOUNT }} --account-key ${{ secrets.STORAGE_KEY }} >/dev/null 2>&1; then
           echo "❌ Cannot access storage account '${{ env.STORAGE_ACCOUNT }}'"
           echo "Please check your STORAGE_KEY secret"
           exit 1

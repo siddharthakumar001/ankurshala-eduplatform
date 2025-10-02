@@ -54,20 +54,20 @@ fi
 
 # 2. Test storage account access
 log INFO "2. Testing storage account access..."
-if az storage account show --name "$STORAGE_ACCOUNT" --key "$STORAGE_KEY" >/dev/null 2>&1; then
+if az storage account show --name "$STORAGE_ACCOUNT" >/dev/null 2>&1; then
     log PASS "Storage account '$STORAGE_ACCOUNT' is accessible"
 else
     log FAIL "Cannot access storage account '$STORAGE_ACCOUNT'"
     log INFO "Please check:"
     log INFO "  - Storage account name: $STORAGE_ACCOUNT"
-    log INFO "  - Storage account key: $STORAGE_KEY"
     log INFO "  - Storage account exists and is in the correct region"
+    log INFO "  - You are logged in to Azure CLI with proper permissions"
     exit 1
 fi
 
 # 3. Get storage account details
 log INFO "3. Getting storage account details..."
-STORAGE_INFO=$(az storage account show --name "$STORAGE_ACCOUNT" --key "$STORAGE_KEY" 2>/dev/null)
+STORAGE_INFO=$(az storage account show --name "$STORAGE_ACCOUNT" 2>/dev/null)
 if [[ -n "$STORAGE_INFO" ]]; then
     echo "$STORAGE_INFO" | jq -r '. | "  - Name: \(.name)\n  - Resource Group: \(.resourceGroup)\n  - Location: \(.location)\n  - SKU: \(.sku.name)\n  - Kind: \(.kind)"'
     log PASS "Storage account details retrieved"
