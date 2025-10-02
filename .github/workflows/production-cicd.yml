@@ -103,23 +103,46 @@ jobs:
       run: |
         curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
         
+    - name: Create Azure Storage Container
+      run: |
+        az storage container create \
+          --name ${{ env.CONTAINER_NAME }} \
+          --account-name ${{ env.STORAGE_ACCOUNT }} \
+          --account-key ${{ secrets.STORAGE_KEY }} \
+          --public-access blob \
+          --fail-on-exist false
+        
     - name: Upload Backend to Azure Storage
       run: |
+        echo "Uploading backend image to Azure Storage..."
         az storage blob upload \
           --container-name ${{ env.CONTAINER_NAME }} \
           --name "backend-prod-${{ github.sha }}.tar" \
           --file backend-image.tar \
           --account-name ${{ env.STORAGE_ACCOUNT }} \
           --account-key ${{ secrets.STORAGE_KEY }}
+        echo "✅ Backend image uploaded successfully"
           
     - name: Upload Frontend to Azure Storage
       run: |
+        echo "Uploading frontend image to Azure Storage..."
         az storage blob upload \
           --container-name ${{ env.CONTAINER_NAME }} \
           --name "frontend-prod-${{ github.sha }}.tar" \
           --file frontend-image.tar \
           --account-name ${{ env.STORAGE_ACCOUNT }} \
           --account-key ${{ secrets.STORAGE_KEY }}
+        echo "✅ Frontend image uploaded successfully"
+        
+    - name: Verify Azure Storage Upload
+      run: |
+        echo "Verifying uploaded images..."
+        az storage blob list \
+          --container-name ${{ env.CONTAINER_NAME }} \
+          --account-name ${{ env.STORAGE_ACCOUNT }} \
+          --account-key ${{ secrets.STORAGE_KEY }} \
+          --output table
+        echo "✅ Azure Storage verification completed"
 
   # ---- Deploy to Production ----
   deploy:
