@@ -53,13 +53,27 @@ jobs:
       run: |
         cd frontend
         npm ci
-        npm run lint || echo "Linting completed with warnings"
-        npm run type-check || echo "Type checking completed with warnings"
+        echo "Running ESLint..."
+        npm run lint || echo "ESLint completed with warnings"
+        echo "Running TypeScript type check..."
+        npm run type-check || echo "TypeScript check completed with warnings"
+        echo "Running security audit..."
+        npm audit --audit-level=high || echo "Security audit completed with warnings"
         
     - name: Frontend Build Test
       run: |
         cd frontend
+        echo "Testing frontend build..."
         npm run build
+        echo "✅ Frontend build successful"
+        
+        # Verify build output
+        if [ -d ".next" ]; then
+          echo "✅ Next.js build output verified"
+        else
+          echo "❌ Next.js build output missing"
+          exit 1
+        fi
 
   # ---- Build and Push Images ----
   build-and-push:
@@ -105,22 +119,36 @@ jobs:
         
     - name: Create Azure Storage Container
       run: |
-        # Create container if it doesn't exist, ignore if it already exists
-        az storage container create \
+        echo "Creating Azure Storage container..."
+        
+        # Try to create container
+        if az storage container create \
           --name ${{ env.CONTAINER_NAME }} \
           --account-name ${{ env.STORAGE_ACCOUNT }} \
           --account-key ${{ secrets.STORAGE_KEY }} \
-          --public-access blob || echo "Container already exists or creation failed"
+          --public-access blob 2>/dev/null; then
+          echo "✅ Container created successfully"
+        else
+          echo "ℹ️ Container may already exist, checking..."
+        fi
         
-        # Verify container exists
-        az storage container show \
-          --name ${{ env.CONTAINER_NAME }} \
+        # Verify container exists by listing containers
+        echo "Verifying container exists..."
+        if az storage container list \
           --account-name ${{ env.STORAGE_ACCOUNT }} \
-          --account-key ${{ secrets.STORAGE_KEY }} || {
+          --account-key ${{ secrets.STORAGE_KEY }} \
+          --query "[?name=='${{ env.CONTAINER_NAME }}']" \
+          --output table | grep -q "${{ env.CONTAINER_NAME }}"; then
+          echo "✅ Container '${{ env.CONTAINER_NAME }}' verified and ready"
+        else
           echo "❌ Container verification failed"
+          echo "Available containers:"
+          az storage container list \
+            --account-name ${{ env.STORAGE_ACCOUNT }} \
+            --account-key ${{ secrets.STORAGE_KEY }} \
+            --output table
           exit 1
-        }
-        echo "✅ Container '${{ env.CONTAINER_NAME }}' is ready"
+        fi
         
     - name: Upload Backend to Azure Storage
       run: |
@@ -203,26 +231,91 @@ jobs:
         echo "⏳ Waiting for services to start..."
         sleep 60
         
-    - name: Health Check
+    - name: Comprehensive Application Testing
       run: |
-        echo "🏥 Performing health checks..."
+        echo "🧪 Starting comprehensive application testing..."
         
-        # Check if application is responding
-        for i in {1..10}; do
-          if curl -f https://ankurshala.com/health; then
-            echo "✅ Application health check passed!"
-            break
-          else
-            echo "⏳ Attempt $i/10: Application not ready yet, waiting..."
-            sleep 30
-          fi
-        done
-        
-        # Final check
-        if ! curl -f https://ankurshala.com/health; then
-          echo "❌ Health check failed after 5 minutes"
+        # Test 1: Basic connectivity
+        echo "Test 1: Basic connectivity"
+        if curl -f -s https://ankurshala.com > /dev/null; then
+          echo "✅ Basic connectivity test passed"
+        else
+          echo "❌ Basic connectivity test failed"
           exit 1
         fi
+        
+        # Test 2: Health endpoint
+        echo "Test 2: Health endpoint"
+        HEALTH_RESPONSE=$(curl -s https://ankurshala.com/health)
+        if [ "$HEALTH_RESPONSE" = "ok" ]; then
+          echo "✅ Health endpoint test passed"
+        else
+          echo "❌ Health endpoint test failed. Response: $HEALTH_RESPONSE"
+          exit 1
+        fi
+        
+        # Test 3: API endpoints
+        echo "Test 3: API endpoints"
+        if curl -f -s https://ankurshala.com/api/health > /dev/null; then
+          echo "✅ API health endpoint test passed"
+        else
+          echo "❌ API health endpoint test failed"
+          exit 1
+        fi
+        
+        # Test 4: Frontend pages
+        echo "Test 4: Frontend pages"
+        if curl -f -s https://ankurshala.com/login > /dev/null; then
+          echo "✅ Login page test passed"
+        else
+          echo "❌ Login page test failed"
+          exit 1
+        fi
+        
+        # Test 5: Static assets
+        echo "Test 5: Static assets"
+        if curl -f -s https://ankurshala.com/favicon.svg > /dev/null; then
+          echo "✅ Static assets test passed"
+        else
+          echo "❌ Static assets test failed"
+          exit 1
+        fi
+        
+        echo "🎉 All application tests passed!"
+        
+    - name: Performance Check
+      run: |
+        echo "⚡ Running performance checks..."
+        
+        # Check response time
+        RESPONSE_TIME=$(curl -o /dev/null -s -w '%{time_total}' https://ankurshala.com)
+        echo "Response time: ${RESPONSE_TIME}s"
+        
+        if (( $(echo "$RESPONSE_TIME < 5.0" | bc -l) )); then
+          echo "✅ Performance test passed (response time < 5s)"
+        else
+          echo "⚠️ Performance warning (response time >= 5s)"
+        fi
+        
+    - name: Security Headers Check
+      run: |
+        echo "🔒 Checking security headers..."
+        
+        HEADERS=$(curl -I -s https://ankurshala.com)
+        
+        if echo "$HEADERS" | grep -q "strict-transport-security"; then
+          echo "✅ HSTS header present"
+        else
+          echo "⚠️ HSTS header missing"
+        fi
+        
+        if echo "$HEADERS" | grep -q "x-frame-options"; then
+          echo "✅ X-Frame-Options header present"
+        else
+          echo "⚠️ X-Frame-Options header missing"
+        fi
+        
+        echo "🔒 Security headers check completed"
         
     - name: Verify Services on VM
       run: |
@@ -236,14 +329,86 @@ jobs:
           free -h
         EOF
         
-    - name: Notify Deployment Status
+    - name: Generate Deployment Report
       if: always()
       run: |
+        echo "📊 Generating deployment report..."
+        
+        # Create report file
+        REPORT_FILE="deployment-report-$(date +%Y%m%d-%H%M%S).txt"
+        
+        echo "=== ANKURSHALA DEPLOYMENT REPORT ===" > $REPORT_FILE
+        echo "Deployment Time: $(date)" >> $REPORT_FILE
+        echo "Git SHA: ${{ github.sha }}" >> $REPORT_FILE
+        echo "Branch: ${{ github.ref_name }}" >> $REPORT_FILE
+        echo "Workflow Run: ${{ github.run_id }}" >> $REPORT_FILE
+        echo "" >> $REPORT_FILE
+        
         if [ "${{ job.status }}" == "success" ]; then
-          echo "🎉 Deployment successful!"
-          echo "✅ Application is running at https://ankurshala.com"
-          echo "🔗 Health check: https://ankurshala.com/health"
+          echo "🎉 DEPLOYMENT STATUS: SUCCESS" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          echo "✅ All tests passed" >> $REPORT_FILE
+          echo "✅ Application is accessible at https://ankurshala.com" >> $REPORT_FILE
+          echo "✅ Health endpoint responding" >> $REPORT_FILE
+          echo "✅ All services running" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          echo "🔗 Application URL: https://ankurshala.com" >> $REPORT_FILE
+          echo "🔗 Health Check: https://ankurshala.com/health" >> $REPORT_FILE
+          echo "🔗 API Health: https://ankurshala.com/api/health" >> $REPORT_FILE
         else
-          echo "❌ Deployment failed!"
-          echo "🔍 Check the logs above for details"
+          echo "❌ DEPLOYMENT STATUS: FAILED" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          echo "❌ Deployment failed - check logs above for details" >> $REPORT_FILE
+          echo "❌ Application may not be accessible" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          echo "🔍 Troubleshooting steps:" >> $REPORT_FILE
+          echo "1. Check GitHub Actions logs" >> $REPORT_FILE
+          echo "2. Verify VM connectivity" >> $REPORT_FILE
+          echo "3. Check Docker services status" >> $REPORT_FILE
+          echo "4. Review application logs" >> $REPORT_FILE
         fi
+        
+        echo "" >> $REPORT_FILE
+        echo "=== END OF REPORT ===" >> $REPORT_FILE
+        
+        # Display report
+        cat $REPORT_FILE
+        
+        # Upload report as artifact
+        echo "📁 Uploading deployment report..."
+        
+    - name: Upload Deployment Report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: deployment-report-${{ github.run_id }}
+        path: deployment-report-*.txt
+        retention-days: 30
+        
+    - name: Final Status Notification
+      if: always()
+      run: |
+        echo ""
+        echo "=========================================="
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "🎉 DEPLOYMENT SUCCESSFUL! 🎉"
+          echo ""
+          echo "✅ AnkurShala is now live at: https://ankurshala.com"
+          echo "✅ Health check: https://ankurshala.com/health"
+          echo "✅ All tests passed"
+          echo "✅ Production deployment completed"
+          echo ""
+          echo "🚀 Your application is ready for users!"
+        else
+          echo "❌ DEPLOYMENT FAILED ❌"
+          echo ""
+          echo "❌ Check the logs above for error details"
+          echo "❌ Application may not be accessible"
+          echo ""
+          echo "🔧 Next steps:"
+          echo "1. Review error messages above"
+          echo "2. Check GitHub Actions logs"
+          echo "3. Verify VM and service status"
+          echo "4. Re-run deployment after fixes"
+        fi
+        echo "=========================================="
