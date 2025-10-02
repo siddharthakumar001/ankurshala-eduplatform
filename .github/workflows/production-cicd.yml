@@ -105,12 +105,22 @@ jobs:
         
     - name: Create Azure Storage Container
       run: |
+        # Create container if it doesn't exist, ignore if it already exists
         az storage container create \
           --name ${{ env.CONTAINER_NAME }} \
           --account-name ${{ env.STORAGE_ACCOUNT }} \
           --account-key ${{ secrets.STORAGE_KEY }} \
-          --public-access blob \
-          --fail-on-exist false
+          --public-access blob || echo "Container already exists or creation failed"
+        
+        # Verify container exists
+        az storage container show \
+          --name ${{ env.CONTAINER_NAME }} \
+          --account-name ${{ env.STORAGE_ACCOUNT }} \
+          --account-key ${{ secrets.STORAGE_KEY }} || {
+          echo "❌ Container verification failed"
+          exit 1
+        }
+        echo "✅ Container '${{ env.CONTAINER_NAME }}' is ready"
         
     - name: Upload Backend to Azure Storage
       run: |
