@@ -121,41 +121,86 @@ jobs:
       run: |
         echo "Creating Azure Storage container..."
         
-        # Create container and capture output
-        CONTAINER_RESULT=$(az storage container create \
-          --name ${{ env.CONTAINER_NAME }} \
-          --account-name ${{ env.STORAGE_ACCOUNT }} \
-          --account-key ${{ secrets.STORAGE_KEY }} \
-          --public-access blob 2>&1)
-        
-        echo "Container creation result: $CONTAINER_RESULT"
-        
-        # Check if container exists by trying to list it
-        echo "Verifying container exists..."
+        # First, check if container already exists
+        echo "Checking if container exists..."
         if az storage container show \
           --name ${{ env.CONTAINER_NAME }} \
           --account-name ${{ env.STORAGE_ACCOUNT }} \
           --account-key ${{ secrets.STORAGE_KEY }} >/dev/null 2>&1; then
-          echo "✅ Container '${{ env.CONTAINER_NAME }}' verified and ready"
+          echo "✅ Container '${{ env.CONTAINER_NAME }}' already exists"
         else
-          echo "❌ Container verification failed"
-          echo "Listing all available containers:"
-          az storage container list \
-            --account-name ${{ env.STORAGE_ACCOUNT }} \
-            --account-key ${{ secrets.STORAGE_KEY }} \
-            --output table
-          echo ""
-          echo "Attempting to create container again..."
-          az storage container create \
+          echo "Container does not exist, creating..."
+          # Create container and capture output
+          CONTAINER_RESULT=$(az storage container create \
             --name ${{ env.CONTAINER_NAME }} \
             --account-name ${{ env.STORAGE_ACCOUNT }} \
             --account-key ${{ secrets.STORAGE_KEY }} \
-            --public-access blob
-          echo "✅ Container creation completed"
+            --public-access blob 2>&1)
+          
+          echo "Container creation result: $CONTAINER_RESULT"
+          
+          # Verify container was created successfully
+          echo "Verifying container creation..."
+          if az storage container show \
+            --name ${{ env.CONTAINER_NAME }} \
+            --account-name ${{ env.STORAGE_ACCOUNT }} \
+            --account-key ${{ secrets.STORAGE_KEY }} >/dev/null 2>&1; then
+            echo "✅ Container '${{ env.CONTAINER_NAME }}' created and verified successfully"
+          else
+            echo "❌ Container creation failed"
+            echo "Listing all available containers:"
+            az storage container list \
+              --account-name ${{ env.STORAGE_ACCOUNT }} \
+              --account-key ${{ secrets.STORAGE_KEY }} \
+              --output table
+            echo ""
+            echo "Attempting to create container again with different approach..."
+            az storage container create \
+              --name ${{ env.CONTAINER_NAME }} \
+              --account-name ${{ env.STORAGE_ACCOUNT }} \
+              --account-key ${{ secrets.STORAGE_KEY }} \
+              --public-access blob
+            echo "✅ Container creation completed"
+          fi
         fi
+        
+        # Final verification with retry
+        echo "Final container verification..."
+        for i in {1..3}; do
+          echo "Verification attempt $i/3..."
+          if az storage container show \
+            --name ${{ env.CONTAINER_NAME }} \
+            --account-name ${{ env.STORAGE_ACCOUNT }} \
+            --account-key ${{ secrets.STORAGE_KEY }} >/dev/null 2>&1; then
+            echo "✅ Container '${{ env.CONTAINER_NAME }}' is ready for use"
+            break
+          else
+            if [ $i -eq 3 ]; then
+              echo "❌ Container verification failed after 3 attempts - aborting deployment"
+              echo "Listing all containers for debugging:"
+              az storage container list \
+                --account-name ${{ env.STORAGE_ACCOUNT }} \
+                --account-key ${{ secrets.STORAGE_KEY }} \
+                --output table
+              exit 1
+            else
+              echo "Verification failed, waiting 10 seconds before retry..."
+              sleep 10
+            fi
+          fi
+        done
         
     - name: Upload Backend to Azure Storage
       run: |
+        echo "Pre-upload container verification..."
+        if ! az storage container show \
+          --name ${{ env.CONTAINER_NAME }} \
+          --account-name ${{ env.STORAGE_ACCOUNT }} \
+          --account-key ${{ secrets.STORAGE_KEY }} >/dev/null 2>&1; then
+          echo "❌ Container verification failed before upload - aborting"
+          exit 1
+        fi
+        
         echo "Uploading backend image to Azure Storage..."
         az storage blob upload \
           --container-name ${{ env.CONTAINER_NAME }} \
@@ -167,6 +212,15 @@ jobs:
           
     - name: Upload Frontend to Azure Storage
       run: |
+        echo "Pre-upload container verification..."
+        if ! az storage container show \
+          --name ${{ env.CONTAINER_NAME }} \
+          --account-name ${{ env.STORAGE_ACCOUNT }} \
+          --account-key ${{ secrets.STORAGE_KEY }} >/dev/null 2>&1; then
+          echo "❌ Container verification failed before upload - aborting"
+          exit 1
+        fi
+        
         echo "Uploading frontend image to Azure Storage..."
         az storage blob upload \
           --container-name ${{ env.CONTAINER_NAME }} \
