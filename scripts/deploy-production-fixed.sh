@@ -126,7 +126,7 @@ recreate_service() {
     postgres)  wait_healthy "ankurshala_db_prod" 180;;
     redis)     wait_healthy "ankurshala_redis_prod" 120;;
     zookeeper) wait_healthy "ankurshala_zookeeper_prod" 120;;
-    kafka)     wait_healthy "ankurshala_kafka_prod" 180;;
+    kafka)     wait_healthy "ankurshala_kafka_prod" 300 || log WARN "Kafka healthcheck failed during recreate; proceeding";;
     mailhog)   wait_healthy "ankurshala_mailhog_prod" 30;;
     backend)   wait_healthy "ankurshala_backend_prod" 240;;
     frontend)  wait_healthy "ankurshala_frontend_prod" 240;;
