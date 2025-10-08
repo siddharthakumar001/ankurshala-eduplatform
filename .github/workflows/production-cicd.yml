@@ -215,6 +215,59 @@ jobs:
         echo "Checking current application status..."
         curl -f https://ankurshala.com/health || echo "Application may be down, proceeding with deployment"
         
+    - name: Download Images from Azure Storage
+      run: |
+        echo "📥 Downloading pre-built images from Azure Storage..."
+        
+        # Check if Azure CLI is available and working
+        if ! az --version >/dev/null 2>&1; then
+          echo "⚠️ Azure CLI not available - will build images locally"
+          exit 0
+        fi
+        
+        # Download backend image
+        if az storage blob download \
+          --container-name ${{ env.CONTAINER_NAME }} \
+          --name "backend-prod-${{ github.sha }}.tar" \
+          --file backend-image.tar \
+          --account-name ${{ env.STORAGE_ACCOUNT }} \
+          --account-key ${{ secrets.STORAGE_KEY }} 2>/dev/null; then
+          echo "✅ Backend image downloaded successfully"
+        else
+          echo "⚠️ Backend image not found in Azure Storage - will build locally"
+          rm -f backend-image.tar
+        fi
+        
+        # Download frontend image
+        if az storage blob download \
+          --container-name ${{ env.CONTAINER_NAME }} \
+          --name "frontend-prod-${{ github.sha }}.tar" \
+          --file frontend-image.tar \
+          --account-name ${{ env.STORAGE_ACCOUNT }} \
+          --account-key ${{ secrets.STORAGE_KEY }} 2>/dev/null; then
+          echo "✅ Frontend image downloaded successfully"
+        else
+          echo "⚠️ Frontend image not found in Azure Storage - will build locally"
+          rm -f frontend-image.tar
+        fi
+      continue-on-error: true
+        
+    - name: Upload Images to VM
+      run: |
+        echo "📤 Uploading images to VM..."
+        
+        # Upload backend image if available
+        if [[ -f backend-image.tar ]]; then
+          echo "📤 Uploading backend image to VM..."
+          scp -o StrictHostKeyChecking=no backend-image.tar ${{ env.VM_USER }}@${{ env.VM_IP }}:/opt/ankurshala/
+        fi
+        
+        # Upload frontend image if available
+        if [[ -f frontend-image.tar ]]; then
+          echo "📤 Uploading frontend image to VM..."
+          scp -o StrictHostKeyChecking=no frontend-image.tar ${{ env.VM_USER }}@${{ env.VM_IP }}:/opt/ankurshala/
+        fi
+        
     - name: Deploy to Production Server
       run: |
         ssh -o StrictHostKeyChecking=no ${{ env.VM_USER }}@${{ env.VM_IP }} << 'EOF'

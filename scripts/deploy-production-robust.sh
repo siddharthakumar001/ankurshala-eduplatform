@@ -119,21 +119,27 @@ recreate_service() {
   if [[ "$svc" == "backend"  && "$NEEDS_BE_BUILD" == "true" ]]; then buildFlags="--pull --no-cache"; fi
 
   if [[ "$NO_BUILD" != "true" && ( "$svc" == "backend" || "$svc" == "frontend" ) ]]; then
-    # Check if we have Azure Storage images available
+    # Check if we have pre-built images available
     if [[ -f "backend-image.tar" ]] && [[ "$svc" == "backend" ]]; then
-      log INFO "Loading backend image from Azure Storage..."
+      log INFO "Loading pre-built backend image..."
       docker load < backend-image.tar
-      log PASS "Loaded backend image from Azure Storage"
+      log PASS "Loaded backend image from pre-built tar"
+      # Clean up tar file to save disk space
+      rm -f backend-image.tar
+      log INFO "Cleaned up backend-image.tar"
     elif [[ -f "frontend-image.tar" ]] && [[ "$svc" == "frontend" ]]; then
-      log INFO "Loading frontend image from Azure Storage..."
+      log INFO "Loading pre-built frontend image..."
       docker load < frontend-image.tar
-      log PASS "Loaded frontend image from Azure Storage"
+      log PASS "Loaded frontend image from pre-built tar"
+      # Clean up tar file to save disk space
+      rm -f frontend-image.tar
+      log INFO "Cleaned up frontend-image.tar"
     else
-      log INFO "Building image for service: $svc ($buildFlags)"
+      log INFO "No pre-built image found - building locally: $svc ($buildFlags)"
       $COMPOSE -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build $buildFlags "$svc"
     fi
   else
-    log INFO "Skipping local build for: $svc"
+    log INFO "Skipping build for: $svc"
   fi
 
   log INFO "Recreating: $svc (no deps, force new image)"
