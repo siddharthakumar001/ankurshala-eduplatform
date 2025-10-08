@@ -34,9 +34,9 @@ export async function POST(request: NextRequest) {
       console.log('Setting cookies in production:', {
         hasAccessToken: !!accessToken,
         hasRefreshToken: !!refreshToken,
-        domain: '.ankurshala.com',
         secure: true,
-        sameSite: 'lax'
+        sameSite: 'lax',
+        path: '/'
       })
     }
     
@@ -47,7 +47,6 @@ export async function POST(request: NextRequest) {
       sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'strict',
       maxAge: 15 * 60, // 15 minutes
       path: '/',
-      domain: process.env.NODE_ENV === 'production' ? '.ankurshala.com' : undefined,
     })
 
     // Refresh token - 7 days
@@ -57,7 +56,6 @@ export async function POST(request: NextRequest) {
       sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'strict',
       maxAge: 7 * 24 * 60 * 60, // 7 days
       path: '/',
-      domain: process.env.NODE_ENV === 'production' ? '.ankurshala.com' : undefined,
     })
 
     // Return user data without tokens
