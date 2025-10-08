@@ -296,6 +296,10 @@ jobs:
           echo "🧹 Cleaning up resources..."
           docker system prune -f || echo "Cleanup completed with warnings"
           
+          # Load environment variables
+          echo "🔧 Loading environment variables..."
+          export $(cat .env-prod | grep -v '^#' | xargs)
+          
           # Deploy application
           echo "🚀 Deploying application..."
           ./scripts/deploy-production-fixed.sh
