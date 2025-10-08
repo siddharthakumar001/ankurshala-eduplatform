@@ -19,6 +19,7 @@ import {
   RefreshCw
 } from 'lucide-react'
 import { toast } from 'sonner'
+import apiClient from '@/lib/apiClient'
 
 interface ImportJob {
   id: number
@@ -290,7 +291,7 @@ export default function AdminContentImportPage() {
         return
       }
 
-      await api.delete(`/admin/content/import/jobs/${jobId}`)
+      await apiClient.delete(`/admin/content/import/jobs/${jobId}`)
       toast.success('Import job and associated content deleted successfully!')
       fetchImportJobs() // Refresh the jobs list
     } catch (error) {
