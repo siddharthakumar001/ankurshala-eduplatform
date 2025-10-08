@@ -119,8 +119,19 @@ recreate_service() {
   if [[ "$svc" == "backend"  && "$NEEDS_BE_BUILD" == "true" ]]; then buildFlags="--pull --no-cache"; fi
 
   if [[ "$NO_BUILD" != "true" && ( "$svc" == "backend" || "$svc" == "frontend" ) ]]; then
-    log INFO "Building image for service: $svc ($buildFlags)"
-    $COMPOSE -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build $buildFlags "$svc"
+    # Check if we have Azure Storage images available
+    if [[ -f "backend-image.tar" ]] && [[ "$svc" == "backend" ]]; then
+      log INFO "Loading backend image from Azure Storage..."
+      docker load < backend-image.tar
+      log PASS "Loaded backend image from Azure Storage"
+    elif [[ -f "frontend-image.tar" ]] && [[ "$svc" == "frontend" ]]; then
+      log INFO "Loading frontend image from Azure Storage..."
+      docker load < frontend-image.tar
+      log PASS "Loaded frontend image from Azure Storage"
+    else
+      log INFO "Building image for service: $svc ($buildFlags)"
+      $COMPOSE -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build $buildFlags "$svc"
+    fi
   else
     log INFO "Skipping local build for: $svc"
   fi
