@@ -62,6 +62,8 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      # KRaft specific settings
+      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
       # Performance optimizations for production
       KAFKA_NUM_NETWORK_THREADS: 8
       KAFKA_NUM_IO_THREADS: 8

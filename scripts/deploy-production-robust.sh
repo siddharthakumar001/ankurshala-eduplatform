@@ -19,7 +19,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"; cd "$ROOT_DIR"
 ENV_FILE=".env-prod"; COMPOSE_FILE="docker-compose.prod.yml"
 STATE_FILE=".deploy-state.json"
 SEED_ONCE="false"; NO_BUILD="false"; RELOAD_NGINX="false"; SERVICES=()
-FORCE_KAFKA_RESET="false"
+FORCE_KAFKA_RESET="false"; REMOVE_ORPHANS="false"
 
 usage(){ cat <<EOF
 Usage: $(basename "$0") [options] [services...]
@@ -29,6 +29,7 @@ Options:
   --no-build        Skip local builds (recreate containers only)
   --reload-nginx    Reload nginx config if running (no recreate)
   --force-kafka-reset Reset Kafka volumes (fixes cluster ID issues)
+  --remove-orphans  Remove orphan containers (cleanup old services)
   -h, --help        Show this help
 EOF
 }
@@ -40,6 +41,7 @@ while [[ $# -gt 0 ]]; do
     --no-build) NO_BUILD="true";;
     --reload-nginx) RELOAD_NGINX="true";;
     --force-kafka-reset) FORCE_KAFKA_RESET="true";;
+    --remove-orphans) REMOVE_ORPHANS="true";;
     -h|--help) usage; exit 0;;
     postgres|redis|zookeeper|kafka|mailhog|backend|frontend|nginx) SERVICES+=("$1");;
     *) log FAIL "Unknown argument: $1"; usage; exit 1;;
@@ -189,6 +191,14 @@ $COMPOSE -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d postgres redis mailhog 
 wait_healthy "ankurshala_db_prod" 180
 wait_healthy "ankurshala_redis_prod" 120
 wait_healthy "ankurshala_mailhog_prod" 30
+
+# Clean up old containers and volumes for KRaft migration
+if [[ "$REMOVE_ORPHANS" == "true" ]]; then
+  log INFO "🧹 Cleaning up old Zookeeper containers and volumes..."
+  $COMPOSE -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down --remove-orphans || true
+  docker volume rm ankurshala-eduplatform_kafka_data 2>/dev/null || true
+  docker volume rm ankurshala-eduplatform_zookeeper_data 2>/dev/null || true
+fi
 
 # Handle Kafka KRaft mode startup
 if [[ "$FORCE_KAFKA_RESET" == "true" ]]; then

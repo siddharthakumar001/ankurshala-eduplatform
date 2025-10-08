@@ -233,9 +233,9 @@ jobs:
           echo "🔍 Running pre-deployment database health check..."
           ./scripts/database-health-check.sh
           
-          # Deploy application with robust error handling
-          echo "🚀 Deploying application with robust error handling..."
-          ./scripts/deploy-production-robust.sh --force-kafka-reset
+            # Deploy application with robust error handling
+            echo "🚀 Deploying application with robust error handling..."
+            ./scripts/deploy-production-robust.sh --force-kafka-reset --remove-orphans
           
           echo "✅ Deployment completed successfully!"
         EOF
@@ -430,7 +430,7 @@ jobs:
           git reset --hard HEAD~1 || echo "Git rollback failed - manual intervention required"
           
           echo "🔄 Restarting services with robust deployment..."
-          ./scripts/deploy-production-robust.sh --force-kafka-reset
+          ./scripts/deploy-production-robust.sh --force-kafka-reset --remove-orphans
         EOF
         
     - name: Final Status Notification
