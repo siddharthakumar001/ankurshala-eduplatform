@@ -29,22 +29,35 @@ export async function POST(request: NextRequest) {
     // Set secure httpOnly cookies
     const cookieStore = cookies()
     
+    // Debug logging for production
+    if (process.env.NODE_ENV === 'production') {
+      console.log('Setting cookies in production:', {
+        hasAccessToken: !!accessToken,
+        hasRefreshToken: !!refreshToken,
+        domain: '.ankurshala.com',
+        secure: true,
+        sameSite: 'lax'
+      })
+    }
+    
     // Access token - 15 minutes
     cookieStore.set('accessToken', accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'strict',
       maxAge: 15 * 60, // 15 minutes
       path: '/',
+      domain: process.env.NODE_ENV === 'production' ? '.ankurshala.com' : undefined,
     })
 
     // Refresh token - 7 days
     cookieStore.set('refreshToken', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'strict',
       maxAge: 7 * 24 * 60 * 60, // 7 days
       path: '/',
+      domain: process.env.NODE_ENV === 'production' ? '.ankurshala.com' : undefined,
     })
 
     // Return user data without tokens
