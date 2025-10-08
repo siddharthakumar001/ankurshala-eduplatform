@@ -189,6 +189,20 @@ for svc in "${SERVICES[@]}"; do
   esac
 done
 
+# ---- Prune old images (keep last 2 per service) ----
+log INFO "Pruning old backend/frontend images (keeping last 2)..."
+# List images sorted by creation date and remove older than 2 most recent
+cleanup_images() {
+  local repo="$1"
+  to_delete=$(docker images --format '{{.Repository}}:{{.Tag}} {{.CreatedAt}}' | grep "^${repo}:" | sort -rk2 | awk 'NR>2{print $1}')
+  for img in $to_delete; do
+    log INFO "Removing old image: $img"
+    docker rmi -f "$img" || true
+  done
+}
+cleanup_images "ankurshala/backend"
+cleanup_images "ankurshala/frontend"
+
 # ---- Write new state if builds happened ----
 if [[ "$NEEDS_FE_BUILD" == "true" || "$NEEDS_BE_BUILD" == "true" ]]; then
   cat > "$STATE_FILE" <<JSON

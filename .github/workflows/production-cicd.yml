@@ -302,6 +302,8 @@ jobs:
           
           # Pre-deployment database backup
           echo "💾 Creating database backup..."
+          # Ensure backup directory exists and container is healthy
+          mkdir -p /opt/ankurshala/backups || true
           ./scripts/database-backup.sh
           
           # Pre-deployment database health check

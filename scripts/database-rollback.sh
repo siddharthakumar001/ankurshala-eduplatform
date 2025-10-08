@@ -82,7 +82,8 @@ log INFO "Using backup file: $BACKUP_FILE"
 
 # Verify backup file integrity
 log INFO "Verifying backup file integrity..."
-if ! docker exec ankurshala_db_prod pg_restore --list "$BACKUP_FILE" >/dev/null 2>&1; then
+if ! docker run --rm -v "$BACKUP_FILE":/tmp/backup.dump postgres:15-alpine \
+  sh -c "pg_restore --list /tmp/backup.dump >/dev/null 2>&1"; then
     log FAIL "Backup file integrity check failed"
     exit 1
 fi
@@ -121,13 +122,13 @@ fi
 
 # Stop application services to prevent data corruption
 log INFO "Stopping application services..."
-docker-compose -f docker-compose.prod.yml --env-file .env-prod stop backend frontend nginx || true
+docker compose -f docker-compose.prod.yml --env-file .env-prod stop backend frontend nginx || true
 
 # Create emergency backup of current state
 EMERGENCY_BACKUP="${BACKUP_DIR}/emergency_backup_$(date +%Y%m%d_%H%M%S).sql"
 log INFO "Creating emergency backup of current state: $EMERGENCY_BACKUP"
 
-if docker exec ankurshala_db_prod pg_dump \
+if docker exec -e PGPASSWORD="$DB_PASSWORD" ankurshala_db_prod pg_dump \
     -h localhost \
     -U "$DB_USERNAME" \
     -d "$DB_NAME" \
@@ -146,12 +147,12 @@ fi
 
 # Drop and recreate database
 log INFO "Dropping and recreating database..."
-docker exec ankurshala_db_prod psql -h localhost -U "$DB_USERNAME" -d postgres -c "DROP DATABASE IF EXISTS $DB_NAME;" || true
-docker exec ankurshala_db_prod psql -h localhost -U "$DB_USERNAME" -d postgres -c "CREATE DATABASE $DB_NAME;" || true
+docker exec -e PGPASSWORD="$DB_PASSWORD" ankurshala_db_prod psql -h localhost -U "$DB_USERNAME" -d postgres -c "DROP DATABASE IF EXISTS $DB_NAME;" || true
+docker exec -e PGPASSWORD="$DB_PASSWORD" ankurshala_db_prod psql -h localhost -U "$DB_USERNAME" -d postgres -c "CREATE DATABASE $DB_NAME;" || true
 
 # Restore from backup
 log INFO "Restoring database from backup..."
-if docker exec ankurshala_db_prod pg_restore \
+if docker exec -e PGPASSWORD="$DB_PASSWORD" ankurshala_db_prod pg_restore \
     -h localhost \
     -U "$DB_USERNAME" \
     -d "$DB_NAME" \
@@ -168,7 +169,7 @@ fi
 
 # Verify restoration
 log INFO "Verifying database restoration..."
-RESTORED_TABLES=$(docker exec ankurshala_db_prod psql -h localhost -U "$DB_USERNAME" -d "$DB_NAME" -t -c "
+RESTORED_TABLES=$(docker exec -e PGPASSWORD="$DB_PASSWORD" ankurshala_db_prod psql -h localhost -U "$DB_USERNAME" -d "$DB_NAME" -t -c "
     SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';
 " 2>/dev/null | tr -d ' ')
 
@@ -181,7 +182,7 @@ fi
 
 # Restart application services
 log INFO "Restarting application services..."
-docker-compose -f docker-compose.prod.yml --env-file .env-prod up -d backend frontend nginx
+docker compose -f docker-compose.prod.yml --env-file .env-prod up -d backend frontend nginx
 
 # Wait for services to be healthy
 log INFO "Waiting for services to be healthy..."

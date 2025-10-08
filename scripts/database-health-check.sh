@@ -26,7 +26,7 @@ echo "=================================="
 
 # Test 1: Database Connectivity
 log INFO "Test 1: Database Connectivity"
-if docker exec ankurshala_db_prod pg_isready -h localhost -p 5432 -U "$DB_USERNAME" -d "$DB_NAME" >/dev/null 2>&1; then
+if docker exec -e PGPASSWORD="$DB_PASSWORD" ankurshala_db_prod pg_isready -h localhost -p 5432 -U "$DB_USERNAME" -d "$DB_NAME" >/dev/null 2>&1; then
     log PASS "Database is accepting connections"
 else
     log FAIL "Database connectivity failed"
@@ -35,7 +35,7 @@ fi
 
 # Test 2: Database Authentication
 log INFO "Test 2: Database Authentication"
-if docker exec ankurshala_db_prod psql -h localhost -U "$DB_USERNAME" -d "$DB_NAME" -c "SELECT 1;" >/dev/null 2>&1; then
+if docker exec -e PGPASSWORD="$DB_PASSWORD" ankurshala_db_prod psql -h localhost -U "$DB_USERNAME" -d "$DB_NAME" -c "SELECT 1;" >/dev/null 2>&1; then
     log PASS "Database authentication successful"
 else
     log FAIL "Database authentication failed"
@@ -44,7 +44,7 @@ fi
 
 # Test 3: Schema Integrity Check
 log INFO "Test 3: Schema Integrity Check"
-SCHEMA_CHECK=$(docker exec ankurshala_db_prod psql -h localhost -U "$DB_USERNAME" -d "$DB_NAME" -t -c "
+SCHEMA_CHECK=$(docker exec -e PGPASSWORD="$DB_PASSWORD" ankurshala_db_prod psql -h localhost -U "$DB_USERNAME" -d "$DB_NAME" -t -c "
     SELECT COUNT(*) FROM information_schema.tables 
     WHERE table_schema = 'public' AND table_name IN (
         'users', 'boards', 'grades', 'subjects', 'chapters', 'topics', 
@@ -61,7 +61,7 @@ fi
 
 # Test 4: Flyway Migration Status
 log INFO "Test 4: Flyway Migration Status"
-MIGRATION_STATUS=$(docker exec ankurshala_db_prod psql -h localhost -U "$DB_USERNAME" -d "$DB_NAME" -t -c "
+MIGRATION_STATUS=$(docker exec -e PGPASSWORD="$DB_PASSWORD" ankurshala_db_prod psql -h localhost -U "$DB_USERNAME" -d "$DB_NAME" -t -c "
     SELECT COUNT(*) FROM flyway_schema_history WHERE success = true;
 " 2>/dev/null | tr -d ' ')
 
@@ -74,7 +74,7 @@ fi
 
 # Test 5: Data Integrity Check
 log INFO "Test 5: Data Integrity Check"
-DATA_CHECK=$(docker exec ankurshala_db_prod psql -h localhost -U "$DB_USERNAME" -d "$DB_NAME" -t -c "
+DATA_CHECK=$(docker exec -e PGPASSWORD="$DB_PASSWORD" ankurshala_db_prod psql -h localhost -U "$DB_USERNAME" -d "$DB_NAME" -t -c "
     SELECT 
         (SELECT COUNT(*) FROM users WHERE enabled = true) as active_users,
         (SELECT COUNT(*) FROM boards WHERE active = true AND soft_deleted = false) as active_boards,
@@ -94,7 +94,7 @@ fi
 # Test 6: Database Performance Check
 log INFO "Test 6: Database Performance Check"
 PERF_START=$(date +%s.%N)
-docker exec ankurshala_db_prod psql -h localhost -U "$DB_USERNAME" -d "$DB_NAME" -c "SELECT COUNT(*) FROM users;" >/dev/null 2>&1
+docker exec -e PGPASSWORD="$DB_PASSWORD" ankurshala_db_prod psql -h localhost -U "$DB_USERNAME" -d "$DB_NAME" -c "SELECT COUNT(*) FROM users;" >/dev/null 2>&1
 PERF_END=$(date +%s.%N)
 PERF_TIME=$(echo "$PERF_END - $PERF_START" | bc)
 
@@ -106,7 +106,7 @@ fi
 
 # Test 7: Connection Pool Check
 log INFO "Test 7: Connection Pool Check"
-CONNECTION_COUNT=$(docker exec ankurshala_db_prod psql -h localhost -U "$DB_USERNAME" -d "$DB_NAME" -t -c "
+CONNECTION_COUNT=$(docker exec -e PGPASSWORD="$DB_PASSWORD" ankurshala_db_prod psql -h localhost -U "$DB_USERNAME" -d "$DB_NAME" -t -c "
     SELECT COUNT(*) FROM pg_stat_activity WHERE state = 'active';
 " 2>/dev/null | tr -d ' ')
 

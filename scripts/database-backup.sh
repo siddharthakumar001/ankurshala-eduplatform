@@ -17,7 +17,7 @@ set -a; source "$ENV_FILE"; set +a
 # Database connection parameters
 DB_HOST="${DB_HOST:-postgres}"
 DB_PORT="${DB_PORT:-5432}"
-DB_NAME="${DB_USERNAME:-ankurshala}"
+DB_NAME="${DB_NAME:-ankurshala}"
 DB_USERNAME="${DB_USERNAME:-ankur}"
 DB_PASSWORD="${DB_PASSWORD}"
 
@@ -42,7 +42,7 @@ fi
 log INFO "Creating database backup: $BACKUP_FILE"
 
 # Create database backup
-if docker exec ankurshala_db_prod pg_dump \
+if docker exec -e PGPASSWORD="$DB_PASSWORD" ankurshala_db_prod pg_dump \
     -h localhost \
     -U "$DB_USERNAME" \
     -d "$DB_NAME" \
@@ -96,10 +96,10 @@ find "$BACKUP_DIR" -name "ankurshala_backup_*.meta" -type f -mtime +$BACKUP_RETE
 REMAINING_BACKUPS=$(find "$BACKUP_DIR" -name "ankurshala_backup_*.sql" -type f | wc -l)
 log INFO "Backup cleanup completed. $REMAINING_BACKUPS backups remaining"
 
-# Test backup integrity
+# Test backup integrity using a transient postgres container (ensures pg_restore available)
 log INFO "Testing backup integrity..."
-if docker exec ankurshala_db_prod pg_restore \
-    --list "$BACKUP_FILE" >/dev/null 2>&1; then
+if docker run --rm -v "$BACKUP_FILE":/tmp/backup.dump postgres:15-alpine \
+    sh -c "pg_restore --list /tmp/backup.dump >/dev/null 2>&1"; then
     log PASS "Backup integrity test passed"
 else
     log FAIL "Backup integrity test failed"
