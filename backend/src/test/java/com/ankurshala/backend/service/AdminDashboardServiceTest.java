@@ -6,6 +6,7 @@ import com.ankurshala.backend.repository.StudentProfileRepository;
 import com.ankurshala.backend.repository.TeacherProfileRepository;
 import com.ankurshala.backend.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -15,15 +16,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
-/**
- * Unit tests for AdminDashboardService.
- * Tests the dashboard metrics and series data retrieval functionality.
- */
 @ExtendWith(MockitoExtension.class)
-public class AdminDashboardServiceTest {
+@DisplayName("AdminDashboardService Tests")
+class AdminDashboardServiceTest {
 
     @Mock
     private UserRepository userRepository;
@@ -39,109 +37,167 @@ public class AdminDashboardServiceTest {
 
     @BeforeEach
     void setUp() {
-        // Reset mocks
+        // Reset mocks before each test
+        reset(userRepository, studentProfileRepository, teacherProfileRepository);
     }
 
     @Test
-    void testGetDashboardMetrics_WithNoData_ReturnsZeroValues() {
+    @DisplayName("Should get dashboard metrics successfully")
+    void testGetDashboardMetrics() {
+        // Given
+        when(studentProfileRepository.countByUserEnabledTrue()).thenReturn(100L);
+        when(teacherProfileRepository.countByUserEnabledTrue()).thenReturn(50L);
+        when(studentProfileRepository.countByUserEnabledFalse()).thenReturn(10L);
+        when(teacherProfileRepository.countByUserEnabledFalse()).thenReturn(5L);
+        when(studentProfileRepository.countByUserCreatedAtBetween(any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(15L);
+        when(teacherProfileRepository.countByUserCreatedAtBetween(any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(8L);
+
+        // When
+        DashboardMetricsDto result = adminDashboardService.getDashboardMetrics();
+
+        // Then
+        assertNotNull(result);
+        assertEquals(100L, result.getTotalStudents());
+        assertEquals(50L, result.getTotalTeachers());
+        assertEquals(100L, result.getActiveStudents());
+        assertEquals(50L, result.getActiveTeachers());
+        assertEquals(10L, result.getInactiveStudents());
+        assertEquals(5L, result.getInactiveTeachers());
+        assertEquals(15L, result.getNewStudentsLast7Days());
+        assertEquals(15L, result.getNewStudentsLast30Days());
+        assertEquals(8L, result.getNewTeachersLast7Days());
+        assertEquals(8L, result.getNewTeachersLast30Days());
+        assertEquals(0L, result.getTotalBoards());
+        assertEquals(0L, result.getTotalGrades());
+        assertEquals(0L, result.getTotalSubjects());
+        assertEquals(0L, result.getTotalChapters());
+        assertEquals(0L, result.getTotalTopics());
+        assertEquals(0L, result.getActiveCourses());
+        assertEquals(0L, result.getCompletedCourses());
+
+        // Verify repository interactions
+        verify(studentProfileRepository, times(2)).countByUserEnabledTrue();
+        verify(teacherProfileRepository, times(2)).countByUserEnabledTrue();
+        verify(studentProfileRepository, times(1)).countByUserEnabledFalse();
+        verify(teacherProfileRepository, times(1)).countByUserEnabledFalse();
+        verify(studentProfileRepository, times(2)).countByUserCreatedAtBetween(any(LocalDateTime.class), any(LocalDateTime.class));
+        verify(teacherProfileRepository, times(2)).countByUserCreatedAtBetween(any(LocalDateTime.class), any(LocalDateTime.class));
+    }
+
+    @Test
+    @DisplayName("Should get dashboard metrics with zero counts")
+    void testGetDashboardMetricsWithZeroCounts() {
         // Given
         when(studentProfileRepository.countByUserEnabledTrue()).thenReturn(0L);
         when(teacherProfileRepository.countByUserEnabledTrue()).thenReturn(0L);
-        when(studentProfileRepository.countByUserCreatedAtBetween(
-            org.mockito.ArgumentMatchers.any(LocalDateTime.class),
-            org.mockito.ArgumentMatchers.any(LocalDateTime.class)
-        )).thenReturn(0L);
-        when(teacherProfileRepository.countByUserCreatedAtBetween(
-            org.mockito.ArgumentMatchers.any(LocalDateTime.class),
-            org.mockito.ArgumentMatchers.any(LocalDateTime.class)
-        )).thenReturn(0L);
+        when(studentProfileRepository.countByUserEnabledFalse()).thenReturn(0L);
+        when(teacherProfileRepository.countByUserEnabledFalse()).thenReturn(0L);
+        when(studentProfileRepository.countByUserCreatedAtBetween(any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(0L);
+        when(teacherProfileRepository.countByUserCreatedAtBetween(any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(0L);
 
         // When
-        DashboardMetricsDto metrics = adminDashboardService.getDashboardMetrics();
+        DashboardMetricsDto result = adminDashboardService.getDashboardMetrics();
 
         // Then
-        assertThat(metrics).isNotNull();
-        assertThat(metrics.getTotalStudents()).isEqualTo(0);
-        assertThat(metrics.getTotalTeachers()).isEqualTo(0);
-        assertThat(metrics.getNewStudentsLast30Days()).isEqualTo(0);
-        assertThat(metrics.getNewTeachersLast30Days()).isEqualTo(0);
-        assertThat(metrics.getActiveCourses()).isEqualTo(0);
-        assertThat(metrics.getCompletedCourses()).isEqualTo(0);
+        assertNotNull(result);
+        assertEquals(0L, result.getTotalStudents());
+        assertEquals(0L, result.getTotalTeachers());
+        assertEquals(0L, result.getActiveStudents());
+        assertEquals(0L, result.getActiveTeachers());
+        assertEquals(0L, result.getInactiveStudents());
+        assertEquals(0L, result.getInactiveTeachers());
+        assertEquals(0L, result.getNewStudentsLast7Days());
+        assertEquals(0L, result.getNewStudentsLast30Days());
+        assertEquals(0L, result.getNewTeachersLast7Days());
+        assertEquals(0L, result.getNewTeachersLast30Days());
     }
 
     @Test
-    void testGetDashboardMetrics_WithSampleData_ReturnsCorrectCounts() {
+    @DisplayName("Should get dashboard series successfully")
+    void testGetDashboardSeries() {
         // Given
-        when(studentProfileRepository.countByUserEnabledTrue()).thenReturn(150L);
-        when(teacherProfileRepository.countByUserEnabledTrue()).thenReturn(25L);
-        when(studentProfileRepository.countByUserCreatedAtBetween(
-            org.mockito.ArgumentMatchers.any(LocalDateTime.class),
-            org.mockito.ArgumentMatchers.any(LocalDateTime.class)
-        )).thenReturn(12L);
-        when(teacherProfileRepository.countByUserCreatedAtBetween(
-            org.mockito.ArgumentMatchers.any(LocalDateTime.class),
-            org.mockito.ArgumentMatchers.any(LocalDateTime.class)
-        )).thenReturn(3L);
+        when(studentProfileRepository.countByUserCreatedAtBetween(any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(5L);
+        when(teacherProfileRepository.countByUserCreatedAtBetween(any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(2L);
 
         // When
-        DashboardMetricsDto metrics = adminDashboardService.getDashboardMetrics();
+        List<DashboardSeriesDto> result = adminDashboardService.getDashboardSeries();
 
         // Then
-        assertThat(metrics).isNotNull();
-        assertThat(metrics.getTotalStudents()).isEqualTo(150);
-        assertThat(metrics.getTotalTeachers()).isEqualTo(25);
-        assertThat(metrics.getNewStudentsLast30Days()).isEqualTo(12);
-        assertThat(metrics.getNewTeachersLast30Days()).isEqualTo(3);
-        assertThat(metrics.getActiveCourses()).isEqualTo(0); // Placeholder value
-        assertThat(metrics.getCompletedCourses()).isEqualTo(0); // Placeholder value
+        assertNotNull(result);
+        assertEquals(30, result.size()); // 30 days of data
+
+        // Verify first and last entries
+        DashboardSeriesDto firstEntry = result.get(0);
+        assertNotNull(firstEntry.getDate());
+        assertEquals(5L, firstEntry.getStudents());
+        assertEquals(2L, firstEntry.getTeachers());
+
+        DashboardSeriesDto lastEntry = result.get(29);
+        assertNotNull(lastEntry.getDate());
+        assertEquals(5L, lastEntry.getStudents());
+        assertEquals(2L, lastEntry.getTeachers());
+
+        // Verify repository interactions
+        verify(studentProfileRepository, times(30)).countByUserCreatedAtBetween(any(LocalDateTime.class), any(LocalDateTime.class));
+        verify(teacherProfileRepository, times(30)).countByUserCreatedAtBetween(any(LocalDateTime.class), any(LocalDateTime.class));
     }
 
     @Test
-    void testGetDashboardSeries_ReturnsCorrectNumberOfDays() {
+    @DisplayName("Should get dashboard series with varying counts")
+    void testGetDashboardSeriesWithVaryingCounts() {
         // Given
-        when(studentProfileRepository.countByUserCreatedAtBetween(
-            org.mockito.ArgumentMatchers.any(LocalDateTime.class),
-            org.mockito.ArgumentMatchers.any(LocalDateTime.class)
-        )).thenReturn(5L);
-        when(teacherProfileRepository.countByUserCreatedAtBetween(
-            org.mockito.ArgumentMatchers.any(LocalDateTime.class),
-            org.mockito.ArgumentMatchers.any(LocalDateTime.class)
-        )).thenReturn(2L);
+        when(studentProfileRepository.countByUserCreatedAtBetween(any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(10L, 5L, 15L, 0L, 8L); // Different counts for different days
+        when(teacherProfileRepository.countByUserCreatedAtBetween(any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(3L, 1L, 7L, 0L, 4L);
 
         // When
-        List<DashboardSeriesDto> series = adminDashboardService.getDashboardSeries();
+        List<DashboardSeriesDto> result = adminDashboardService.getDashboardSeries();
 
         // Then
-        assertThat(series).isNotNull();
-        assertThat(series).hasSize(30); // Should return 30 days of data
-        
-        // Check that all entries have the expected structure
-        assertThat(series).allMatch(s -> s.getDate() != null);
-        assertThat(series).allMatch(s -> s.getStudents() >= 0);
-        assertThat(series).allMatch(s -> s.getTeachers() >= 0);
+        assertNotNull(result);
+        assertEquals(30, result.size());
+
+        // Verify that all entries have valid data
+        for (DashboardSeriesDto entry : result) {
+            assertNotNull(entry.getDate());
+            assertTrue(entry.getStudents() >= 0);
+            assertTrue(entry.getTeachers() >= 0);
+        }
     }
 
     @Test
-    void testGetDashboardSeries_WithMockData_ReturnsExpectedValues() {
+    @DisplayName("Should handle repository exceptions gracefully")
+    void testGetDashboardMetricsWithRepositoryException() {
         // Given
-        when(studentProfileRepository.countByUserCreatedAtBetween(
-            org.mockito.ArgumentMatchers.any(LocalDateTime.class),
-            org.mockito.ArgumentMatchers.any(LocalDateTime.class)
-        )).thenReturn(10L);
-        when(teacherProfileRepository.countByUserCreatedAtBetween(
-            org.mockito.ArgumentMatchers.any(LocalDateTime.class),
-            org.mockito.ArgumentMatchers.any(LocalDateTime.class)
-        )).thenReturn(5L);
+        when(studentProfileRepository.countByUserEnabledTrue()).thenThrow(new RuntimeException("Database error"));
 
-        // When
-        List<DashboardSeriesDto> series = adminDashboardService.getDashboardSeries();
+        // When & Then
+        assertThrows(RuntimeException.class, () -> {
+            adminDashboardService.getDashboardMetrics();
+        });
 
-        // Then
-        assertThat(series).isNotNull();
-        assertThat(series).hasSize(30);
-        
-        // Check that we have some non-zero values (since we're mocking the same values for all days)
-        assertThat(series).allMatch(s -> s.getStudents() == 10);
-        assertThat(series).allMatch(s -> s.getTeachers() == 5);
+        verify(studentProfileRepository, times(1)).countByUserEnabledTrue();
+    }
+
+    @Test
+    @DisplayName("Should handle repository exceptions in dashboard series gracefully")
+    void testGetDashboardSeriesWithRepositoryException() {
+        // Given
+        when(studentProfileRepository.countByUserCreatedAtBetween(any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenThrow(new RuntimeException("Database error"));
+
+        // When & Then
+        assertThrows(RuntimeException.class, () -> {
+            adminDashboardService.getDashboardSeries();
+        });
+
+        verify(studentProfileRepository, times(1)).countByUserCreatedAtBetween(any(LocalDateTime.class), any(LocalDateTime.class));
     }
 }

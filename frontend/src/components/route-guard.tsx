@@ -20,26 +20,52 @@ export default function RouteGuard({
 }: RouteGuardProps) {
   const router = useRouter()
   const pathname = usePathname()
-  const { user, isAuthenticated } = useAuthStore()
+  const { user, isAuthenticated, initializeAuth } = useAuthStore()
   const [isLoading, setIsLoading] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [authInitialized, setAuthInitialized] = useState(false)
 
   useEffect(() => {
-    // Wait for auth initialization to complete
-    const timer = setTimeout(() => {
-      setAuthInitialized(true)
-    }, 50) // Reduced delay to allow auth initialization
+    // Initialize auth from API on mount if we have cookies
+    const init = async () => {
+      try {
+        console.log('🔍 RouteGuard: Initializing auth from API...')
+        await initializeAuth()
+        console.log('✅ RouteGuard: Auth initialized from API')
+      } catch (error) {
+        console.log('⚠️ RouteGuard: Auth initialization failed (user not logged in):', error)
+      } finally {
+        setAuthInitialized(true)
+      }
+    }
 
-    return () => clearTimeout(timer)
+    // Check if we already have user in store (from login or persisted)
+    if (user && isAuthenticated) {
+      console.log('✅ RouteGuard: User already in store:', user.email, user.role)
+      setAuthInitialized(true)
+    } else {
+      console.log('🔄 RouteGuard: No user in store, fetching from API...')
+      // Try to fetch user from API using cookies
+      init()
+    }
   }, [])
 
   useEffect(() => {
     if (!authInitialized) return
 
     const checkAuth = () => {
+      console.log('🔐 RouteGuard: Checking auth...', {
+        pathname,
+        requireAuth,
+        isAuthenticated,
+        user: user?.email,
+        role: user?.role,
+        allowedRoles
+      })
+
       // If authentication is not required, allow access
       if (!requireAuth) {
+        console.log('✅ RouteGuard: No auth required for', pathname)
         setIsAuthorized(true)
         setIsLoading(false)
         return
@@ -47,6 +73,7 @@ export default function RouteGuard({
 
       // Check if user is authenticated
       if (!isAuthenticated || !user) {
+        console.log('❌ RouteGuard: User not authenticated, redirecting to login')
         // Redirect to login with return URL
         const returnUrl = encodeURIComponent(pathname)
         router.push(`/login?redirect=${returnUrl}`)
@@ -56,6 +83,10 @@ export default function RouteGuard({
 
       // Check role-based access
       if (allowedRoles.length > 0 && !allowedRoles.includes(user.role || '')) {
+        console.log('❌ RouteGuard: User role not allowed', {
+          userRole: user.role,
+          allowedRoles
+        })
         // Redirect based on user role or to forbidden page
         if (redirectTo) {
           router.push(redirectTo)
@@ -79,6 +110,7 @@ export default function RouteGuard({
         return
       }
 
+      console.log('✅ RouteGuard: Authorization successful for', pathname)
       setIsAuthorized(true)
       setIsLoading(false)
     }

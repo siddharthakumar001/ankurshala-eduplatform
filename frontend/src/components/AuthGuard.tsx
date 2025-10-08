@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { authManager } from '@/utils/auth'
+import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/utils/api'
 
 interface AuthGuardProps {
@@ -22,6 +22,7 @@ export default function AuthGuard({
   requiredRoles = [], 
   fallback = null 
 }: AuthGuardProps) {
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth()
   const [isLoading, setIsLoading] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
@@ -30,44 +31,45 @@ export default function AuthGuard({
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Check if user is authenticated
-        if (!authManager.isAuthenticated()) {
-          console.log('User not authenticated, redirecting to login')
-          // Use replace instead of push to avoid navigation interruption
-          router.replace('/login')
+        // Always wait for initial auth resolution to avoid flicker
+        if (authLoading) {
+          setIsLoading(true)
           return
         }
 
-        // Validate token by making a test API call
-        let userData: any = null
-        try {
-          const response = await api.get('/user/me')
-          userData = response.data
-        } catch (error) {
-          console.log('Token validation failed, redirecting to login')
-          authManager.logout()
-          // Use replace instead of push to avoid navigation interruption
-          router.replace('/login')
+        // Server-validate session via /user/me (with small retry/backoff to avoid race right after login)
+        let serverUser: any | null = null
+        const maxAttempts = 3
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          try {
+            const meResponse = await api.get('/user/me', { requireAuth: true })
+            serverUser = meResponse.data
+            break
+          } catch (e) {
+            const delayMs = 250 * attempt
+            await new Promise(res => setTimeout(res, delayMs))
+          }
+        }
+        if (!serverUser) {
+          // If server validation keeps failing, show unauthorized state without redirect bounce
+          setIsAuthorized(false)
+          setIsLoading(false)
           return
         }
 
-        // Check if user has required roles
+        // Prefer server role if available; fallback to client user
+        const effectiveUser = serverUser || user
+        const userRole = (effectiveUser as any)?.role
+
+        // Role check (if required)
         if (requiredRoles.length > 0) {
-          const userRole = (userData as any)?.role
-
           if (!userRole) {
-            console.log('User role not found')
             router.replace('/unauthorized')
             return
           }
-
           const hasRequiredRole = requiredRoles.includes(userRole)
-
           if (!hasRequiredRole) {
-            console.log('User does not have required role. User role:', userRole, 'Required roles:', requiredRoles)
-            
-            // Redirect to forbidden page for better UX
-            router.replace('/forbidden')
+            router.replace('/unauthorized')
             return
           }
         }
@@ -77,19 +79,14 @@ export default function AuthGuard({
       } catch (error) {
         console.error('Auth check error:', error)
         setAuthError('Authentication failed')
-        authManager.logout()
-        // Use replace instead of push to avoid navigation interruption
         router.replace('/login')
       } finally {
         setIsLoading(false)
       }
     }
 
-    // Add a small delay to prevent rapid navigation issues in WebKit
-    const timeoutId = setTimeout(checkAuth, 100)
-    
-    return () => clearTimeout(timeoutId)
-  }, [requiredRoles, router])
+    checkAuth()
+  }, [isAuthenticated, user, authLoading, router, requiredRoles])
 
   // Show loading state
   if (isLoading) {
@@ -167,32 +164,4 @@ export function withAuth<P extends object>(
   }
 }
 
-// Hook for checking authentication status
-export function useAuth() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [user, setUser] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    const checkAuth = () => {
-      setIsAuthenticated(authManager.isAuthenticated())
-      setUser(authManager.getUser())
-      setIsLoading(false)
-    }
-
-    checkAuth()
-
-    // Listen for auth state changes
-    const interval = setInterval(checkAuth, 1000)
-
-    return () => clearInterval(interval)
-  }, [])
-
-  return {
-    isAuthenticated,
-    user,
-    isLoading,
-    logout: () => authManager.logout(),
-    getToken: () => authManager.getToken()
-  }
-}
+// Note: useAuth hook is now imported from @/hooks/useAuth

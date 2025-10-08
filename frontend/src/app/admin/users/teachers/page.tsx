@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import AdminLayoutSimple from '@/components/admin-layout-simple'
+import AuthGuard from '@/components/AuthGuard'
+import SessionManager from '@/components/SessionManager'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,9 +27,17 @@ import {
   Download,
   Star,
   Award,
-  DollarSign
+  DollarSign,
+  AlertCircle,
+  Loader2,
+  RefreshCw,
+  Shield,
+  CheckCircle,
+  Clock,
+  XCircle
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { api } from '@/utils/api'
 
 interface Teacher {
   id: number
@@ -83,6 +93,7 @@ const TEACHER_STATUSES = [
 export default function AdminTeachersPage() {
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
   const [totalElements, setTotalElements] = useState(0)
@@ -93,17 +104,34 @@ export default function AdminTeachersPage() {
   const [selectedTeacher, setSelectedTeacher] = useState<TeacherDetail | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
+  const [actionLoading, setActionLoading] = useState<number | null>(null)
 
   const pageSize = 10
 
   useEffect(() => {
     fetchTeachers()
-  }, [currentPage, search, teacherFilter, sortBy, sortDir])
+  }, [currentPage, sortBy, sortDir])
+
+  // Debounced search effect
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (currentPage !== 0) {
+        setCurrentPage(0) // Reset to first page when searching
+      } else {
+        fetchTeachers()
+      }
+    }, 500) // 500ms debounce
+
+    return () => clearTimeout(timeoutId)
+  }, [search, teacherFilter])
 
   const fetchTeachers = async () => {
+    // Allow initial load but prevent overlapping requests during subsequent fetches
+    const isInitialLoad = teachers.length === 0
+    if (loading && !isInitialLoad) return
     setLoading(true)
+    setError(null)
     try {
-      const token = localStorage.getItem('accessToken')
       const params = new URLSearchParams({
         page: currentPage.toString(),
         size: pageSize.toString(),
@@ -132,24 +160,26 @@ export default function AdminTeachersPage() {
         }
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/teachers?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setTeachers(data.content)
-        setTotalPages(data.totalPages)
-        setTotalElements(data.totalElements)
+      const response = await api.get(`/admin/teachers?${params}`)
+      // Our API client unwraps standardized ApiResponse and returns the inner data directly
+      // So response.data is the paginated Page object with content/totalPages/totalElements
+      const pageData = response.data as any
+      
+      if (pageData && pageData.content) {
+        setTeachers(pageData.content || [])
+        setTotalPages(pageData.totalPages || 0)
+        setTotalElements(pageData.totalElements || 0)
       } else {
-        toast.error('Failed to fetch teachers')
+        const message = 'Invalid response format'
+        setError(message)
+        toast.error(message)
+        console.error('Unexpected teachers response:', pageData)
       }
-    } catch (error) {
-      console.error('Error fetching teachers:', error)
-      toast.error('Failed to fetch teachers')
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch teachers'
+      setError(errorMessage)
+      toast.error(errorMessage)
+      console.error('Error fetching teachers:', err)
     } finally {
       setLoading(false)
     }
@@ -157,17 +187,11 @@ export default function AdminTeachersPage() {
 
   const handleViewTeacher = async (teacherId: number) => {
     try {
-      const token = localStorage.getItem('accessToken')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/teachers/${teacherId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (response.ok) {
-        const teacherDetail = await response.json()
-        setSelectedTeacher(teacherDetail)
+      const response = await api.get(`/admin/teachers/${teacherId}`)
+      const teacherData = response.data as any
+      
+      if (teacherData) {
+        setSelectedTeacher(teacherData)
         setIsViewDialogOpen(true)
       } else {
         toast.error('Failed to fetch teacher details')
@@ -180,17 +204,11 @@ export default function AdminTeachersPage() {
 
   const handleEditTeacher = async (teacherId: number) => {
     try {
-      const token = localStorage.getItem('accessToken')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/teachers/${teacherId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (response.ok) {
-        const teacherDetail = await response.json()
-        setSelectedTeacher(teacherDetail)
+      const response = await api.get(`/admin/teachers/${teacherId}`)
+      const teacherData = response.data as any
+      
+      if (teacherData) {
+        setSelectedTeacher(teacherData)
         setIsEditDialogOpen(true)
       } else {
         toast.error('Failed to fetch teacher details')
@@ -203,30 +221,16 @@ export default function AdminTeachersPage() {
 
   const updateTeacher = async (updatedTeacher: TeacherDetail) => {
     try {
-      const token = localStorage.getItem('accessToken')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/teachers/${updatedTeacher.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updatedTeacher)
-      })
-
-      if (response.ok) {
-        const updatedTeacherData = await response.json()
+      const response = await api.put(`/admin/teachers/${updatedTeacher.id}`, updatedTeacher)
+      const saved = response.data as any
+      
+      if (saved) {
         toast.success('Teacher updated successfully')
         setIsEditDialogOpen(false)
         fetchTeachers() // Refresh the list
-        return updatedTeacherData
+        return saved
       } else {
-        // Handle RFC7807 error format
-        try {
-          const errorData = await response.json()
-          toast.error(errorData.detail || errorData.title || 'Failed to update teacher')
-        } catch (e) {
-          toast.error('Failed to update teacher')
-        }
+        toast.error('Failed to update teacher')
       }
     } catch (error) {
       console.error('Error updating teacher:', error)
@@ -235,32 +239,22 @@ export default function AdminTeachersPage() {
   }
 
   const toggleTeacherStatus = async (teacherId: number) => {
+    setActionLoading(teacherId)
     try {
-      const token = localStorage.getItem('accessToken')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/teachers/${teacherId}/toggle-status`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (response.ok) {
-        const result = await response.json()
+      const response = await api.patch(`/admin/teachers/${teacherId}/toggle-status`)
+      const result = response.data as any
+      
+      if (result && (typeof result.enabled !== 'undefined')) {
         toast.success(result.message || 'Teacher status updated successfully')
         fetchTeachers() // Refresh the list
       } else {
-        // Handle RFC7807 error format
-        try {
-          const errorData = await response.json()
-          toast.error(errorData.detail || errorData.title || 'Failed to update teacher status')
-        } catch (e) {
-          toast.error('Failed to update teacher status')
-        }
+        toast.error('Failed to update teacher status')
       }
     } catch (error) {
       console.error('Error toggling teacher status:', error)
       toast.error('Failed to update teacher status')
+    } finally {
+      setActionLoading(null)
     }
   }
 
@@ -292,26 +286,82 @@ export default function AdminTeachersPage() {
     )
   }
 
+  if (loading && teachers.length === 0) {
+    return (
+      <AuthGuard requiredRoles={['ADMIN']}>
+        <SessionManager showSessionInfo={true}>
+          <AdminLayoutSimple>
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Manage Teachers</h1>
+                  <p className="text-gray-600 dark:text-gray-400">View and manage teacher accounts</p>
+                </div>
+              </div>
+              <Card className="p-6">
+                <div className="animate-pulse space-y-4">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="h-16 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                  ))}
+                </div>
+              </Card>
+            </div>
+          </AdminLayoutSimple>
+        </SessionManager>
+      </AuthGuard>
+    )
+  }
+
   return (
-    <AdminLayoutSimple>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Manage Teachers</h1>
-            <p className="text-gray-600 dark:text-gray-400">View and manage teacher accounts</p>
-          </div>
-          <div className="flex space-x-3">
-            <Button variant="outline" className="flex items-center space-x-2">
-              <Download className="h-4 w-4" />
-              <span>Export</span>
-            </Button>
-            <Button className="flex items-center space-x-2">
-              <Plus className="h-4 w-4" />
-              <span>Add Teacher</span>
-            </Button>
-          </div>
-        </div>
+    <AuthGuard requiredRoles={['ADMIN']}>
+      <SessionManager showSessionInfo={true}>
+        <AdminLayoutSimple>
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Manage Teachers</h1>
+                <p className="text-gray-600 dark:text-gray-400">View and manage teacher accounts</p>
+              </div>
+              <div className="flex space-x-2">
+                <Button 
+                  variant="outline" 
+                  className="flex items-center space-x-2"
+                  onClick={fetchTeachers}
+                  disabled={loading}
+                >
+                  <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                  <span>Refresh</span>
+                </Button>
+                <Button variant="outline" className="flex items-center space-x-2">
+                  <Download className="h-4 w-4" />
+                  <span>Export</span>
+                </Button>
+                <Button className="flex items-center space-x-2">
+                  <Plus className="h-4 w-4" />
+                  <span>Add Teacher</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Error Display */}
+            {error && (
+              <Card className="p-6 border-red-200 bg-red-50 dark:bg-red-900/20">
+                <div className="flex items-center space-x-2 text-red-600 dark:text-red-400">
+                  <AlertCircle className="h-5 w-5" />
+                  <span className="font-medium">Error loading teachers</span>
+                </div>
+                <p className="text-red-600 dark:text-red-400 mt-2">{error}</p>
+                <Button 
+                  onClick={fetchTeachers} 
+                  variant="outline" 
+                  size="sm" 
+                  className="mt-4"
+                >
+                  Try Again
+                </Button>
+              </Card>
+            )}
 
         {/* Search and Filters */}
         <Card className="p-6">
@@ -453,12 +503,19 @@ export default function AdminTeachersPage() {
                                 {teacher.enabled ? 'Active' : 'Inactive'}
                               </Badge>
                               <div className="flex items-center space-x-1">
-                                <Badge variant={teacher.status === 'ACTIVE' ? 'default' : 
-                                              teacher.status === 'PENDING' ? 'secondary' : 'destructive'}>
+                                <Badge variant={
+                                  teacher.status === 'ACTIVE' ? 'default' : 
+                                  teacher.status === 'PENDING' ? 'secondary' : 
+                                  teacher.status === 'SUSPENDED' ? 'destructive' : 'outline'
+                                }>
+                                  {teacher.status === 'PENDING' && <Clock className="h-3 w-3 mr-1" />}
+                                  {teacher.status === 'ACTIVE' && <CheckCircle className="h-3 w-3 mr-1" />}
+                                  {teacher.status === 'SUSPENDED' && <XCircle className="h-3 w-3 mr-1" />}
                                   {teacher.status}
                                 </Badge>
                                 {teacher.verified && (
                                   <Badge variant="outline" className="text-green-600 border-green-600">
+                                    <Shield className="h-3 w-3 mr-1" />
                                     Verified
                                   </Badge>
                                 )}
@@ -473,6 +530,7 @@ export default function AdminTeachersPage() {
                               variant="outline"
                               size="sm"
                               onClick={() => handleViewTeacher(teacher.id)}
+                              disabled={actionLoading === teacher.id}
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
@@ -480,6 +538,7 @@ export default function AdminTeachersPage() {
                               variant="outline"
                               size="sm"
                               onClick={() => handleEditTeacher(teacher.id)}
+                              disabled={actionLoading === teacher.id}
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
@@ -487,8 +546,16 @@ export default function AdminTeachersPage() {
                               variant="outline"
                               size="sm"
                               onClick={() => toggleTeacherStatus(teacher.id)}
+                              disabled={actionLoading === teacher.id}
+                              className={teacher.enabled ? "text-red-600 hover:text-red-700" : "text-green-600 hover:text-green-700"}
                             >
-                              {teacher.enabled ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
+                              {actionLoading === teacher.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : teacher.enabled ? (
+                                <UserX className="h-4 w-4" />
+                              ) : (
+                                <UserCheck className="h-4 w-4" />
+                              )}
                             </Button>
                           </td>
                         </tr>
@@ -739,5 +806,6 @@ export default function AdminTeachersPage() {
         </Dialog>
       </div>
     </AdminLayoutSimple>
-  )
-}
+  </SessionManager>
+</AuthGuard>
+)}

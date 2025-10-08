@@ -18,7 +18,8 @@ import {
   MoreHorizontal,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from 'lucide-react'
 import {
   Dialog,
@@ -42,6 +43,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
+import { api } from '@/utils/api'
 
 interface PricingRule {
   id: number
@@ -71,25 +73,32 @@ interface Grade {
   id: number
   name: string
   displayName: string
-  active: boolean
+  boardId: number
 }
 
 interface Subject {
   id: number
   name: string
-  active: boolean
+  gradeId: number
+  boardId: number
 }
 
 interface Chapter {
   id: number
   name: string
-  active: boolean
+  subjectId: number
+  gradeId: number
+  boardId: number
 }
 
 interface Topic {
   id: number
   title: string
-  active: boolean
+  code?: string
+  chapterId: number
+  subjectId: number
+  gradeId: number
+  boardId: number
 }
 
 export default function AdminPricingPage() {
@@ -100,12 +109,14 @@ export default function AdminPricingPage() {
   const [chapters, setChapters] = useState<Chapter[]>([])
   const [topics, setTopics] = useState<Topic[]>([])
   const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showTestDialog, setShowTestDialog] = useState(false)
   const [editingRule, setEditingRule] = useState<PricingRule | null>(null)
   const [testResult, setTestResult] = useState<PricingRule | null>(null)
+  const [error, setError] = useState('')
   
   // Form states
   const [formData, setFormData] = useState({
@@ -128,161 +139,155 @@ export default function AdminPricingPage() {
   })
 
   useEffect(() => {
-    const checkAuthAndFetch = () => {
-      const token = localStorage.getItem('accessToken')
-      if (token) {
-        fetchPricingRules()
-        fetchBoards()
-        fetchGrades()
-        fetchSubjects()
-        fetchChapters()
-        fetchTopics()
-      } else {
-        setTimeout(checkAuthAndFetch, 100)
-      }
-    }
-    checkAuthAndFetch()
+    fetchAllData()
   }, [])
 
-  const fetchPricingRules = async () => {
+  const fetchAllData = async () => {
     try {
-      const token = localStorage.getItem('accessToken')
-      console.log('Fetching pricing rules with token:', token ? 'present' : 'missing')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/pricing`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      console.log('Pricing rules API response status:', response.status)
-      if (response.ok) {
-        const data = await response.json()
-        console.log('Pricing rules data received:', data)
-        setPricingRules(data.content || data)
-      } else {
-        console.error('Pricing rules API error:', response.status, response.statusText)
+      setLoading(true)
+      setError('')
+      
+      // Fetch data in parallel, but handle individual failures gracefully
+      const results = await Promise.allSettled([
+        fetchPricingRules(),
+        fetchBoards(),
+        fetchGrades(),
+        fetchSubjects(),
+        fetchChapters(),
+        fetchTopics()
+      ])
+      
+      // Check if any critical operations failed
+      const failedOperations = results.filter(result => result.status === 'rejected')
+      if (failedOperations.length > 0) {
+        console.warn('Some data fetching operations failed:', failedOperations)
+        // Still show the page with partial data
       }
+      
     } catch (error) {
-      console.error('Error fetching pricing rules:', error)
+      console.error('Error fetching data:', error)
+      setError('Failed to load data. Please try again.')
+      toast.error('Failed to load pricing data')
     } finally {
       setLoading(false)
     }
   }
 
+  const fetchPricingRules = async () => {
+    try {
+      console.log('Fetching pricing rules...')
+      const response = await api.get('/admin/pricing')
+      const data = response.data
+      console.log('Pricing rules response:', data)
+      setPricingRules(data.content || data || [])
+    } catch (error) {
+      console.error('Error fetching pricing rules:', error)
+      throw error
+    }
+  }
+
   const fetchBoards = async () => {
     try {
-      const token = localStorage.getItem('accessToken')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/boards`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setBoards(data.content || data)
-      }
+      console.log('Fetching boards...')
+      const response = await api.get('/admin/content/boards')
+      const data = response.data
+      console.log('Boards response:', data)
+      setBoards(data.content || data || [])
     } catch (error) {
       console.error('Error fetching boards:', error)
+      throw error
     }
   }
 
   const fetchGrades = async () => {
     try {
-      const token = localStorage.getItem('accessToken')
-      console.log('Fetching grades with token:', token ? 'present' : 'missing')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/grades-list`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      console.log('Grades API response status:', response.status)
-      if (response.ok) {
-        const data = await response.json()
-        console.log('Grades data received:', data)
-        setGrades(data)
-      } else {
-        console.error('Grades API error:', response.status, response.statusText)
-      }
+      console.log('Fetching grades...')
+      const response = await api.get('/admin/content/grades/dropdown')
+      const data = response.data
+      console.log('Grades response:', data)
+      setGrades(data || [])
     } catch (error) {
       console.error('Error fetching grades:', error)
+      throw error
     }
   }
 
   const fetchSubjects = async () => {
     try {
-      const token = localStorage.getItem('accessToken')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/subjects`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setSubjects(data.content || data)
-      }
+      console.log('Fetching subjects...')
+      const response = await api.get('/admin/content/subjects/dropdown')
+      const data = response.data
+      console.log('Subjects response:', data)
+      setSubjects(data || [])
     } catch (error) {
       console.error('Error fetching subjects:', error)
+      throw error
     }
   }
 
   const fetchChapters = async () => {
     try {
-      const token = localStorage.getItem('accessToken')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/chapters`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setChapters(data.content || data)
-      }
+      console.log('Fetching chapters...')
+      const response = await api.get('/admin/content/chapters/dropdown')
+      const data = response.data
+      console.log('Chapters response:', data)
+      setChapters(data || [])
     } catch (error) {
       console.error('Error fetching chapters:', error)
+      throw error
     }
   }
 
   const fetchTopics = async () => {
     try {
-      const token = localStorage.getItem('accessToken')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/topics`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setTopics(data.content || data)
-      }
+      console.log('Fetching topics...')
+      const response = await api.get('/admin/content/topics/dropdown')
+      const data = response.data
+      console.log('Topics response:', data)
+      setTopics(data || [])
     } catch (error) {
       console.error('Error fetching topics:', error)
+      throw error
     }
   }
 
   const handleCreateRule = async () => {
     try {
-      const token = localStorage.getItem('accessToken')
+      setSubmitting(true)
+      setError('')
+      
       const payload = {
-        boardId: formData.boardId ? parseInt(formData.boardId) : null,
-        gradeId: formData.gradeId ? parseInt(formData.gradeId) : null,
-        subjectId: formData.subjectId ? parseInt(formData.subjectId) : null,
-        chapterId: formData.chapterId ? parseInt(formData.chapterId) : null,
-        topicId: formData.topicId ? parseInt(formData.topicId) : null,
+        boardId: formData.boardId && formData.boardId !== 'all' ? parseInt(formData.boardId) : null,
+        gradeId: formData.gradeId && formData.gradeId !== 'all' ? parseInt(formData.gradeId) : null,
+        subjectId: formData.subjectId && formData.subjectId !== 'all' ? parseInt(formData.subjectId) : null,
+        chapterId: formData.chapterId && formData.chapterId !== 'all' ? parseInt(formData.chapterId) : null,
+        topicId: formData.topicId && formData.topicId !== 'all' ? parseInt(formData.topicId) : null,
         hourlyRate: parseFloat(formData.hourlyRate),
         active: formData.active
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/pricing`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
+      await api.post('/admin/pricing', payload)
+      
+      setShowCreateDialog(false)
+      setFormData({
+        boardId: 'all',
+        gradeId: 'all',
+        subjectId: 'all',
+        chapterId: 'all',
+        topicId: 'all',
+        hourlyRate: '',
+        active: true
       })
-
-      if (response.ok) {
-        setShowCreateDialog(false)
-        setFormData({
-          boardId: '',
-          gradeId: '',
-          subjectId: '',
-          chapterId: '',
-          topicId: '',
-          hourlyRate: '',
-          active: true
-        })
-        fetchPricingRules()
-      }
-    } catch (error) {
+      
+      toast.success('Pricing rule created successfully')
+      await fetchPricingRules()
+    } catch (error: any) {
       console.error('Error creating pricing rule:', error)
+      const errorMessage = error.response?.data?.message || 'Failed to create pricing rule'
+      setError(errorMessage)
+      toast.error(errorMessage)
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -290,42 +295,42 @@ export default function AdminPricingPage() {
     if (!editingRule) return
 
     try {
-      const token = localStorage.getItem('accessToken')
+      setSubmitting(true)
+      setError('')
+      
       const payload = {
-        boardId: formData.boardId ? parseInt(formData.boardId) : null,
-        gradeId: formData.gradeId ? parseInt(formData.gradeId) : null,
-        subjectId: formData.subjectId ? parseInt(formData.subjectId) : null,
-        chapterId: formData.chapterId ? parseInt(formData.chapterId) : null,
-        topicId: formData.topicId ? parseInt(formData.topicId) : null,
+        boardId: formData.boardId && formData.boardId !== 'all' ? parseInt(formData.boardId) : null,
+        gradeId: formData.gradeId && formData.gradeId !== 'all' ? parseInt(formData.gradeId) : null,
+        subjectId: formData.subjectId && formData.subjectId !== 'all' ? parseInt(formData.subjectId) : null,
+        chapterId: formData.chapterId && formData.chapterId !== 'all' ? parseInt(formData.chapterId) : null,
+        topicId: formData.topicId && formData.topicId !== 'all' ? parseInt(formData.topicId) : null,
         hourlyRate: parseFloat(formData.hourlyRate),
         active: formData.active
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/pricing/${editingRule.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
+      await api.put(`/admin/pricing/${editingRule.id}`, payload)
+      
+      setShowEditDialog(false)
+      setEditingRule(null)
+      setFormData({
+        boardId: 'all',
+        gradeId: 'all',
+        subjectId: 'all',
+        chapterId: 'all',
+        topicId: 'all',
+        hourlyRate: '',
+        active: true
       })
-
-      if (response.ok) {
-        setShowEditDialog(false)
-        setEditingRule(null)
-        setFormData({
-          boardId: '',
-          gradeId: '',
-          subjectId: '',
-          chapterId: '',
-          topicId: '',
-          hourlyRate: '',
-          active: true
-        })
-        fetchPricingRules()
-      }
-    } catch (error) {
+      
+      toast.success('Pricing rule updated successfully')
+      await fetchPricingRules()
+    } catch (error: any) {
       console.error('Error updating pricing rule:', error)
+      const errorMessage = error.response?.data?.message || 'Failed to update pricing rule'
+      setError(errorMessage)
+      toast.error(errorMessage)
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -333,71 +338,83 @@ export default function AdminPricingPage() {
     if (!confirm('Are you sure you want to delete this pricing rule?')) return
 
     try {
-      const token = localStorage.getItem('accessToken')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/pricing/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-
-      if (response.ok) {
-        fetchPricingRules()
-      }
-    } catch (error) {
+      await api.delete(`/admin/pricing/${id}`)
+      toast.success('Pricing rule deleted successfully')
+      await fetchPricingRules()
+    } catch (error: any) {
       console.error('Error deleting pricing rule:', error)
+      const errorMessage = error.response?.data?.message || 'Failed to delete pricing rule'
+      toast.error(errorMessage)
     }
   }
 
   const handleToggleStatus = async (id: number) => {
     try {
-      const token = localStorage.getItem('accessToken')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/pricing/${id}/active`, {
-        method: 'PATCH',
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-
-      if (response.ok) {
-        fetchPricingRules()
-      }
-    } catch (error) {
+      await api.patch(`/admin/pricing/${id}/active`)
+      toast.success('Pricing rule status updated')
+      await fetchPricingRules()
+    } catch (error: any) {
       console.error('Error toggling pricing rule status:', error)
+      const errorMessage = error.response?.data?.message || 'Failed to update pricing rule status'
+      toast.error(errorMessage)
     }
   }
 
   const handleTestPricing = async () => {
     try {
-      const token = localStorage.getItem('accessToken')
+      setSubmitting(true)
+      setError('')
+      
       const params = new URLSearchParams()
-      if (testFormData.boardId) params.append('boardId', testFormData.boardId)
-      if (testFormData.gradeId) params.append('gradeId', testFormData.gradeId)
-      if (testFormData.subjectId) params.append('subjectId', testFormData.subjectId)
-      if (testFormData.chapterId) params.append('chapterId', testFormData.chapterId)
-      if (testFormData.topicId) params.append('topicId', testFormData.topicId)
+      if (testFormData.boardId && testFormData.boardId !== 'all') params.append('boardId', testFormData.boardId)
+      if (testFormData.gradeId && testFormData.gradeId !== 'all') params.append('gradeId', testFormData.gradeId)
+      if (testFormData.subjectId && testFormData.subjectId !== 'all') params.append('subjectId', testFormData.subjectId)
+      if (testFormData.chapterId && testFormData.chapterId !== 'all') params.append('chapterId', testFormData.chapterId)
+      if (testFormData.topicId && testFormData.topicId !== 'all') params.append('topicId', testFormData.topicId)
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/pricing/resolve?${params}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setTestResult(data.rule)
-        setShowTestDialog(true)
-      }
-    } catch (error) {
+      const response = await api.get(`/admin/pricing/resolve?${params}`)
+      const data = response.data
+      
+      setTestResult(data.rule)
+      setShowTestDialog(true)
+      toast.success('Pricing test completed')
+    } catch (error: any) {
       console.error('Error testing pricing:', error)
+      const errorMessage = error.response?.data?.message || 'Failed to test pricing resolution'
+      setError(errorMessage)
+      toast.error(errorMessage)
+    } finally {
+      setSubmitting(false)
     }
   }
 
+  const clearError = () => setError('')
+
+  const openCreateDialog = () => {
+    setFormData({
+      boardId: 'all',
+      gradeId: 'all',
+      subjectId: 'all',
+      chapterId: 'all',
+      topicId: 'all',
+      hourlyRate: '',
+      active: true
+    })
+    clearError()
+    setShowCreateDialog(true)
+  }
   const openEditDialog = (rule: PricingRule) => {
     setEditingRule(rule)
     setFormData({
-      boardId: rule.boardId?.toString() || '',
-      gradeId: rule.gradeId?.toString() || '',
-      subjectId: rule.subjectId?.toString() || '',
-      chapterId: rule.chapterId?.toString() || '',
-      topicId: rule.topicId?.toString() || '',
+      boardId: rule.boardId?.toString() || 'all',
+      gradeId: rule.gradeId?.toString() || 'all',
+      subjectId: rule.subjectId?.toString() || 'all',
+      chapterId: rule.chapterId?.toString() || 'all',
+      topicId: rule.topicId?.toString() || 'all',
       hourlyRate: rule.hourlyRate.toString(),
       active: rule.active
     })
+    clearError()
     setShowEditDialog(true)
   }
 
@@ -422,8 +439,24 @@ export default function AdminPricingPage() {
       <AdminLayoutSimple>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
             <p className="text-gray-600 dark:text-gray-400">Loading pricing rules...</p>
+          </div>
+        </div>
+      </AdminLayoutSimple>
+    )
+  }
+
+  if (error) {
+    return (
+      <AdminLayoutSimple>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
+            <Button onClick={fetchAllData} variant="outline">
+              Try Again
+            </Button>
           </div>
         </div>
       </AdminLayoutSimple>
@@ -449,7 +482,7 @@ export default function AdminPricingPage() {
               <span>Test Pricing</span>
             </Button>
             <Button 
-              onClick={() => setShowCreateDialog(true)}
+              onClick={openCreateDialog}
               className="flex items-center space-x-2"
             >
               <Plus className="h-4 w-4" />
@@ -691,15 +724,31 @@ export default function AdminPricingPage() {
                   value={formData.hourlyRate}
                   onChange={(e) => setFormData({...formData, hourlyRate: e.target.value})}
                   placeholder="Enter hourly rate"
+                  className={error && !formData.hourlyRate ? 'border-red-500' : ''}
                 />
+                {error && !formData.hourlyRate && (
+                  <p className="text-red-500 text-sm mt-1">Hourly rate is required</p>
+                )}
               </div>
+              {error && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                  <p className="text-red-800 dark:text-red-200 text-sm">{error}</p>
+                </div>
+              )}
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+              <Button variant="outline" onClick={() => { setShowCreateDialog(false); clearError(); }} disabled={submitting}>
                 Cancel
               </Button>
-              <Button onClick={handleCreateRule} disabled={!formData.hourlyRate}>
-                Create Rule
+              <Button onClick={handleCreateRule} disabled={!formData.hourlyRate || submitting}>
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  'Create Rule'
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -807,15 +856,31 @@ export default function AdminPricingPage() {
                   value={formData.hourlyRate}
                   onChange={(e) => setFormData({...formData, hourlyRate: e.target.value})}
                   placeholder="Enter hourly rate"
+                  className={error && !formData.hourlyRate ? 'border-red-500' : ''}
                 />
+                {error && !formData.hourlyRate && (
+                  <p className="text-red-500 text-sm mt-1">Hourly rate is required</p>
+                )}
               </div>
+              {error && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                  <p className="text-red-800 dark:text-red-200 text-sm">{error}</p>
+                </div>
+              )}
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+              <Button variant="outline" onClick={() => { setShowEditDialog(false); clearError(); }} disabled={submitting}>
                 Cancel
               </Button>
-              <Button onClick={handleEditRule} disabled={!formData.hourlyRate}>
-                Update Rule
+              <Button onClick={handleEditRule} disabled={!formData.hourlyRate || submitting}>
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  'Update Rule'
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -926,12 +991,21 @@ export default function AdminPricingPage() {
               )}
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowTestDialog(false)}>
+              <Button variant="outline" onClick={() => setShowTestDialog(false)} disabled={submitting}>
                 Close
               </Button>
-              <Button onClick={handleTestPricing}>
-                <Calculator className="h-4 w-4 mr-2" />
-                Test Resolution
+              <Button onClick={handleTestPricing} disabled={submitting}>
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Testing...
+                  </>
+                ) : (
+                  <>
+                    <Calculator className="h-4 w-4 mr-2" />
+                    Test Resolution
+                  </>
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>

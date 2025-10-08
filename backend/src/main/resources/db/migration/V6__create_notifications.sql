@@ -1,18 +1,14 @@
 -- Notifications Migration
 -- Create notifications table for in-app and email notifications
 
-CREATE TYPE notification_audience AS ENUM ('STUDENT', 'TEACHER', 'BOTH');
-CREATE TYPE notification_delivery AS ENUM ('IN_APP', 'EMAIL', 'BOTH');
-CREATE TYPE notification_status AS ENUM ('QUEUED', 'SENT', 'FAILED');
-
 CREATE TABLE IF NOT EXISTS notifications (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT REFERENCES users(id),
     title VARCHAR(255) NOT NULL,
     body TEXT NOT NULL,
-    audience notification_audience NOT NULL,
-    delivery notification_delivery NOT NULL,
-    status notification_status DEFAULT 'QUEUED',
+    audience VARCHAR(20) NOT NULL CHECK (audience IN ('STUDENT', 'TEACHER', 'BOTH')),
+    delivery VARCHAR(20) NOT NULL CHECK (delivery IN ('IN_APP', 'EMAIL', 'BOTH')),
+    status VARCHAR(20) DEFAULT 'QUEUED' CHECK (status IN ('QUEUED', 'SENT', 'FAILED')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     sent_at TIMESTAMP NULL
 );

@@ -2,9 +2,8 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { authManager } from '@/utils/auth'
 import { api } from '@/utils/api'
-import { useAuthStore } from '@/store/auth'
+import { useAuth } from '@/hooks/useAuth'
 import Image from 'next/image'
 import { Eye, EyeOff, Lock, Mail, AlertCircle } from 'lucide-react'
 
@@ -36,14 +35,30 @@ function LoginForm() {
     password: '',
     rememberMe: false
   })
-  const [isLoading, setIsLoading] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { login } = useAuthStore()
+  const { login, isAuthenticated, isLoading, user } = useAuth()
 
   useEffect(() => {
+    // Debug authentication state
+    console.log('🔍 Login page auth state:', { isLoading, isAuthenticated, user })
+    
+    // Only redirect if we're sure the user is authenticated
+    // Add a small delay to ensure auth state is properly initialized
+    const checkAuth = setTimeout(() => {
+      if (!isLoading && isAuthenticated && user?.id) {
+        console.log('🚀 Redirecting authenticated user to:', searchParams.get('redirect') || '/')
+        const redirectTo = searchParams.get('redirect') || '/'
+        router.push(redirectTo)
+        return
+      }
+    }, 100)
+
+    return () => clearTimeout(checkAuth)
+
     // Remove any exposed credentials from URL params immediately for security
     const urlParams = new URLSearchParams(window.location.search)
     if (urlParams.has('email') || urlParams.has('password')) {
@@ -64,32 +79,7 @@ function LoginForm() {
       newUrl.searchParams.delete('message')
       window.history.replaceState({}, document.title, newUrl.toString())
     }
-
-    // Check if user is already authenticated and redirect to appropriate dashboard
-    const checkAuth = async () => {
-      try {
-        if (authManager.isAuthenticated()) {
-          try {
-            const response = await api.get('/user/me')
-            const userRole = (response.data as any).role
-            
-            // Redirect to appropriate dashboard based on role
-            const redirectTo = USER_DASHBOARD_ROUTES[userRole as keyof typeof USER_DASHBOARD_ROUTES] || '/'
-            router.push(redirectTo)
-          } catch (error) {
-            // Token is invalid, clear it and stay on login page
-            console.log('Token validation failed, clearing auth state')
-            authManager.logout()
-          }
-        }
-      } catch (error) {
-        console.error('Auth check error:', error)
-        authManager.logout()
-      }
-    }
-
-    checkAuth()
-  }, [router])
+  }, [isAuthenticated, isLoading, user, router, searchParams])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target
@@ -146,39 +136,61 @@ function LoginForm() {
       return
     }
 
-    setIsLoading(true)
+    setIsSubmitting(true)
     setError('')
 
     try {
-      const response = await api.post<LoginResponse>('/auth/signin', {
+      console.log('🔐 Starting login...')
+      const response = await api.post('/auth/signin', {
         email: formData.email,
         password: formData.password
       }, { requireAuth: false })
 
-      if (response.data) {
-        const userData = {
-          id: response.data.userId.toString(),
-          email: response.data.email,
-          name: response.data.name,
-          role: response.data.role
+      console.log('📥 Raw response:', response)
+      console.log('📦 Response data:', response.data)
+
+      // The API client already extracts the data from the API response
+      // So response.data contains the user data directly
+      const userData = response.data as any
+      
+      console.log('✅ User data received:', userData)
+      
+      if (userData && userData.userId && userData.role) {
+        const processedUserData = {
+          id: userData.userId?.toString() || '',
+          email: userData.email || formData.email,
+          name: userData.name || '',
+          role: userData.role || ''
         }
 
-        // Set authentication data in both systems
-        authManager.setAuth(
-          response.data.accessToken,
-          response.data.refreshToken,
-          userData
-        )
-        
-        // Also update Zustand store for RouteGuard compatibility
-        login(userData)
+        console.log('✨ Processed user data:', processedUserData)
+
+        if (!processedUserData.id || !processedUserData.role) {
+          console.error('❌ Invalid user data - missing id or role')
+          setError('Invalid response from server. Please try again.')
+          setIsSubmitting(false)
+          return
+        }
+
+        // Update authentication state
+        console.log('🔑 Setting authentication state...')
+        login(processedUserData)
 
         // Get redirect URL from search params or determine based on role
         const redirectTo = searchParams.get('redirect') || 
-          USER_DASHBOARD_ROUTES[response.data.role as keyof typeof USER_DASHBOARD_ROUTES] || '/'
+          USER_DASHBOARD_ROUTES[processedUserData.role as keyof typeof USER_DASHBOARD_ROUTES] || '/'
         
-        // Use replace for WebKit compatibility to avoid navigation interruption
-        router.replace(redirectTo)
+        console.log('🚀 Redirecting to:', redirectTo)
+        
+        // Use window.location for immediate redirect to ensure it works
+        // This bypasses React state batching issues
+        window.location.href = redirectTo
+        
+      } else {
+        console.error('❌ Login failed - invalid user data')
+        console.error('User data:', userData)
+        setError('Login failed. Please check your credentials.')
+        setIsSubmitting(false)
       }
     } catch (err: any) {
       console.error('Login error:', err)
@@ -193,8 +205,7 @@ function LoginForm() {
       } else {
         setError('Login failed. Please check your credentials and try again.')
       }
-    } finally {
-      setIsLoading(false)
+      setIsSubmitting(false)
     }
   }
 
@@ -313,10 +324,10 @@ function LoginForm() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isSubmitting}
               className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none transition-all duration-200 transform hover:scale-[1.02]"
             >
-              {isLoading ? (
+              {isSubmitting ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                   Signing in...
@@ -355,6 +366,21 @@ function LoginForm() {
             <p>⏰ Sessions expire automatically after 45 minutes of inactivity</p>
           </div>
         </div>
+
+        {/* Debug Info - Remove in production */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="text-center mt-4">
+            <button
+              onClick={() => {
+                localStorage.clear()
+                window.location.reload()
+              }}
+              className="text-xs text-gray-400 hover:text-gray-600 underline"
+            >
+              Clear Auth State (Debug)
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

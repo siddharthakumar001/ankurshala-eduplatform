@@ -211,10 +211,7 @@ export default function StudentProfilePage() {
 
   const handleLogout = async () => {
     try {
-      const refreshToken = localStorage.getItem('refreshToken')
-      if (refreshToken) {
-        await authAPI.logout(refreshToken)
-      }
+      await authAPI.logout()
     } catch (error) {
       console.error('Logout error:', error)
     } finally {

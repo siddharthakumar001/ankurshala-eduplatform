@@ -3,6 +3,7 @@ package com.ankurshala.backend.controller;
 import com.ankurshala.backend.dto.teacher.*;
 import com.ankurshala.backend.security.UserPrincipal;
 import com.ankurshala.backend.service.TeacherProfileService;
+import com.ankurshala.backend.service.ResourceAuthorizationService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +23,9 @@ public class TeacherProfileController {
 
     @Autowired
     private TeacherProfileService teacherProfileService;
+
+    @Autowired
+    private ResourceAuthorizationService resourceAuthorizationService;
 
     // Profile Management
     @GetMapping("/profile")
@@ -78,6 +82,12 @@ public class TeacherProfileController {
             @PathVariable Long qualificationId,
             Authentication authentication) {
         Long userId = getUserIdFromAuthentication(authentication);
+        
+        // Verify ownership before deletion
+        if (!resourceAuthorizationService.canAccessTeacherResource(userId, qualificationId)) {
+            return ResponseEntity.status(403).build();
+        }
+        
         teacherProfileService.deleteTeacherQualification(userId, qualificationId);
         return ResponseEntity.ok().build();
     }
@@ -198,6 +208,12 @@ public class TeacherProfileController {
             @PathVariable Long documentId,
             Authentication authentication) {
         Long userId = getUserIdFromAuthentication(authentication);
+        
+        // Verify ownership before deletion
+        if (!resourceAuthorizationService.canAccessTeacherResource(userId, documentId)) {
+            return ResponseEntity.status(403).build();
+        }
+        
         teacherProfileService.deleteTeacherDocument(userId, documentId);
         return ResponseEntity.ok().build();
     }

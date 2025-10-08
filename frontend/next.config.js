@@ -66,6 +66,34 @@ const nextConfig = {
       },
     ]
   },
+  // API rewrites to proxy backend requests
+  async rewrites() {
+    // For server-side rewrites, we need to use the actual backend URL
+    // In Docker: use internal service name (backend:8080)
+    // In development: use localhost:8080
+    // BACKEND_URL is only for server-side (Next.js server) communication with backend
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:8080/api'
+    
+    console.log('[Next.js Rewrites] Backend URL:', backendUrl)
+    
+    return [
+      // NOTE: Routes for /api/admin/*, /api/student/*, /api/teacher/* are handled by
+      // API route handlers in src/app/api/ which properly forward cookies
+      // Only rewrite auth and other public endpoints directly to backend
+      {
+        source: '/api/auth/:path*',
+        destination: `${backendUrl}/auth/:path*`,
+      },
+      {
+        source: '/api/user/:path*',
+        destination: `${backendUrl}/user/:path*`,
+      },
+      {
+        source: '/api/actuator/:path*',
+        destination: `${backendUrl}/actuator/:path*`,
+      },
+    ]
+  },
   // Redirects for security
   async redirects() {
     return [

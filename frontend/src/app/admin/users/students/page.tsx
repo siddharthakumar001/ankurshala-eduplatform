@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import AdminLayoutSimple from '@/components/admin-layout-simple'
+import AuthGuard from '@/components/AuthGuard'
+import SessionManager from '@/components/SessionManager'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,9 +24,13 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
-  Download
+  Download,
+  AlertCircle,
+  Loader2,
+  RefreshCw
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { api } from '@/utils/api'
 
 interface Student {
   id: number
@@ -66,27 +72,36 @@ const EDUCATIONAL_BOARDS = [
 ]
 
 const CLASS_LEVELS = [
-  { value: 'GRADE_1', label: 'Grade 1' },
-  { value: 'GRADE_2', label: 'Grade 2' },
-  { value: 'GRADE_3', label: 'Grade 3' },
-  { value: 'GRADE_4', label: 'Grade 4' },
-  { value: 'GRADE_5', label: 'Grade 5' },
-  { value: 'GRADE_6', label: 'Grade 6' },
-  { value: 'GRADE_7', label: 'Grade 7' },
-  { value: 'GRADE_8', label: 'Grade 8' },
-  { value: 'GRADE_9', label: 'Grade 9' },
-  { value: 'GRADE_10', label: 'Grade 10' },
-  { value: 'GRADE_11', label: 'Grade 11' },
-  { value: 'GRADE_12', label: 'Grade 12' },
-  { value: 'UNDERGRADUATE', label: 'Undergraduate' },
-  { value: 'POSTGRADUATE', label: 'Postgraduate' },
-  { value: 'DOCTORATE', label: 'Doctorate' },
-  { value: 'OTHER', label: 'Other' }
+  { value: 'GRADE_1', label: 'Grade 1', boards: ['STATE_BOARD', 'OTHER'] },
+  { value: 'GRADE_2', label: 'Grade 2', boards: ['STATE_BOARD', 'OTHER'] },
+  { value: 'GRADE_3', label: 'Grade 3', boards: ['STATE_BOARD', 'OTHER'] },
+  { value: 'GRADE_4', label: 'Grade 4', boards: ['STATE_BOARD', 'OTHER'] },
+  { value: 'GRADE_5', label: 'Grade 5', boards: ['STATE_BOARD', 'OTHER'] },
+  { value: 'GRADE_6', label: 'Grade 6', boards: ['STATE_BOARD', 'OTHER'] },
+  { value: 'GRADE_7', label: 'Grade 7', boards: ['CBSE', 'ICSE', 'STATE_BOARD', 'IB', 'CAMBRIDGE', 'OTHER'] },
+  { value: 'GRADE_8', label: 'Grade 8', boards: ['CBSE', 'ICSE', 'STATE_BOARD', 'IB', 'CAMBRIDGE', 'OTHER'] },
+  { value: 'GRADE_9', label: 'Grade 9', boards: ['CBSE', 'ICSE', 'STATE_BOARD', 'IB', 'CAMBRIDGE', 'OTHER'] },
+  { value: 'GRADE_10', label: 'Grade 10', boards: ['CBSE', 'ICSE', 'STATE_BOARD', 'IB', 'CAMBRIDGE', 'OTHER'] },
+  { value: 'GRADE_11', label: 'Grade 11', boards: ['CBSE', 'ICSE', 'STATE_BOARD', 'IB', 'CAMBRIDGE', 'OTHER'] },
+  { value: 'GRADE_12', label: 'Grade 12', boards: ['CBSE', 'ICSE', 'STATE_BOARD', 'IB', 'CAMBRIDGE', 'OTHER'] },
+  { value: 'UNDERGRADUATE', label: 'Undergraduate', boards: ['OTHER'] },
+  { value: 'POSTGRADUATE', label: 'Postgraduate', boards: ['OTHER'] },
+  { value: 'DOCTORATE', label: 'Doctorate', boards: ['OTHER'] },
+  { value: 'OTHER', label: 'Other', boards: ['CBSE', 'ICSE', 'STATE_BOARD', 'IB', 'CAMBRIDGE', 'OTHER'] }
 ]
+
+// Helper function to get available classes based on selected board
+const getAvailableClasses = (board: string) => {
+  if (!board || board === 'all') {
+    return CLASS_LEVELS
+  }
+  return CLASS_LEVELS.filter(level => level.boards.includes(board))
+}
 
 export default function AdminStudentsPage() {
   const [students, setStudents] = useState<Student[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
   const [totalElements, setTotalElements] = useState(0)
@@ -99,17 +114,41 @@ export default function AdminStudentsPage() {
   const [selectedStudent, setSelectedStudent] = useState<StudentDetail | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [studentToDelete, setStudentToDelete] = useState<Student | null>(null)
+  const [actionLoading, setActionLoading] = useState<number | null>(null)
 
   const pageSize = 10
 
+  // Fetch students on mount and when pagination/sort changes
   useEffect(() => {
     fetchStudents()
-  }, [currentPage, search, statusFilter, boardFilter, classFilter, sortBy, sortDir])
+  }, [currentPage, sortBy, sortDir])
+
+  // Debounced search effect - fetch when search or filters change
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      // Reset to first page when searching/filtering
+      if (currentPage !== 0) {
+        setCurrentPage(0)
+      } else {
+        fetchStudents()
+      }
+    }, 500) // 500ms debounce
+
+    return () => clearTimeout(timeoutId)
+  }, [search, statusFilter, boardFilter, classFilter])
 
   const fetchStudents = async () => {
+    // Allow initial load but prevent re-entry
+    const isInitialLoad = students.length === 0
+    if (loading && !isInitialLoad) return
+    
     setLoading(true)
+    setError(null)
+    
     try {
-      const token = localStorage.getItem('accessToken')
       const params = new URLSearchParams({
         page: currentPage.toString(),
         size: pageSize.toString(),
@@ -122,24 +161,31 @@ export default function AdminStudentsPage() {
       if (boardFilter && boardFilter !== 'all') params.append('educationalBoard', boardFilter)
       if (classFilter && classFilter !== 'all') params.append('classLevel', classFilter)
 
-      const response = await fetch(`http://localhost:8080/api/admin/students?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
+      console.log('Fetching students with params:', params.toString())
+      const response = await api.get(`/admin/students?${params}`)
 
-      if (response.ok) {
-        const data = await response.json()
-        setStudents(data.content || [])
-        setTotalPages(data.totalPages || 0)
-        setTotalElements(data.totalElements || 0)
+      // Our API client unwraps standardized ApiResponse and returns the inner data directly
+      // So response.data is the paginated Page object with content/totalPages/totalElements
+      const paginatedData = response.data as any
+      console.log('Students Page Data:', paginatedData)
+
+      if (paginatedData && paginatedData.content) {
+        const studentsData = paginatedData.content || []
+        setStudents(studentsData)
+        setTotalPages(paginatedData.totalPages || 0)
+        setTotalElements(paginatedData.totalElements || 0)
+        console.log('Students loaded:', studentsData.length, 'Total:', paginatedData.totalElements)
       } else {
-        toast.error('Failed to fetch students')
+        const errorMsg = 'Invalid response format'
+        setError(errorMsg)
+        toast.error(errorMsg)
+        console.error('Unexpected response structure:', paginatedData)
       }
-    } catch (error) {
-      console.error('Error fetching students:', error)
-      toast.error('Failed to fetch students')
+    } catch (err) {
+      console.error('Error fetching students:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch students'
+      setError(errorMessage)
+      toast.error(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -147,18 +193,12 @@ export default function AdminStudentsPage() {
 
   const fetchStudentDetail = async (id: number) => {
     try {
-      const token = localStorage.getItem('accessToken')
-      const response = await fetch(`http://localhost:8080/api/admin/students/${id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (response.ok) {
-        const student = await response.json()
-        setSelectedStudent(student)
-        return student
+      const response = await api.get(`/admin/students/${id}`)
+      const studentData = response.data as any
+      
+      if (studentData) {
+        setSelectedStudent(studentData)
+        return studentData
       } else {
         toast.error('Failed to fetch student details')
       }
@@ -169,65 +209,75 @@ export default function AdminStudentsPage() {
   }
 
   const toggleStudentStatus = async (id: number) => {
+    setActionLoading(id)
     try {
-      const token = localStorage.getItem('accessToken')
-      const response = await fetch(`http://localhost:8080/api/admin/students/${id}/toggle-status`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (response.ok) {
-        const result = await response.json()
-        toast.success(result.message || 'Student status updated successfully')
-        fetchStudents() // Refresh the list
-      } else {
-        // Handle RFC7807 error format
-        try {
-          const errorData = await response.json()
-          toast.error(errorData.detail || errorData.title || 'Failed to update student status')
-        } catch (e) {
-          toast.error('Failed to update student status')
-        }
-      }
+      const response = await api.patch(`/admin/students/${id}/toggle-status`)
+      // API client extracts data automatically on success
+      toast.success('Student status updated successfully')
+      fetchStudents() // Refresh the list
     } catch (error) {
       console.error('Error updating student status:', error)
-      toast.error('Failed to update student status')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update student status'
+      toast.error(errorMessage)
+    } finally {
+      setActionLoading(null)
     }
   }
 
   const updateStudent = async (id: number, updateData: Partial<StudentDetail>) => {
     try {
-      const token = localStorage.getItem('accessToken')
-      const response = await fetch(`http://localhost:8080/api/admin/students/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateData)
-      })
-
-      if (response.ok) {
-        const updatedStudent = await response.json()
+      const response = await api.put(`/admin/students/${id}`, updateData)
+      const updatedStudent = response.data as any
+      
+      if (updatedStudent) {
         toast.success('Student updated successfully')
         setIsEditDialogOpen(false)
         fetchStudents() // Refresh the list
         return updatedStudent
       } else {
-        // Handle RFC7807 error format
-        try {
-          const errorData = await response.json()
-          toast.error(errorData.detail || errorData.title || 'Failed to update student')
-        } catch (e) {
-          toast.error('Failed to update student')
-        }
+        toast.error('Failed to update student')
       }
     } catch (error) {
       console.error('Error updating student:', error)
-      toast.error('Failed to update student')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update student'
+      toast.error(errorMessage)
+    }
+  }
+
+  const createStudent = async (studentData: Partial<StudentDetail>) => {
+    try {
+      const response = await api.post(`/admin/students`, studentData)
+      const newStudent = response.data as any
+      
+      if (newStudent) {
+        toast.success('Student created successfully')
+        setIsCreateDialogOpen(false)
+        fetchStudents() // Refresh the list
+        return newStudent
+      } else {
+        toast.error('Failed to create student')
+      }
+    } catch (error) {
+      console.error('Error creating student:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create student'
+      toast.error(errorMessage)
+    }
+  }
+
+  const deleteStudent = async (id: number) => {
+    setActionLoading(id)
+    try {
+      await api.delete(`/admin/students/${id}`)
+      toast.success('Student deleted successfully')
+      setIsDeleteDialogOpen(false)
+      setStudentToDelete(null)
+      fetchStudents() // Refresh the list
+    } catch (error) {
+      console.error('Error deleting student:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete student'
+      toast.error(errorMessage)
+    } finally {
+      setActionLoading(null)
     }
   }
 
@@ -241,8 +291,30 @@ export default function AdminStudentsPage() {
     setIsEditDialogOpen(true)
   }
 
+  const handleDeleteStudent = (student: Student) => {
+    setStudentToDelete(student)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleCreateStudent = () => {
+    setIsCreateDialogOpen(true)
+  }
+
   const handleSearchChange = (value: string) => {
     setSearch(value)
+    setCurrentPage(0)
+  }
+
+  const handleBoardFilterChange = (value: string) => {
+    setBoardFilter(value)
+    // Reset class filter when board changes if the current class is not available for the new board
+    if (value !== 'all' && classFilter !== 'all') {
+      const availableClasses = getAvailableClasses(value)
+      const isClassAvailable = availableClasses.some(c => c.value === classFilter)
+      if (!isClassAvailable) {
+        setClassFilter('all')
+      }
+    }
     setCurrentPage(0)
   }
 
@@ -269,46 +341,84 @@ export default function AdminStudentsPage() {
 
   if (loading && students.length === 0) {
     return (
-      <AdminLayoutSimple>
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Manage Students</h1>
-              <p className="text-gray-600 dark:text-gray-400">View and manage student accounts</p>
+      <AuthGuard requiredRoles={['ADMIN']}>
+        <SessionManager showSessionInfo={true}>
+          <AdminLayoutSimple>
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Manage Students</h1>
+                  <p className="text-gray-600 dark:text-gray-400">View and manage student accounts</p>
+                </div>
+              </div>
+              <Card className="p-6">
+                <div className="animate-pulse space-y-4">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="h-16 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                  ))}
+                </div>
+              </Card>
             </div>
-          </div>
-          <Card className="p-6">
-            <div className="animate-pulse space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-16 bg-gray-200 dark:bg-gray-700 rounded"></div>
-              ))}
-            </div>
-          </Card>
-        </div>
-      </AdminLayoutSimple>
+          </AdminLayoutSimple>
+        </SessionManager>
+      </AuthGuard>
     )
   }
 
   return (
-    <AdminLayoutSimple>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Manage Students</h1>
-            <p className="text-gray-600 dark:text-gray-400">View and manage student accounts</p>
-          </div>
-          <div className="flex space-x-2">
-            <Button variant="outline" className="flex items-center space-x-2">
-              <Download className="h-4 w-4" />
-              <span>Export</span>
-            </Button>
-            <Button className="flex items-center space-x-2">
-              <Plus className="h-4 w-4" />
-              <span>Add Student</span>
-            </Button>
-          </div>
-        </div>
+    <AuthGuard requiredRoles={['ADMIN']}>
+      <SessionManager showSessionInfo={true}>
+        <AdminLayoutSimple>
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Manage Students</h1>
+                <p className="text-gray-600 dark:text-gray-400">View and manage student accounts</p>
+              </div>
+              <div className="flex space-x-2">
+                <Button 
+                  variant="outline" 
+                  className="flex items-center space-x-2"
+                  onClick={fetchStudents}
+                  disabled={loading}
+                >
+                  <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                  <span>Refresh</span>
+                </Button>
+                <Button variant="outline" className="flex items-center space-x-2">
+                  <Download className="h-4 w-4" />
+                  <span>Export</span>
+                </Button>
+                {/* Note: Student creation is done through user registration, not admin panel */}
+                {/* <Button 
+                  className="flex items-center space-x-2"
+                  onClick={handleCreateStudent}
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Add Student</span>
+                </Button> */}
+              </div>
+            </div>
+
+            {/* Error Display */}
+            {error && (
+              <Card className="p-6 border-red-200 bg-red-50 dark:bg-red-900/20">
+                <div className="flex items-center space-x-2 text-red-600 dark:text-red-400">
+                  <AlertCircle className="h-5 w-5" />
+                  <span className="font-medium">Error loading students</span>
+                </div>
+                <p className="text-red-600 dark:text-red-400 mt-2">{error}</p>
+                <Button 
+                  onClick={fetchStudents} 
+                  variant="outline" 
+                  size="sm" 
+                  className="mt-4"
+                >
+                  Try Again
+                </Button>
+              </Card>
+            )}
 
         {/* Search and Filters */}
         <Card className="p-6">
@@ -337,7 +447,7 @@ export default function AdminStudentsPage() {
                     <SelectItem value="false">Inactive</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={boardFilter} onValueChange={setBoardFilter}>
+                <Select value={boardFilter} onValueChange={handleBoardFilterChange}>
                   <SelectTrigger className="w-40">
                     <SelectValue placeholder="Board" />
                   </SelectTrigger>
@@ -354,7 +464,7 @@ export default function AdminStudentsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Classes</SelectItem>
-                    {CLASS_LEVELS.map(level => (
+                    {getAvailableClasses(boardFilter).map(level => (
                       <SelectItem key={level.value} value={level.value}>{level.label}</SelectItem>
                     ))}
                   </SelectContent>
@@ -463,6 +573,7 @@ export default function AdminStudentsPage() {
                                 variant="ghost" 
                                 size="sm"
                                 onClick={() => handleViewStudent(student.id)}
+                                disabled={actionLoading === student.id}
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
@@ -470,6 +581,7 @@ export default function AdminStudentsPage() {
                                 variant="ghost" 
                                 size="sm"
                                 onClick={() => handleEditStudent(student.id)}
+                                disabled={actionLoading === student.id}
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
@@ -477,9 +589,27 @@ export default function AdminStudentsPage() {
                                 variant="ghost" 
                                 size="sm"
                                 onClick={() => toggleStudentStatus(student.id)}
+                                disabled={actionLoading === student.id}
                                 className={student.enabled ? "text-red-600 hover:text-red-700" : "text-green-600 hover:text-green-700"}
+                                title={student.enabled ? "Disable student" : "Enable student"}
                               >
-                                {student.enabled ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
+                                {actionLoading === student.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : student.enabled ? (
+                                  <UserX className="h-4 w-4" />
+                                ) : (
+                                  <UserCheck className="h-4 w-4" />
+                                )}
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleDeleteStudent(student)}
+                                disabled={actionLoading === student.id}
+                                className="text-red-600 hover:text-red-700"
+                                title="Delete student"
+                              >
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
                           </td>
@@ -628,7 +758,7 @@ export default function AdminStudentsPage() {
 
         {/* Edit Student Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Student</DialogTitle>
             </DialogHeader>
@@ -641,8 +771,273 @@ export default function AdminStudentsPage() {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Create Student Dialog */}
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Add New Student</DialogTitle>
+            </DialogHeader>
+            <StudentCreateForm 
+              onSave={createStudent}
+              onCancel={() => setIsCreateDialogOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Student</DialogTitle>
+            </DialogHeader>
+            {studentToDelete && (
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Are you sure you want to delete the student <strong>{formatDisplayName(studentToDelete)}</strong>?
+                </p>
+                <p className="text-sm text-red-600 dark:text-red-400">
+                  This action cannot be undone.
+                </p>
+                <div className="flex justify-end space-x-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => {
+                      setIsDeleteDialogOpen(false)
+                      setStudentToDelete(null)
+                    }}
+                    disabled={actionLoading === studentToDelete.id}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="destructive"
+                    onClick={() => deleteStudent(studentToDelete.id)}
+                    disabled={actionLoading === studentToDelete.id}
+                  >
+                    {actionLoading === studentToDelete.id ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Deleting...
+                      </>
+                    ) : (
+                      'Delete Student'
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayoutSimple>
+  </SessionManager>
+</AuthGuard>
+)
+}
+
+// Student Create Form Component
+function StudentCreateForm({ 
+  onSave, 
+  onCancel 
+}: { 
+  onSave: (data: Partial<StudentDetail>) => void
+  onCancel: () => void 
+}) {
+  const [formData, setFormData] = useState({
+    firstName: '',
+    middleName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    mobileNumber: '',
+    alternateMobileNumber: '',
+    dateOfBirth: '',
+    motherName: '',
+    fatherName: '',
+    guardianName: '',
+    parentName: '',
+    educationalBoard: '',
+    classLevel: '',
+    gradeLevel: '',
+    schoolName: '',
+    emergencyContact: '',
+    enabled: true
+  })
+
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+    try {
+      await onSave(formData)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleChange = (field: string, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="create-firstName">First Name *</Label>
+          <Input
+            id="create-firstName"
+            value={formData.firstName}
+            onChange={(e) => handleChange('firstName', e.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <Label htmlFor="create-lastName">Last Name *</Label>
+          <Input
+            id="create-lastName"
+            value={formData.lastName}
+            onChange={(e) => handleChange('lastName', e.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <Label htmlFor="create-middleName">Middle Name</Label>
+          <Input
+            id="create-middleName"
+            value={formData.middleName}
+            onChange={(e) => handleChange('middleName', e.target.value)}
+          />
+        </div>
+        <div>
+          <Label htmlFor="create-email">Email *</Label>
+          <Input
+            id="create-email"
+            type="email"
+            value={formData.email}
+            onChange={(e) => handleChange('email', e.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <Label htmlFor="create-password">Password *</Label>
+          <Input
+            id="create-password"
+            type="password"
+            value={formData.password}
+            onChange={(e) => handleChange('password', e.target.value)}
+            required
+            minLength={8}
+          />
+        </div>
+        <div>
+          <Label htmlFor="create-mobileNumber">Mobile Number</Label>
+          <Input
+            id="create-mobileNumber"
+            value={formData.mobileNumber}
+            onChange={(e) => handleChange('mobileNumber', e.target.value)}
+          />
+        </div>
+        <div>
+          <Label htmlFor="create-dateOfBirth">Date of Birth</Label>
+          <Input
+            id="create-dateOfBirth"
+            type="date"
+            value={formData.dateOfBirth}
+            onChange={(e) => handleChange('dateOfBirth', e.target.value)}
+          />
+        </div>
+        <div>
+          <Label htmlFor="create-schoolName">School Name</Label>
+          <Input
+            id="create-schoolName"
+            value={formData.schoolName}
+            onChange={(e) => handleChange('schoolName', e.target.value)}
+          />
+        </div>
+        <div>
+          <Label htmlFor="create-educationalBoard">Educational Board</Label>
+          <Select value={formData.educationalBoard} onValueChange={(value) => handleChange('educationalBoard', value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select board" />
+            </SelectTrigger>
+            <SelectContent>
+              {EDUCATIONAL_BOARDS.map(board => (
+                <SelectItem key={board.value} value={board.value}>{board.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="create-classLevel">Class Level</Label>
+          <Select value={formData.classLevel} onValueChange={(value) => handleChange('classLevel', value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select class" />
+            </SelectTrigger>
+            <SelectContent>
+              {CLASS_LEVELS.map(level => (
+                <SelectItem key={level.value} value={level.value}>{level.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="create-motherName">Mother's Name</Label>
+          <Input
+            id="create-motherName"
+            value={formData.motherName}
+            onChange={(e) => handleChange('motherName', e.target.value)}
+          />
+        </div>
+        <div>
+          <Label htmlFor="create-fatherName">Father's Name</Label>
+          <Input
+            id="create-fatherName"
+            value={formData.fatherName}
+            onChange={(e) => handleChange('fatherName', e.target.value)}
+          />
+        </div>
+        <div>
+          <Label htmlFor="create-emergencyContact">Emergency Contact</Label>
+          <Input
+            id="create-emergencyContact"
+            value={formData.emergencyContact}
+            onChange={(e) => handleChange('emergencyContact', e.target.value)}
+          />
+        </div>
+        <div>
+          <Label htmlFor="create-enabled">Status</Label>
+          <Select value={formData.enabled.toString()} onValueChange={(value) => handleChange('enabled', value === 'true')}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="true">Active</SelectItem>
+              <SelectItem value="false">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      
+      <div className="flex justify-end space-x-2 pt-4">
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Creating...
+            </>
+          ) : (
+            'Create Student'
+          )}
+        </Button>
+      </div>
+    </form>
   )
 }
 
@@ -813,3 +1208,4 @@ function StudentEditForm({
     </form>
   )
 }
+

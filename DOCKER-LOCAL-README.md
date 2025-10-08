@@ -44,7 +44,7 @@ The backend runs in development mode with:
 
 1. Navigate to http://localhost:3000/login
 2. Use admin credentials (seeded automatically):
-   - Email: admin@ankurshala.com
+   - Email: siddhartha@ankurshala.com
    - Password: admin123
 3. Access admin dashboard at http://localhost:3000/admin
 

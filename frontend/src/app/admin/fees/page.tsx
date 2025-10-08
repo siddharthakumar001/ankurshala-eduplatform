@@ -17,7 +17,8 @@ import {
   Calendar,
   User,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from 'lucide-react'
 import {
   Select,
@@ -27,6 +28,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { api } from '@/utils/api'
+import { toast } from 'sonner'
 
 interface FeeWaiver {
   id: number
@@ -40,8 +43,16 @@ interface FeeWaiver {
 
 interface User {
   id: number
-  name: string
+  userId: number
+  firstName: string
+  lastName: string
   email: string
+  mobileNumber?: string
+  educationalBoard?: string
+  classLevel?: string
+  gradeLevel?: string
+  schoolName?: string
+  enabled: boolean
 }
 
 interface FeeWaiverStats {
@@ -58,6 +69,7 @@ export default function AdminFeesPage() {
   const [stats, setStats] = useState<FeeWaiverStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [studentSearchTerm, setStudentSearchTerm] = useState('')
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [creating, setCreating] = useState(false)
   
@@ -70,85 +82,83 @@ export default function AdminFeesPage() {
   })
 
   useEffect(() => {
-    const checkAuthAndFetch = () => {
-      const token = localStorage.getItem('accessToken')
-      if (token) {
-        fetchFeeWaivers()
-        fetchUsers()
-        fetchStats()
-      } else {
-        setTimeout(checkAuthAndFetch, 100)
-      }
-    }
-    checkAuthAndFetch()
+    fetchAllData()
   }, [])
 
-  const fetchFeeWaivers = async () => {
+  const fetchAllData = async () => {
+    setLoading(true)
     try {
-      const token = localStorage.getItem('accessToken')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/fees/waivers`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setFeeWaivers(data.content || data)
-      }
+      await Promise.all([
+        fetchFeeWaivers(),
+        fetchUsers(),
+        fetchStats()
+      ])
     } catch (error) {
-      console.error('Error fetching fee waivers:', error)
+      console.error('Error fetching data:', error)
+      toast.error('Failed to load data')
     } finally {
       setLoading(false)
     }
   }
 
+  const fetchFeeWaivers = async () => {
+    try {
+      const response = await api.get('/admin/fees/waivers')
+      const data = response.data
+      setFeeWaivers(data.content || data)
+    } catch (error) {
+      console.error('Error fetching fee waivers:', error)
+      toast.error('Failed to fetch fee waivers')
+    }
+  }
+
   const fetchUsers = async () => {
     try {
-      const token = localStorage.getItem('accessToken')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/users/students`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setUsers(data.content || data)
-      }
+      const response = await api.get('/admin/students')
+      const data = response.data
+      setUsers(data.content || data)
     } catch (error) {
       console.error('Error fetching users:', error)
+      toast.error('Failed to fetch users')
     }
   }
 
   const fetchStats = async () => {
     try {
-      const token = localStorage.getItem('accessToken')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/fees/waivers/stats`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setStats(data)
-      }
+      const response = await api.get('/admin/fees/waivers/stats')
+      const data = response.data
+      setStats(data)
     } catch (error) {
       console.error('Error fetching fee waiver stats:', error)
+      toast.error('Failed to fetch statistics')
     }
   }
 
   const handleCreateWaiver = async () => {
+    // Form validation
+    if (!formData.userId) {
+      toast.error('Please select a user')
+      return
+    }
+    if (!formData.reason.trim()) {
+      toast.error('Please enter a reason')
+      return
+    }
+    if (!formData.amount || parseFloat(formData.amount) <= 0) {
+      toast.error('Please enter a valid amount')
+      return
+    }
+
     try {
       setCreating(true)
-      const token = localStorage.getItem('accessToken')
       
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/fees/waive`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          userId: parseInt(formData.userId),
-          reason: formData.reason,
-          amount: parseFloat(formData.amount)
-        })
+      const response = await api.post('/admin/fees/waive', {
+        userId: parseInt(formData.userId),
+        reason: formData.reason,
+        amount: parseFloat(formData.amount)
       })
 
-      if (response.ok) {
+      if (response.data) {
         setFormData({
           userId: '',
           reason: '',
@@ -156,11 +166,13 @@ export default function AdminFeesPage() {
           notes: ''
         })
         setShowCreateForm(false)
+        toast.success('Fee waiver created successfully')
         fetchFeeWaivers()
         fetchStats()
       }
     } catch (error) {
       console.error('Error creating fee waiver:', error)
+      toast.error('Failed to create fee waiver')
     } finally {
       setCreating(false)
     }
@@ -188,6 +200,23 @@ export default function AdminFeesPage() {
     }).format(amount)
   }
 
+  const filteredStudents = users.filter(user => {
+    if (!studentSearchTerm) return true
+    
+    const searchLower = studentSearchTerm.toLowerCase()
+    const fullName = `${user.firstName} ${user.lastName}`.toLowerCase()
+    
+    return (
+      fullName.includes(searchLower) ||
+      user.email.toLowerCase().includes(searchLower) ||
+      (user.mobileNumber && user.mobileNumber.includes(searchLower)) ||
+      (user.educationalBoard && user.educationalBoard.toLowerCase().includes(searchLower)) ||
+      (user.classLevel && user.classLevel.toLowerCase().includes(searchLower)) ||
+      (user.gradeLevel && user.gradeLevel.toLowerCase().includes(searchLower)) ||
+      (user.schoolName && user.schoolName.toLowerCase().includes(searchLower))
+    )
+  })
+
   const filteredWaivers = feeWaivers.filter(waiver => {
     const matchesSearch = waiver.userEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          waiver.reason.toLowerCase().includes(searchTerm.toLowerCase())
@@ -199,7 +228,7 @@ export default function AdminFeesPage() {
       <AdminLayoutSimple>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
             <p className="text-gray-600 dark:text-gray-400">Loading fee waivers...</p>
           </div>
         </div>
@@ -282,23 +311,82 @@ export default function AdminFeesPage() {
         {showCreateForm && (
           <Card className="p-6">
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Create Fee Waiver</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Create Fee Waiver</h3>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => {
+                    setShowCreateForm(false)
+                    setFormData({ userId: '', reason: '', amount: '', notes: '' })
+                    setStudentSearchTerm('')
+                  }}
+                >
+                  ×
+                </Button>
+              </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="userId">Student</Label>
-                  <Select value={formData.userId} onValueChange={(value) => setFormData({...formData, userId: value})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a student..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {users.map((user) => (
-                        <SelectItem key={user.id} value={user.id.toString()}>
-                          {user.name} ({user.email})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Input
+                        placeholder="Search students by name, email, phone, board, grade..."
+                        value={studentSearchTerm}
+                        onChange={(e) => setStudentSearchTerm(e.target.value)}
+                        className="mb-2 pr-8"
+                      />
+                      {studentSearchTerm && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-1 top-1 h-6 w-6 p-0"
+                          onClick={() => setStudentSearchTerm('')}
+                        >
+                          ×
+                        </Button>
+                      )}
+                    </div>
+                    <Select value={formData.userId} onValueChange={(value) => {
+                      setFormData({...formData, userId: value})
+                      setStudentSearchTerm('') // Clear search when student is selected
+                    }}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a student..." />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-60">
+                        {filteredStudents.length === 0 ? (
+                          <div className="p-2 text-sm text-gray-500 text-center">
+                            {studentSearchTerm ? 'No students found' : 'No students available'}
+                          </div>
+                        ) : (
+                          <>
+                            {studentSearchTerm && (
+                              <div className="p-2 text-xs text-gray-500 border-b">
+                                {filteredStudents.length} student{filteredStudents.length !== 1 ? 's' : ''} found
+                              </div>
+                            )}
+                            {filteredStudents.map((user) => (
+                              <SelectItem key={user.id} value={user.userId.toString()}>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">
+                                    {user.firstName} {user.lastName}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    {user.email}
+                                    {user.mobileNumber && ` • ${user.mobileNumber}`}
+                                    {user.educationalBoard && ` • ${user.educationalBoard}`}
+                                    {user.classLevel && ` • ${user.classLevel}`}
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="amount">Waiver Amount (₹)</Label>
@@ -340,7 +428,11 @@ export default function AdminFeesPage() {
               </div>
 
               <div className="flex justify-end space-x-3">
-                <Button variant="outline" onClick={() => setShowCreateForm(false)}>
+                <Button variant="outline" onClick={() => {
+                  setShowCreateForm(false)
+                  setFormData({ userId: '', reason: '', amount: '', notes: '' })
+                  setStudentSearchTerm('')
+                }}>
                   Cancel
                 </Button>
                 <Button 
@@ -350,7 +442,7 @@ export default function AdminFeesPage() {
                 >
                   {creating ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
                       Creating...
                     </>
                   ) : (

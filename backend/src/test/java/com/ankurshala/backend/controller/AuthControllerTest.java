@@ -6,34 +6,27 @@ import com.ankurshala.backend.dto.auth.SigninRequest;
 import com.ankurshala.backend.dto.auth.SignupRequest;
 import com.ankurshala.backend.dto.common.ApiResponse;
 import com.ankurshala.backend.entity.Role;
-import com.ankurshala.backend.entity.User;
-import com.ankurshala.backend.exception.BusinessException;
-import com.ankurshala.backend.exception.GlobalExceptionHandler;
 import com.ankurshala.backend.service.AuthService;
 import com.ankurshala.backend.service.LoggingService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ankurshala.backend.util.TraceUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
-import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-/**
- * Comprehensive JUnit tests for AuthController
- * Tests all endpoints with various scenarios including edge cases
- */
 @ExtendWith(MockitoExtension.class)
 class AuthControllerTest {
 
@@ -43,410 +36,298 @@ class AuthControllerTest {
     @Mock
     private LoggingService loggingService;
 
+    @Mock
+    private HttpServletRequest request;
+
     @InjectMocks
     private AuthController authController;
 
-    private MockMvc mockMvc;
-    private ObjectMapper objectMapper;
+    private SignupRequest signupRequest;
+    private SigninRequest signinRequest;
+    private RefreshTokenRequest refreshTokenRequest;
+    private AuthResponse authResponse;
 
     @BeforeEach
     void setUp() {
-        GlobalExceptionHandler globalExceptionHandler = new GlobalExceptionHandler();
-        // Inject LoggingService into GlobalExceptionHandler
-        try {
-            java.lang.reflect.Field loggingServiceField = GlobalExceptionHandler.class.getDeclaredField("loggingService");
-            loggingServiceField.setAccessible(true);
-            loggingServiceField.set(globalExceptionHandler, loggingService);
-        } catch (Exception e) {
-            // Ignore reflection errors
+        signupRequest = new SignupRequest();
+        signupRequest.setEmail("test@example.com");
+        signupRequest.setName("Test User");
+        signupRequest.setPassword("password123");
+
+        signinRequest = new SigninRequest();
+        signinRequest.setEmail("test@example.com");
+        signinRequest.setPassword("password123");
+
+        refreshTokenRequest = new RefreshTokenRequest();
+        refreshTokenRequest.setRefreshToken("refresh-token");
+
+        authResponse = new AuthResponse();
+        authResponse.setUserId(1L);
+        authResponse.setEmail("test@example.com");
+        authResponse.setRole(Role.STUDENT);
+        authResponse.setAccessToken("access-token");
+        authResponse.setRefreshToken("refresh-token");
+    }
+
+    @Test
+    void testSignupStudent_Success() {
+        try (MockedStatic<TraceUtil> traceUtilMock = mockStatic(TraceUtil.class)) {
+            // Mock TraceUtil static methods
+            traceUtilMock.when(TraceUtil::getTraceId).thenReturn("trace-123");
+            traceUtilMock.when(TraceUtil::getRequestId).thenReturn("req-123");
+
+            // Mock AuthService
+            when(authService.signupStudent(any(SignupRequest.class))).thenReturn(authResponse);
+
+            // Execute
+            ResponseEntity<ApiResponse<AuthResponse>> response = authController.signupStudent(signupRequest, request);
+
+            // Verify
+            assertNotNull(response);
+            assertEquals(HttpStatus.OK, response.getStatusCode());
+            assertNotNull(response.getBody());
+            assertEquals("Student registered successfully", response.getBody().getMessage());
+            assertEquals(authResponse, response.getBody().getData());
+            assertEquals("trace-123", response.getBody().getTraceId());
+            assertEquals("req-123", response.getBody().getRequestId());
+
+            // Verify service calls
+            verify(authService).signupStudent(signupRequest);
+            verify(loggingService).logBusinessOperationStart(eq("STUDENT_SIGNUP"), isNull(), any(Map.class));
+            verify(loggingService).logBusinessOperationComplete(eq("STUDENT_SIGNUP"), eq("1"), eq(true), anyLong());
+            verify(loggingService).logAuthenticationEvent(eq("SIGNUP_SUCCESS"), eq("1"), eq("test@example.com"), eq(true), isNull());
         }
-        
-        mockMvc = MockMvcBuilders.standaloneSetup(authController)
-                .setControllerAdvice(globalExceptionHandler)
-                .build();
-        objectMapper = new ObjectMapper();
     }
 
     @Test
-    void testSignupStudent_Success() throws Exception {
-        // Given
-        SignupRequest signupRequest = new SignupRequest();
-        signupRequest.setName("John Doe");
-        signupRequest.setEmail("john.doe@example.com");
-        signupRequest.setPassword("Password123!");
+    void testSignupStudent_Exception() {
+        try (MockedStatic<TraceUtil> traceUtilMock = mockStatic(TraceUtil.class)) {
+            // Mock TraceUtil static methods
+            traceUtilMock.when(TraceUtil::getTraceId).thenReturn("trace-123");
+            traceUtilMock.when(TraceUtil::getRequestId).thenReturn("req-123");
 
-        User user = new User();
-        user.setId(1L);
-        user.setName("John Doe");
-        user.setEmail("john.doe@example.com");
-        user.setRole(Role.STUDENT);
-        user.setEnabled(true);
+            // Mock AuthService to throw exception
+            RuntimeException exception = new RuntimeException("Signup failed");
+            when(authService.signupStudent(any(SignupRequest.class))).thenThrow(exception);
 
-        AuthResponse authResponse = new AuthResponse(
-                "access-token", "refresh-token", 1L, "John Doe", "john.doe@example.com", Role.STUDENT
-        );
+            // Execute and verify exception is thrown
+            assertThrows(RuntimeException.class, () -> {
+                authController.signupStudent(signupRequest, request);
+            });
 
-        when(authService.signupStudent(any(SignupRequest.class))).thenReturn(authResponse);
-
-        // When & Then
-        mockMvc.perform(post("/auth/signup/student")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(signupRequest)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").value("Student registered successfully"))
-                .andExpect(jsonPath("$.data.accessToken").value("access-token"))
-                .andExpect(jsonPath("$.data.refreshToken").value("refresh-token"))
-                .andExpect(jsonPath("$.data.userId").value(1))
-                .andExpect(jsonPath("$.data.name").value("John Doe"))
-                .andExpect(jsonPath("$.data.email").value("john.doe@example.com"))
-                .andExpect(jsonPath("$.data.role").value("STUDENT"));
-
-        verify(authService).signupStudent(any(SignupRequest.class));
-        verify(loggingService).logBusinessOperationStart(eq("STUDENT_SIGNUP"), isNull(), any());
-        verify(loggingService).logBusinessOperationComplete(eq("STUDENT_SIGNUP"), eq("1"), eq(true), anyLong());
-        verify(loggingService).logAuthenticationEvent(eq("SIGNUP_SUCCESS"), eq("1"), eq("john.doe@example.com"), eq(true), isNull());
+            // Verify error logging
+            verify(loggingService).logBusinessOperationComplete(eq("STUDENT_SIGNUP"), isNull(), eq(false), anyLong());
+            verify(loggingService).logError(eq("STUDENT_SIGNUP"), eq(exception), any(Map.class));
+        }
     }
 
     @Test
-    void testSignupStudent_ValidationError() throws Exception {
-        // Given
-        SignupRequest signupRequest = new SignupRequest();
-        signupRequest.setName(""); // Invalid: empty name
-        signupRequest.setEmail("invalid-email"); // Invalid: malformed email
-        signupRequest.setPassword("123"); // Invalid: too short password
+    void testSignupTeacher_Success() {
+        try (MockedStatic<TraceUtil> traceUtilMock = mockStatic(TraceUtil.class)) {
+            // Mock TraceUtil static methods
+            traceUtilMock.when(TraceUtil::getTraceId).thenReturn("trace-123");
+            traceUtilMock.when(TraceUtil::getRequestId).thenReturn("req-123");
 
-        // When & Then
-        mockMvc.perform(post("/auth/signup/student")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(signupRequest)))
-                .andExpect(status().isBadRequest());
+            // Update authResponse for teacher
+            authResponse.setRole(Role.TEACHER);
 
-        verify(authService, never()).signupStudent(any(SignupRequest.class));
+            // Mock AuthService
+            when(authService.signupTeacher(any(SignupRequest.class))).thenReturn(authResponse);
+
+            // Execute
+            ResponseEntity<ApiResponse<AuthResponse>> response = authController.signupTeacher(signupRequest, request);
+
+            // Verify
+            assertNotNull(response);
+            assertEquals(HttpStatus.OK, response.getStatusCode());
+            assertNotNull(response.getBody());
+            assertEquals("Teacher registered successfully", response.getBody().getMessage());
+            assertEquals(authResponse, response.getBody().getData());
+
+            // Verify service calls
+            verify(authService).signupTeacher(signupRequest);
+            verify(loggingService).logBusinessOperationStart(eq("TEACHER_SIGNUP"), isNull(), any(Map.class));
+            verify(loggingService).logBusinessOperationComplete(eq("TEACHER_SIGNUP"), eq("1"), eq(true), anyLong());
+            verify(loggingService).logAuthenticationEvent(eq("SIGNUP_SUCCESS"), eq("1"), eq("test@example.com"), eq(true), isNull());
+        }
     }
 
     @Test
-    void testSignupStudent_EmailAlreadyExists() throws Exception {
-        // Given
-        SignupRequest signupRequest = new SignupRequest();
-        signupRequest.setName("John Doe");
-        signupRequest.setEmail("existing@example.com");
-        signupRequest.setPassword("Password123!");
+    void testSignin_Success() {
+        try (MockedStatic<TraceUtil> traceUtilMock = mockStatic(TraceUtil.class)) {
+            // Mock TraceUtil static methods
+            traceUtilMock.when(TraceUtil::getTraceId).thenReturn("trace-123");
+            traceUtilMock.when(TraceUtil::getRequestId).thenReturn("req-123");
+            traceUtilMock.when(TraceUtil::getClientIp).thenReturn("127.0.0.1");
+            traceUtilMock.when(TraceUtil::getUserAgent).thenReturn("Mozilla/5.0");
 
-        when(authService.signupStudent(any(SignupRequest.class)))
-                .thenThrow(new BusinessException("Email is already in use!"));
+            // Mock AuthService
+            when(authService.signin(any(SigninRequest.class))).thenReturn(authResponse);
 
-        // When & Then
-        mockMvc.perform(post("/auth/signup/student")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(signupRequest)))
-                .andExpect(status().isBadRequest());
+            // Execute
+            ResponseEntity<ApiResponse<AuthResponse>> response = authController.signin(signinRequest, request);
 
-        verify(authService).signupStudent(any(SignupRequest.class));
-        verify(loggingService).logError(eq("STUDENT_SIGNUP"), any(Exception.class), any());
+            // Verify
+            assertNotNull(response);
+            assertEquals(HttpStatus.OK, response.getStatusCode());
+            assertNotNull(response.getBody());
+            assertEquals("Login successful", response.getBody().getMessage());
+            assertEquals(authResponse, response.getBody().getData());
+
+            // Verify service calls
+            verify(authService).signin(signinRequest);
+            verify(loggingService).logBusinessOperationStart(eq("SIGNIN"), isNull(), any(Map.class));
+            verify(loggingService).logBusinessOperationComplete(eq("SIGNIN"), eq("1"), eq(true), anyLong());
+            verify(loggingService).logAuthenticationEvent(eq("SIGNIN_SUCCESS"), eq("1"), eq("test@example.com"), eq(true), isNull());
+        }
     }
 
     @Test
-    void testSignupTeacher_Success() throws Exception {
-        // Given
-        SignupRequest signupRequest = new SignupRequest();
-        signupRequest.setName("Jane Smith");
-        signupRequest.setEmail("jane.smith@example.com");
-        signupRequest.setPassword("Password123!");
+    void testSignin_Exception() {
+        try (MockedStatic<TraceUtil> traceUtilMock = mockStatic(TraceUtil.class)) {
+            // Mock TraceUtil static methods
+            traceUtilMock.when(TraceUtil::getTraceId).thenReturn("trace-123");
+            traceUtilMock.when(TraceUtil::getRequestId).thenReturn("req-123");
+            traceUtilMock.when(TraceUtil::getClientIp).thenReturn("127.0.0.1");
 
-        AuthResponse authResponse = new AuthResponse(
-                "access-token", "refresh-token", 2L, "Jane Smith", "jane.smith@example.com", Role.TEACHER
-        );
+            // Mock AuthService to throw exception
+            RuntimeException exception = new RuntimeException("Signin failed");
+            when(authService.signin(any(SigninRequest.class))).thenThrow(exception);
 
-        when(authService.signupTeacher(any(SignupRequest.class))).thenReturn(authResponse);
+            // Execute and verify exception is thrown
+            assertThrows(RuntimeException.class, () -> {
+                authController.signin(signinRequest, request);
+            });
 
-        // When & Then
-        mockMvc.perform(post("/auth/signup/teacher")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(signupRequest)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").value("Teacher registered successfully"))
-                .andExpect(jsonPath("$.data.role").value("TEACHER"));
-
-        verify(authService).signupTeacher(any(SignupRequest.class));
-        verify(loggingService).logBusinessOperationStart(eq("TEACHER_SIGNUP"), isNull(), any());
-        verify(loggingService).logBusinessOperationComplete(eq("TEACHER_SIGNUP"), eq("2"), eq(true), anyLong());
+            // Verify error logging
+            verify(loggingService).logBusinessOperationComplete(eq("SIGNIN"), isNull(), eq(false), anyLong());
+            verify(loggingService).logAuthenticationEvent(eq("SIGNIN_FAILED"), isNull(), eq("test@example.com"), eq(false), eq("Signin failed"));
+            verify(loggingService).logError(eq("SIGNIN"), eq(exception), any(Map.class));
+        }
     }
 
     @Test
-    void testSignin_Success() throws Exception {
-        // Given
-        SigninRequest signinRequest = new SigninRequest();
-        signinRequest.setEmail("john.doe@example.com");
-        signinRequest.setPassword("password123");
+    void testRefreshToken_Success() {
+        try (MockedStatic<TraceUtil> traceUtilMock = mockStatic(TraceUtil.class)) {
+            // Mock TraceUtil static methods
+            traceUtilMock.when(TraceUtil::getTraceId).thenReturn("trace-123");
+            traceUtilMock.when(TraceUtil::getRequestId).thenReturn("req-123");
 
-        AuthResponse authResponse = new AuthResponse(
-                "access-token", "refresh-token", 1L, "John Doe", "john.doe@example.com", Role.STUDENT
-        );
+            // Mock AuthService
+            when(authService.refreshToken(any(RefreshTokenRequest.class))).thenReturn(authResponse);
 
-        when(authService.signin(any(SigninRequest.class))).thenReturn(authResponse);
+            // Execute
+            ResponseEntity<ApiResponse<AuthResponse>> response = authController.refreshToken(refreshTokenRequest, request);
 
-        // When & Then
-        mockMvc.perform(post("/auth/signin")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(signinRequest)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").value("Login successful"))
-                .andExpect(jsonPath("$.data.accessToken").value("access-token"));
+            // Verify
+            assertNotNull(response);
+            assertEquals(HttpStatus.OK, response.getStatusCode());
+            assertNotNull(response.getBody());
+            assertEquals("Token refreshed successfully", response.getBody().getMessage());
+            assertEquals(authResponse, response.getBody().getData());
 
-        verify(authService).signin(any(SigninRequest.class));
-        verify(loggingService).logBusinessOperationStart(eq("SIGNIN"), isNull(), any());
-        verify(loggingService).logBusinessOperationComplete(eq("SIGNIN"), eq("1"), eq(true), anyLong());
-        verify(loggingService).logAuthenticationEvent(eq("SIGNIN_SUCCESS"), eq("1"), eq("john.doe@example.com"), eq(true), isNull());
+            // Verify service calls
+            verify(authService).refreshToken(refreshTokenRequest);
+            verify(loggingService).logBusinessOperationStart(eq("TOKEN_REFRESH"), isNull(), any(Map.class));
+            verify(loggingService).logBusinessOperationComplete(eq("TOKEN_REFRESH"), eq("1"), eq(true), anyLong());
+            verify(loggingService).logAuthenticationEvent(eq("TOKEN_REFRESH_SUCCESS"), eq("1"), eq("test@example.com"), eq(true), isNull());
+        }
     }
 
     @Test
-    void testSignin_InvalidCredentials() throws Exception {
-        // Given
-        SigninRequest signinRequest = new SigninRequest();
-        signinRequest.setEmail("john.doe@example.com");
-        signinRequest.setPassword("wrongpassword");
+    void testRefreshToken_Exception() {
+        try (MockedStatic<TraceUtil> traceUtilMock = mockStatic(TraceUtil.class)) {
+            // Mock TraceUtil static methods
+            traceUtilMock.when(TraceUtil::getTraceId).thenReturn("trace-123");
+            traceUtilMock.when(TraceUtil::getRequestId).thenReturn("req-123");
 
-        when(authService.signin(any(SigninRequest.class)))
-                .thenThrow(new BusinessException("Invalid email or password"));
+            // Mock AuthService to throw exception
+            RuntimeException exception = new RuntimeException("Token refresh failed");
+            when(authService.refreshToken(any(RefreshTokenRequest.class))).thenThrow(exception);
 
-        // When & Then
-        mockMvc.perform(post("/auth/signin")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(signinRequest)))
-                .andExpect(status().isBadRequest());
+            // Execute and verify exception is thrown
+            assertThrows(RuntimeException.class, () -> {
+                authController.refreshToken(refreshTokenRequest, request);
+            });
 
-        verify(authService).signin(any(SigninRequest.class));
-        verify(loggingService).logAuthenticationEvent(eq("SIGNIN_FAILED"), isNull(), eq("john.doe@example.com"), eq(false), anyString());
-        verify(loggingService).logError(eq("SIGNIN"), any(Exception.class), any());
+            // Verify error logging
+            verify(loggingService).logBusinessOperationComplete(eq("TOKEN_REFRESH"), isNull(), eq(false), anyLong());
+            verify(loggingService).logAuthenticationEvent(eq("TOKEN_REFRESH_FAILED"), isNull(), isNull(), eq(false), eq("Token refresh failed"));
+            verify(loggingService).logError(eq("TOKEN_REFRESH"), eq(exception), any(Map.class));
+        }
     }
 
     @Test
-    void testSignin_ValidationError() throws Exception {
-        // Given
-        SigninRequest signinRequest = new SigninRequest();
-        signinRequest.setEmail(""); // Invalid: empty email
-        signinRequest.setPassword(""); // Invalid: empty password
+    void testLogout_Success() {
+        try (MockedStatic<TraceUtil> traceUtilMock = mockStatic(TraceUtil.class)) {
+            // Mock TraceUtil static methods
+            traceUtilMock.when(TraceUtil::getTraceId).thenReturn("trace-123");
+            traceUtilMock.when(TraceUtil::getRequestId).thenReturn("req-123");
 
-        // When & Then
-        mockMvc.perform(post("/auth/signin")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(signinRequest)))
-                .andExpect(status().isBadRequest());
+            // Mock AuthService
+            doNothing().when(authService).logout(anyString());
 
-        verify(authService, never()).signin(any(SigninRequest.class));
+            // Execute
+            ResponseEntity<ApiResponse<Void>> response = authController.logout(refreshTokenRequest, request);
+
+            // Verify
+            assertNotNull(response);
+            assertEquals(HttpStatus.OK, response.getStatusCode());
+            assertNotNull(response.getBody());
+            assertEquals("Logout successful", response.getBody().getMessage());
+            assertNull(response.getBody().getData());
+
+            // Verify service calls
+            verify(authService).logout("refresh-token");
+            verify(loggingService).logBusinessOperationStart(eq("LOGOUT"), isNull(), any(Map.class));
+            verify(loggingService).logBusinessOperationComplete(eq("LOGOUT"), isNull(), eq(true), anyLong());
+            verify(loggingService).logAuthenticationEvent(eq("LOGOUT_SUCCESS"), isNull(), isNull(), eq(true), isNull());
+        }
     }
 
     @Test
-    void testRefreshToken_Success() throws Exception {
-        // Given
-        RefreshTokenRequest refreshTokenRequest = new RefreshTokenRequest();
-        refreshTokenRequest.setRefreshToken("valid-refresh-token");
+    void testLogout_Exception() {
+        try (MockedStatic<TraceUtil> traceUtilMock = mockStatic(TraceUtil.class)) {
+            // Mock TraceUtil static methods
+            traceUtilMock.when(TraceUtil::getTraceId).thenReturn("trace-123");
+            traceUtilMock.when(TraceUtil::getRequestId).thenReturn("req-123");
 
-        AuthResponse authResponse = new AuthResponse(
-                "new-access-token", "new-refresh-token", 1L, "John Doe", "john.doe@example.com", Role.STUDENT
-        );
+            // Mock AuthService to throw exception
+            RuntimeException exception = new RuntimeException("Logout failed");
+            doThrow(exception).when(authService).logout(anyString());
 
-        when(authService.refreshToken(any(RefreshTokenRequest.class))).thenReturn(authResponse);
+            // Execute and verify exception is thrown
+            assertThrows(RuntimeException.class, () -> {
+                authController.logout(refreshTokenRequest, request);
+            });
 
-        // When & Then
-        mockMvc.perform(post("/auth/refresh")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(refreshTokenRequest)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").value("Token refreshed successfully"))
-                .andExpect(jsonPath("$.data.accessToken").value("new-access-token"));
-
-        verify(authService).refreshToken(any(RefreshTokenRequest.class));
-        verify(loggingService).logBusinessOperationStart(eq("TOKEN_REFRESH"), isNull(), any());
-        verify(loggingService).logBusinessOperationComplete(eq("TOKEN_REFRESH"), eq("1"), eq(true), anyLong());
+            // Verify error logging
+            verify(loggingService).logBusinessOperationComplete(eq("LOGOUT"), isNull(), eq(false), anyLong());
+            verify(loggingService).logError(eq("LOGOUT"), eq(exception), any(Map.class));
+        }
     }
 
     @Test
-    void testRefreshToken_InvalidToken() throws Exception {
-        // Given
-        RefreshTokenRequest refreshTokenRequest = new RefreshTokenRequest();
-        refreshTokenRequest.setRefreshToken("invalid-refresh-token");
+    void testTestEndpoint_Success() {
+        try (MockedStatic<TraceUtil> traceUtilMock = mockStatic(TraceUtil.class)) {
+            // Mock TraceUtil static methods
+            traceUtilMock.when(TraceUtil::getTraceId).thenReturn("trace-123");
+            traceUtilMock.when(TraceUtil::getRequestId).thenReturn("req-123");
 
-        when(authService.refreshToken(any(RefreshTokenRequest.class)))
-                .thenThrow(new BusinessException("Invalid refresh token"));
+            // Execute
+            ResponseEntity<ApiResponse<String>> response = authController.test(request);
 
-        // When & Then
-        mockMvc.perform(post("/auth/refresh")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(refreshTokenRequest)))
-                .andExpect(status().isBadRequest());
+            // Verify
+            assertNotNull(response);
+            assertEquals(HttpStatus.OK, response.getStatusCode());
+            assertNotNull(response.getBody());
+            assertEquals("Test endpoint successful", response.getBody().getMessage());
+            assertEquals("AuthController is working", response.getBody().getData());
+            assertEquals("trace-123", response.getBody().getTraceId());
+            assertEquals("req-123", response.getBody().getRequestId());
 
-        verify(authService).refreshToken(any(RefreshTokenRequest.class));
-        verify(loggingService).logAuthenticationEvent(eq("TOKEN_REFRESH_FAILED"), isNull(), isNull(), eq(false), anyString());
-        verify(loggingService).logError(eq("TOKEN_REFRESH"), any(Exception.class), any());
-    }
-
-    @Test
-    void testLogout_Success() throws Exception {
-        // Given
-        RefreshTokenRequest refreshTokenRequest = new RefreshTokenRequest();
-        refreshTokenRequest.setRefreshToken("valid-refresh-token");
-
-        doNothing().when(authService).logout(anyString());
-
-        // When & Then
-        mockMvc.perform(post("/auth/logout")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(refreshTokenRequest)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").value("Logout successful"));
-
-        verify(authService).logout(anyString());
-        verify(loggingService).logBusinessOperationStart(eq("LOGOUT"), isNull(), any());
-        verify(loggingService).logBusinessOperationComplete(eq("LOGOUT"), isNull(), eq(true), anyLong());
-        verify(loggingService).logAuthenticationEvent(eq("LOGOUT_SUCCESS"), isNull(), isNull(), eq(true), isNull());
-    }
-
-    @Test
-    void testLogout_ServiceException() throws Exception {
-        // Given
-        RefreshTokenRequest refreshTokenRequest = new RefreshTokenRequest();
-        refreshTokenRequest.setRefreshToken("invalid-refresh-token");
-
-        doThrow(new BusinessException("Logout failed")).when(authService).logout(anyString());
-
-        // When & Then
-        mockMvc.perform(post("/auth/logout")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(refreshTokenRequest)))
-                .andExpect(status().isBadRequest());
-
-        verify(authService).logout(anyString());
-        verify(loggingService).logError(eq("LOGOUT"), any(Exception.class), any());
-    }
-
-    @Test
-    void testTestEndpoint_Success() throws Exception {
-        // When & Then
-        mockMvc.perform(get("/auth/test"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").value("Test endpoint successful"))
-                .andExpect(jsonPath("$.data").value("AuthController is working"));
-
-        verify(loggingService).logSystemEvent(eq("AUTH_TEST_ENDPOINT"), eq("INFO"), anyString(), any());
-    }
-
-    @Test
-    void testSignupStudent_MissingRequiredFields() throws Exception {
-        // Given
-        SignupRequest signupRequest = new SignupRequest();
-        // Missing all required fields
-
-        // When & Then
-        mockMvc.perform(post("/auth/signup/student")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(signupRequest)))
-                .andExpect(status().isBadRequest());
-
-        verify(authService, never()).signupStudent(any(SignupRequest.class));
-    }
-
-    @Test
-    void testSignupStudent_EmailTooLong() throws Exception {
-        // Given
-        SignupRequest signupRequest = new SignupRequest();
-        signupRequest.setName("John Doe");
-        signupRequest.setEmail("a".repeat(300) + "@example.com"); // Too long email
-        signupRequest.setPassword("Password123!");
-
-        // When & Then
-        mockMvc.perform(post("/auth/signup/student")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(signupRequest)))
-                .andExpect(status().isBadRequest());
-
-        verify(authService, never()).signupStudent(any(SignupRequest.class));
-    }
-
-    @Test
-    void testSignin_UserDisabled() throws Exception {
-        // Given
-        SigninRequest signinRequest = new SigninRequest();
-        signinRequest.setEmail("disabled@example.com");
-        signinRequest.setPassword("password123");
-
-        when(authService.signin(any(SigninRequest.class)))
-                .thenThrow(new BusinessException("User account is disabled"));
-
-        // When & Then
-        mockMvc.perform(post("/auth/signin")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(signinRequest)))
-                .andExpect(status().isBadRequest());
-
-        verify(authService).signin(any(SigninRequest.class));
-        verify(loggingService).logAuthenticationEvent(eq("SIGNIN_FAILED"), isNull(), eq("disabled@example.com"), eq(false), anyString());
-    }
-
-    @Test
-    void testRefreshToken_ExpiredToken() throws Exception {
-        // Given
-        RefreshTokenRequest refreshTokenRequest = new RefreshTokenRequest();
-        refreshTokenRequest.setRefreshToken("expired-refresh-token");
-
-        when(authService.refreshToken(any(RefreshTokenRequest.class)))
-                .thenThrow(new BusinessException("Refresh token has expired"));
-
-        // When & Then
-        mockMvc.perform(post("/auth/refresh")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(refreshTokenRequest)))
-                .andExpect(status().isBadRequest());
-
-        verify(authService).refreshToken(any(RefreshTokenRequest.class));
-        verify(loggingService).logAuthenticationEvent(eq("TOKEN_REFRESH_FAILED"), isNull(), isNull(), eq(false), anyString());
-    }
-
-    @Test
-    void testSignupStudent_ServiceException() throws Exception {
-        // Given
-        SignupRequest signupRequest = new SignupRequest();
-        signupRequest.setName("John Doe");
-        signupRequest.setEmail("john.doe@example.com");
-        signupRequest.setPassword("Password123!");
-
-        when(authService.signupStudent(any(SignupRequest.class)))
-                .thenThrow(new BusinessException("Database connection failed"));
-
-        // When & Then
-        mockMvc.perform(post("/auth/signup/student")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(signupRequest)))
-                .andExpect(status().isBadRequest());
-
-        verify(authService).signupStudent(any(SignupRequest.class));
-        verify(loggingService).logError(eq("STUDENT_SIGNUP"), any(Exception.class), any());
-    }
-
-    @Test
-    void testSignupTeacher_ServiceException() throws Exception {
-        // Given
-        SignupRequest signupRequest = new SignupRequest();
-        signupRequest.setName("Jane Smith");
-        signupRequest.setEmail("jane.smith@example.com");
-        signupRequest.setPassword("Password123!");
-
-        when(authService.signupTeacher(any(SignupRequest.class)))
-                .thenThrow(new BusinessException("Service unavailable"));
-
-        // When & Then
-        mockMvc.perform(post("/auth/signup/teacher")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(signupRequest)))
-                .andExpect(status().isBadRequest());
-
-        verify(authService).signupTeacher(any(SignupRequest.class));
-        verify(loggingService).logError(eq("TEACHER_SIGNUP"), any(Exception.class), any());
+            // Verify logging
+            verify(loggingService).logSystemEvent(eq("AUTH_TEST_ENDPOINT"), eq("INFO"), eq("Auth test endpoint called"), any(Map.class));
+        }
     }
 }

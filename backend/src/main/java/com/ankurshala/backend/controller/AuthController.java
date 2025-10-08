@@ -235,6 +235,44 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/heartbeat")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> heartbeat(HttpServletRequest request) {
+        String traceId = TraceUtil.getTraceId();
+        String requestId = TraceUtil.getRequestId();
+        long startTime = System.currentTimeMillis();
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put("clientIp", TraceUtil.getClientIp());
+        context.put("userAgent", TraceUtil.getUserAgent());
+        
+        loggingService.logBusinessOperationStart("HEARTBEAT", null, context);
+        
+        try {
+            // Get current user from security context
+            String currentUser = request.getUserPrincipal() != null ? request.getUserPrincipal().getName() : null;
+            
+            Map<String, Object> heartbeatData = new HashMap<>();
+            heartbeatData.put("timestamp", System.currentTimeMillis());
+            heartbeatData.put("status", "active");
+            heartbeatData.put("user", currentUser);
+            
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("HEARTBEAT", currentUser, true, executionTime);
+            
+            ApiResponse<Map<String, Object>> apiResponse = ApiResponse.success(heartbeatData, "Heartbeat successful");
+            apiResponse.setTraceId(traceId);
+            apiResponse.setRequestId(requestId);
+            
+            return ResponseEntity.ok(apiResponse);
+            
+        } catch (Exception e) {
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("HEARTBEAT", null, false, executionTime);
+            loggingService.logError("HEARTBEAT", e, context);
+            throw e;
+        }
+    }
+
     @GetMapping("/test")
     public ResponseEntity<ApiResponse<String>> test(HttpServletRequest request) {
         String traceId = TraceUtil.getTraceId();

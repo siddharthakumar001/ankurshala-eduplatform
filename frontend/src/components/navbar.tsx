@@ -22,11 +22,8 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     try {
-      const refreshToken = localStorage.getItem('refreshToken')
-      if (refreshToken) {
-        // Call logout API to invalidate refresh token
-        await authAPI.logout(refreshToken)
-      }
+      // Call logout API to invalidate refresh token
+      await authAPI.logout()
     } catch (error) {
       console.error('Logout error:', error)
     } finally {

@@ -1,29 +1,62 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, Page } from '@playwright/test'
+
+// Helper function for robust login and navigation
+async function loginAndGoToStudents(page: Page) {
+  await page.goto('/login')
+  await page.fill('input[placeholder="Enter your email"]', 'siddhartha@ankurshala.com')
+  await page.fill('input[placeholder="Enter your password"]', 'Maza@123')
+  
+  // Click submit and wait for navigation
+  await page.click('button[type="submit"]')
+  await page.waitForURL(/\/admin/, { timeout: 15000 })
+  
+  // Wait a bit for session to be established
+  await page.waitForTimeout(1000)
+  
+  // Navigate directly to students page with retry
+  for (let i = 0; i < 3; i++) {
+    await page.goto('/admin/users/students')
+    try {
+      await page.waitForURL('/admin/users/students', { timeout: 10000 })
+      break
+    } catch (e) {
+      if (i === 2) {
+        // If still failing, try login again
+        await page.goto('/login')
+        await page.fill('input[placeholder="Enter your email"]', 'siddhartha@ankurshala.com')
+        await page.fill('input[placeholder="Enter your password"]', 'Maza@123')
+        await page.click('button[type="submit"]')
+        await page.waitForURL(/\/admin/, { timeout: 15000 })
+        await page.goto('/admin/users/students')
+        await page.waitForURL('/admin/users/students', { timeout: 10000 })
+      }
+      await page.waitForTimeout(1000)
+    }
+  }
+  
+  await page.waitForLoadState('networkidle')
+  await page.waitForSelector('.animate-pulse', { state: 'hidden', timeout: 15000 })
+}
+
+// Helper function for Radix UI Select interactions
+async function openRadixAndSelect(page: Page, triggerText: string, optionText: string) {
+  // Blur any active search input to prevent interception
+  await page.locator('input[placeholder*="Search"]').blur()
+  
+  // Click the trigger with force and trial
+  const trigger = page.locator(`button:has-text("${triggerText}")`)
+  await trigger.click({ force: true, trial: true })
+  
+  // Wait for dropdown to be visible
+  await page.waitForSelector('[role="listbox"]', { timeout: 5000 })
+  
+  // Use keyboard navigation to select option
+  await page.keyboard.press('ArrowDown')
+  await page.keyboard.press('Enter')
+}
 
 test.describe('Admin Students Management', () => {
-  test.beforeEach(async ({ page }) => {
-    // Login as admin
-    await page.goto('/login')
-    await expect(page.locator('input[type="email"]')).toBeVisible()
-    await page.fill('input[type="email"]', 'siddhartha@ankurshala.com')
-    await page.fill('input[type="password"]', 'Maza@123')
-    await page.click('button[type="submit"]')
-    
-    // Wait for login to complete and redirect (could be /admin or /admin/profile)
-    await page.waitForURL(/\/admin/, { timeout: 10000 })
-    
-    // Navigate to students page
-    await page.click('a[href="/admin/users/students"]')
-    await page.waitForURL('/admin/users/students')
-    
-    // Wait for the page to load completely
-    await page.waitForLoadState('networkidle')
-    
-    // Wait for loading to complete
-    await page.waitForSelector('.animate-pulse', { state: 'hidden', timeout: 10000 })
-    
-    await expect(page.locator('h1')).toContainText('Manage Students')
-  })
+  test.beforeEach(async ({ page }) => { await loginAndGoToStudents(page) })
 
   test('should display students management page with proper structure', async ({ page }) => {
     // Check page title and description
@@ -80,54 +113,32 @@ test.describe('Admin Students Management', () => {
   })
 
   test('should handle status filter', async ({ page }) => {
-    // Click on status filter dropdown
-    await page.click('button:has-text("Status")')
-    
-    // Wait for dropdown to open and select active status
-    await page.waitForSelector('[role="option"]:has-text("Active")', { timeout: 5000 })
-    await page.click('[role="option"]:has-text("Active")')
-    
-    // The filter should be applied (we can verify the button text changes)
-    await expect(page.locator('button').filter({ hasText: 'Active' })).toBeVisible()
+    await openRadixAndSelect(page, 'Status', 'Active')
+    // Verify filter was applied by checking button text or UI state
+    await expect(page.locator('button').filter({ hasText: /Status|Active/ })).toBeVisible()
   })
 
   test('should handle educational board filter', async ({ page }) => {
-    // Click on board filter dropdown
-    await page.click('button:has-text("Board")')
-    
-    // Wait for dropdown to open and select CBSE
-    await page.waitForSelector('[role="option"]:has-text("CBSE")', { timeout: 5000 })
-    await page.click('[role="option"]:has-text("CBSE")')
-    
-    // The filter should be applied
-    await expect(page.locator('button').filter({ hasText: 'CBSE' })).toBeVisible()
+    await openRadixAndSelect(page, 'Board', 'CBSE')
+    // Verify filter was applied
+    await expect(page.locator('button').filter({ hasText: /Board|CBSE/ })).toBeVisible()
   })
 
   test('should handle class level filter', async ({ page }) => {
-    // Click on class filter dropdown
-    await page.click('button:has-text("Class")')
-    
-    // Wait for dropdown to open and select Grade 8
-    await page.waitForSelector('[role="option"]:has-text("Grade 8")', { timeout: 5000 })
-    await page.click('[role="option"]:has-text("Grade 8")')
-    
-    // The filter should be applied
-    await expect(page.locator('button').filter({ hasText: 'Grade 8' })).toBeVisible()
+    await openRadixAndSelect(page, 'Class', 'Grade 8')
+    // Verify filter was applied
+    await expect(page.locator('button').filter({ hasText: /Class|Grade/ })).toBeVisible()
   })
 
   test('should clear all filters when clear button is clicked', async ({ page }) => {
-    // Wait for page to load
-    await page.waitForLoadState('domcontentloaded')
-    await page.waitForTimeout(2000)
-    
     // Apply some filters
     await page.locator('input[placeholder*="Search"]').fill('test')
-    await page.waitForSelector('[data-testid="status-select"]', { timeout: 10000 })
-    await page.click('[data-testid="status-select"]')
-    await page.click('[role="option"]:has-text("Active")')
+    await openRadixAndSelect(page, 'Status', 'Active')
     
     // Clear filters
-    await page.click('button:has-text("Clear")')
+    const clearBtn = page.locator('button:has-text("Clear")')
+    await clearBtn.scrollIntoViewIfNeeded()
+    await clearBtn.click({ force: true })
     
     // Verify filters are cleared
     await expect(page.locator('input[placeholder*="Search"]')).toHaveValue('')

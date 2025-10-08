@@ -2,14 +2,18 @@ package com.ankurshala.backend.service;
 
 import com.ankurshala.backend.dto.admin.DashboardMetricsDto;
 import com.ankurshala.backend.dto.admin.DashboardSeriesDto;
-import com.ankurshala.backend.repository.UserRepository;
 import com.ankurshala.backend.repository.StudentProfileRepository;
 import com.ankurshala.backend.repository.TeacherProfileRepository;
+import com.ankurshala.backend.repository.BoardRepository;
+import com.ankurshala.backend.repository.GradeRepository;
+import com.ankurshala.backend.repository.SubjectRepository;
+import com.ankurshala.backend.repository.ChapterRepository;
+import com.ankurshala.backend.repository.TopicRepository;
+import com.ankurshala.backend.repository.ImportJobRepository;
+import com.ankurshala.backend.entity.ImportJobStatus;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,13 +22,28 @@ import java.util.List;
 public class AdminDashboardService {
 
     @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
     private StudentProfileRepository studentProfileRepository;
 
     @Autowired
     private TeacherProfileRepository teacherProfileRepository;
+
+    @Autowired
+    private BoardRepository boardRepository;
+
+    @Autowired
+    private GradeRepository gradeRepository;
+
+    @Autowired
+    private SubjectRepository subjectRepository;
+
+    @Autowired
+    private ChapterRepository chapterRepository;
+
+    @Autowired
+    private TopicRepository topicRepository;
+
+    @Autowired
+    private ImportJobRepository importJobRepository;
 
     // @Cacheable(value = "dashboardMetrics", unless = "#result == null")
     public DashboardMetricsDto getDashboardMetrics() {
@@ -47,16 +66,23 @@ public class AdminDashboardService {
         long newTeachersLast7Days = teacherProfileRepository.countByUserCreatedAtBetween(sevenDaysAgo, LocalDateTime.now());
         long newTeachersLast30Days = teacherProfileRepository.countByUserCreatedAtBetween(thirtyDaysAgo, LocalDateTime.now());
 
-        // Content counts (placeholders for now - will be implemented in content management stages)
-        long totalBoards = 0;
-        long totalGrades = 0;
-        long totalSubjects = 0;
-        long totalChapters = 0;
-        long totalTopics = 0;
+        // Content counts - using real data from repositories
+        long totalBoards = boardRepository.countByActiveTrueAndSoftDeletedFalse();
+        long totalGrades = gradeRepository.count(); // Total grades (active + inactive)
+        long totalSubjects = subjectRepository.countByActiveTrueAndSoftDeletedFalse();
+        long totalChapters = chapterRepository.countByActiveTrueAndSoftDeletedFalse();
+        long totalTopics = topicRepository.countByActiveTrueAndSoftDeletedFalse();
 
         // Course counts (placeholders for now)
         long activeCourses = 0;
         long completedCourses = 0;
+
+        // Import analytics - using real data from repository
+        long totalImports = importJobRepository.count();
+        long successfulImports = importJobRepository.countByStatus(ImportJobStatus.SUCCEEDED);
+        long failedImports = importJobRepository.countByStatus(ImportJobStatus.FAILED);
+        long pendingImports = importJobRepository.countByStatus(ImportJobStatus.PENDING);
+        long runningImports = importJobRepository.countByStatus(ImportJobStatus.RUNNING);
 
         return new DashboardMetricsDto(
                 totalStudents,
@@ -75,7 +101,12 @@ public class AdminDashboardService {
                 totalChapters,
                 totalTopics,
                 activeCourses,
-                completedCourses
+                completedCourses,
+                totalImports,
+                successfulImports,
+                failedImports,
+                pendingImports,
+                runningImports
         );
     }
 

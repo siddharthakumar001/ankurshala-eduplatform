@@ -54,7 +54,7 @@ public interface ChapterRepository extends JpaRepository<Chapter, Long>, JpaSpec
     @Query("SELECT COUNT(t) FROM Topic t WHERE t.chapterId = :chapterId AND t.softDeleted = false")
     Long countTopicsByChapterId(@Param("chapterId") Long chapterId);
 
-    @Query("SELECT COUNT(tn) FROM TopicNote tn WHERE tn.topic.chapterId = :chapterId AND tn.softDeleted = false")
+    @Query("SELECT COUNT(tn) FROM TopicNote tn WHERE tn.topicId IN (SELECT t.id FROM Topic t WHERE t.chapterId = :chapterId AND t.softDeleted = false) AND tn.softDeleted = false")
     Long countTopicNotesByChapterId(@Param("chapterId") Long chapterId);
 
     @Query("SELECT COUNT(c) FROM Chapter c WHERE c.subjectId = :subjectId AND c.softDeleted = false")

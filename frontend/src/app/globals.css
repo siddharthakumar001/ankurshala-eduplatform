@@ -24,6 +24,23 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.5rem;
+    
+    /* AnkurShala Brand Colors */
+    --brand-primary: 221.2 83.2% 53.3%;      /* #2563eb */
+    --brand-secondary: 238.1 100% 60.2%;     /* #4f46e5 */
+    --brand-accent: 213.1 93.9% 67.8%;       /* #3b82f6 */
+    --brand-success: 158.1 64.4% 51.6%;      /* #10b981 */
+    --brand-warning: 38.4 92.0% 50.2%;       /* #f59e0b */
+    --brand-error: 0 84.2% 60.2%;             /* #ef4444 */
+    --brand-info: 188.7 94.5% 42.7%;         /* #06b6d4 */
+    
+    /* Educational Theme Colors */
+    --education-grade7: 262.1 83.3% 57.8%;   /* #8b5cf6 */
+    --education-grade8: 188.7 94.5% 42.7%;   /* #06b6d4 */
+    --education-grade9: 158.1 64.4% 51.6%;   /* #10b981 */
+    --education-grade10: 38.4 92.0% 50.2%;   /* #f59e0b */
+    --education-grade11: 0 84.2% 60.2%;      /* #ef4444 */
+    --education-grade12: 238.1 100% 60.2%;   /* #6366f1 */
   }
 
   .dark {

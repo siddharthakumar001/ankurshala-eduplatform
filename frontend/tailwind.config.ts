@@ -51,6 +51,25 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // AnkurShala Brand Colors
+        brand: {
+          primary: "#2563eb",      // Main brand blue
+          secondary: "#4f46e5",    // Secondary blue
+          accent: "#3b82f6",       // Accent blue
+          success: "#10b981",      // Success green
+          warning: "#f59e0b",      // Warning orange
+          error: "#ef4444",        // Error red
+          info: "#06b6d4",          // Info cyan
+        },
+        // Educational Theme Colors
+        education: {
+          grade7: "#8b5cf6",       // Purple for Grade 7
+          grade8: "#06b6d4",       // Cyan for Grade 8
+          grade9: "#10b981",       // Green for Grade 9
+          grade10: "#f59e0b",      // Orange for Grade 10
+          grade11: "#ef4444",      // Red for Grade 11
+          grade12: "#6366f1",      // Indigo for Grade 12
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

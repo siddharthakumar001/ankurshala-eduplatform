@@ -75,7 +75,7 @@ public interface TopicRepository extends JpaRepository<Topic, Long>, JpaSpecific
     @Query("SELECT COUNT(tn) FROM TopicNote tn WHERE tn.topicId = :topicId AND tn.softDeleted = false")
     Long countTopicNotesByTopicId(@Param("topicId") Long topicId);
 
-    @Query("SELECT COUNT(t) FROM Topic t WHERE t.chapter.subject.gradeId = :gradeId AND t.softDeleted = false")
+    @Query("SELECT COUNT(t) FROM Topic t WHERE t.gradeId = :gradeId AND t.softDeleted = false")
     Long countTopicsByGradeIdAndSoftDeletedFalse(@Param("gradeId") Long gradeId);
 
     @Query("SELECT COUNT(t) FROM Topic t WHERE t.chapterId = :chapterId AND t.softDeleted = false")

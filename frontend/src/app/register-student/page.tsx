@@ -1,323 +1,398 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { toast } from 'sonner'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { api } from '@/utils/api'
+import { useAuth } from '@/hooks/useAuth'
 import Image from 'next/image'
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { useAuthStore } from '@/store/auth'
-import { authAPI } from '@/lib/apiClient'
-import { authManager } from '@/utils/auth'
-import { useTheme } from '@/components/theme-provider'
-import { Sun, Moon, Eye, EyeOff, ArrowLeft, User, Mail, Lock, CheckCircle } from 'lucide-react'
+import { Eye, EyeOff, Lock, Mail, AlertCircle, User, GraduationCap, BookOpen } from 'lucide-react'
 
-const studentRegistrationSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Please enter a valid email address'),
-  password: z
-    .string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-    .regex(/[0-9]|[^a-zA-Z0-9]/, 'Password must contain at least one number or symbol'),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-})
+interface SignupFormData {
+  name: string
+  email: string
+  password: string
+  confirmPassword: string
+  agreeToTerms: boolean
+}
 
-type StudentRegistrationForm = z.infer<typeof studentRegistrationSchema>
+const USER_DASHBOARD_ROUTES = {
+  ADMIN: '/admin/dashboard',
+  TEACHER: '/teacher/profile',
+  STUDENT: '/student/profile'
+} as const
 
-export default function RegisterStudentPage() {
-  const [loading, setLoading] = useState(false)
+function StudentSignupForm() {
+  const [formData, setFormData] = useState<SignupFormData>({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    agreeToTerms: false
+  })
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const router = useRouter()
-  const { login } = useAuthStore()
-  const { theme, setTheme } = useTheme()
+  const searchParams = useSearchParams()
+  const { login, isAuthenticated } = useAuth()
 
-  const toggleTheme = () => {
-    setTheme(theme === 'dark' ? 'light' : 'dark')
+  useEffect(() => {
+    // Redirect if already authenticated
+    if (isAuthenticated) {
+      const redirectTo = searchParams.get('redirect') || '/'
+      router.push(redirectTo)
+      return
+    }
+  }, [isAuthenticated, router, searchParams])
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target
+    
+    // Sanitize input
+    const sanitizedValue = value
+      .replace(/[<>]/g, '')
+      .replace(/javascript:/gi, '')
+      .replace(/on\w+=/gi, '')
+      .trim()
+
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : sanitizedValue
+    }))
+    
+    // Clear error when user starts typing
+    if (error) {
+      setError('')
+    }
   }
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<StudentRegistrationForm>({
-    resolver: zodResolver(studentRegistrationSchema),
-  })
+  const validateForm = (): boolean => {
+    if (!formData.name.trim()) {
+      setError('Full name is required')
+      return false
+    }
 
-  const onSubmit = async (data: StudentRegistrationForm) => {
-    setLoading(true)
+    if (!formData.email.trim()) {
+      setError('Email is required')
+      return false
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(formData.email)) {
+      setError('Please enter a valid email address')
+      return false
+    }
+
+    // Password strength validation
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters long')
+      return false
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match')
+      return false
+    }
+
+    if (!formData.agreeToTerms) {
+      setError('You must agree to the terms and conditions')
+      return false
+    }
+
+    return true
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!validateForm()) {
+      return
+    }
+
+    setIsLoading(true)
+    setError('')
 
     try {
-      const response = await authAPI.signupStudent(data.name, data.email, data.password)
+      console.log('🔐 Starting student signup...')
+      const response = await api.post('/auth/signup/student', {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password
+      }, { requireAuth: false })
+
+      console.log('📥 Raw response:', response)
+      console.log('📦 Response data:', response.data)
+
+      // The API client already extracts the data from the API response
+      // So response.data contains the user data directly
+      const userData = response.data as any
       
-      // Extract data from the API response
-      const userData = {
-        id: response.data.userId.toString(),
-        email: response.data.email,
-        name: response.data.name,
-        role: response.data.role
+      console.log('✅ User data received:', userData)
+      
+      if (userData && userData.userId && userData.role) {
+        const processedUserData = {
+          id: userData.userId?.toString() || '',
+          email: userData.email || formData.email,
+          name: userData.name || formData.name,
+          role: userData.role || 'STUDENT'
+        }
+
+        console.log('✨ Processed user data:', processedUserData)
+
+        if (!processedUserData.id || !processedUserData.role) {
+          console.error('❌ Invalid user data - missing id or role')
+          setError('Invalid response from server. Please try again.')
+          setIsLoading(false)
+          return
+        }
+
+        // Update authentication state
+        console.log('🔑 Setting authentication state...')
+        login(processedUserData)
+
+        // Redirect to student dashboard
+        const redirectTo = searchParams.get('redirect') || USER_DASHBOARD_ROUTES.STUDENT
+        
+        console.log('🚀 Redirecting to:', redirectTo)
+        
+        // Use window.location for immediate redirect to ensure it works
+        window.location.href = redirectTo
+        
+      } else {
+        console.error('❌ Signup failed - invalid user data')
+        console.error('User data:', userData)
+        setError('Signup failed. Please try again.')
+        setIsLoading(false)
       }
-
-      // Set authentication data in both systems
-      authManager.setAuth(
-        response.data.accessToken,
-        response.data.refreshToken,
-        userData
-      )
-      
-      // Also update Zustand store for RouteGuard compatibility
-      login(userData)
-
-      toast.success('Account created successfully!')
-      router.push('/student/profile')
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Registration failed')
-    } finally {
-      setLoading(false)
+      console.error('Signup error:', err)
+      
+      // Handle specific error cases
+      if (err.response?.status === 409) {
+        setError('An account with this email already exists. Please try logging in instead.')
+      } else if (err.response?.status >= 500) {
+        setError('Server error. Please try again later.')
+      } else {
+        setError('Signup failed. Please try again.')
+      }
+      setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      {/* Theme Toggle Button */}
-      <div className="absolute top-6 right-6">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggleTheme}
-          className="text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
-        >
-          {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-        </Button>
-      </div>
-
-      {/* Back to Home Button */}
-      <div className="absolute top-6 left-6">
-        <Link href="/">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Home
-          </Button>
-        </Link>
-      </div>
-
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
-        {/* Header */}
+        {/* Header with Logo */}
         <div className="text-center">
-          <div className="flex justify-center mb-6">
-            <div className="relative">
-              <Image
-                src="/ankurshala.svg"
-                alt="Ankurshala Logo"
-                width={100}
-                height={100}
-                className="rounded-2xl shadow-lg"
-              />
-              <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl blur opacity-20"></div>
-            </div>
+          <div className="mx-auto h-24 w-24 mb-6">
+            <Image
+              src="/Ankurshala Logo - Watermark (Small) - 300x300.png"
+              alt="Ankurshala"
+              width={96}
+              height={96}
+              className="mx-auto rounded-xl shadow-lg"
+              priority
+            />
           </div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            AnkurShala
-          </h1>
-          <p className="mt-3 text-lg text-gray-600 dark:text-gray-300">
-            Join as Student - Start your learning journey with personalized 1:1 sessions
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Join as Student
+          </h2>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            Create your student account to start learning
           </p>
         </div>
-        
-        {/* Registration Card */}
-        <Card className="backdrop-blur-sm bg-white/80 dark:bg-gray-800/80 border-0 shadow-2xl">
-          <CardHeader className="space-y-1 pb-6">
-            <CardTitle className="text-2xl font-bold text-center text-gray-900 dark:text-white">
-              Create Student Account
-            </CardTitle>
-            <CardDescription className="text-center text-gray-600 dark:text-gray-400">
-              Fill in your details to get started
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              {/* Name Field */}
-              <div className="space-y-2">
-                <label htmlFor="name" className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center">
-                  <User className="h-4 w-4 mr-2" />
-                  Full Name
-                </label>
-                <input
-                  {...register('name')}
-                  type="text"
-                  className={`w-full px-4 py-3 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-500/20 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 ${
-                    errors.name 
-                      ? 'border-red-500 focus:border-red-500' 
-                      : 'border-gray-200 dark:border-gray-600 focus:border-blue-500'
-                  }`}
-                  placeholder="Enter your full name"
-                />
-                {errors.name && (
-                  <p className="text-sm text-red-600 dark:text-red-400">{errors.name.message}</p>
-                )}
-              </div>
-              
-              {/* Email Field */}
-              <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center">
-                  <Mail className="h-4 w-4 mr-2" />
-                  Email Address
-                </label>
-                <input
-                  {...register('email')}
-                  type="email"
-                  className={`w-full px-4 py-3 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-500/20 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 ${
-                    errors.email 
-                      ? 'border-red-500 focus:border-red-500' 
-                      : 'border-gray-200 dark:border-gray-600 focus:border-blue-500'
-                  }`}
-                  placeholder="Enter your email"
-                />
-                {errors.email && (
-                  <p className="text-sm text-red-600 dark:text-red-400">{errors.email.message}</p>
-                )}
-              </div>
-              
-              {/* Password Field */}
-              <div className="space-y-2">
-                <label htmlFor="password" className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center">
-                  <Lock className="h-4 w-4 mr-2" />
-                  Password
-                </label>
-                <div className="relative">
-                  <input
-                    {...register('password')}
-                    type={showPassword ? 'text' : 'password'}
-                    className={`w-full px-4 py-3 pr-12 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-500/20 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 ${
-                      errors.password 
-                        ? 'border-red-500 focus:border-red-500' 
-                        : 'border-gray-200 dark:border-gray-600 focus:border-blue-500'
-                    }`}
-                    placeholder="Enter your password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </button>
-                </div>
-                {errors.password && (
-                  <p className="text-sm text-red-600 dark:text-red-400">{errors.password.message}</p>
-                )}
-                <div className="text-xs text-gray-500 dark:text-gray-400">
-                  <div className="flex items-center mb-1">
-                    <CheckCircle className="h-3 w-3 mr-1" />
-                    At least 8 characters
-                  </div>
-                  <div className="flex items-center mb-1">
-                    <CheckCircle className="h-3 w-3 mr-1" />
-                    Uppercase & lowercase letters
-                  </div>
-                  <div className="flex items-center">
-                    <CheckCircle className="h-3 w-3 mr-1" />
-                    Numbers or symbols
-                  </div>
-                </div>
-              </div>
-              
-              {/* Confirm Password Field */}
-              <div className="space-y-2">
-                <label htmlFor="confirmPassword" className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center">
-                  <Lock className="h-4 w-4 mr-2" />
-                  Confirm Password
-                </label>
-                <div className="relative">
-                  <input
-                    {...register('confirmPassword')}
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    className={`w-full px-4 py-3 pr-12 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-500/20 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 ${
-                      errors.confirmPassword 
-                        ? 'border-red-500 focus:border-red-500' 
-                        : 'border-gray-200 dark:border-gray-600 focus:border-blue-500'
-                    }`}
-                    placeholder="Confirm your password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-                  >
-                    {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </button>
-                </div>
-                {errors.confirmPassword && (
-                  <p className="text-sm text-red-600 dark:text-red-400">{errors.confirmPassword.message}</p>
-                )}
-              </div>
-              
-              {/* Submit Button */}
-              <Button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3 text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-              >
-                {loading ? (
-                  <div className="flex items-center justify-center space-x-2">
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Creating account...</span>
-                  </div>
-                ) : (
-                  'Create Student Account'
-                )}
-              </Button>
-            </form>
-            
-            {/* Navigation Links */}
-            <div className="mt-8 text-center space-y-4">
+
+        {/* Signup Form */}
+        <div className="bg-white dark:bg-gray-800 py-8 px-6 shadow-xl rounded-xl border-0">
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            {/* Name Field */}
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <User className="inline h-4 w-4 mr-2" />
+                Full Name
+              </label>
+              <input
+                id="name"
+                name="name"
+                type="text"
+                autoComplete="name"
+                required
+                value={formData.name}
+                onChange={handleInputChange}
+                className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-all duration-200"
+                placeholder="Enter your full name"
+              />
+            </div>
+
+            {/* Email Field */}
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <Mail className="inline h-4 w-4 mr-2" />
+                Email Address
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={formData.email}
+                onChange={handleInputChange}
+                className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-all duration-200"
+                placeholder="Enter your email"
+              />
+            </div>
+
+            {/* Password Field */}
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <Lock className="inline h-4 w-4 mr-2" />
+                Password
+              </label>
               <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-200 dark:border-gray-600"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">
-                    Already have an account?
-                  </span>
-                </div>
-              </div>
-              
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <Link href="/login">
-                  <Button variant="outline" className="w-full sm:w-auto border-blue-600 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20">
-                    Sign In
-                  </Button>
-                </Link>
-                <Link href="/register-teacher">
-                  <Button variant="outline" className="w-full sm:w-auto border-indigo-600 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20">
-                    Join as Teacher
-                  </Button>
-                </Link>
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  required
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 pr-12 border-2 border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-all duration-200"
+                  placeholder="Create a password"
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
               </div>
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Footer */}
+            {/* Confirm Password Field */}
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <Lock className="inline h-4 w-4 mr-2" />
+                Confirm Password
+              </label>
+              <div className="relative">
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  required
+                  value={formData.confirmPassword}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 pr-12 border-2 border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-all duration-200"
+                  placeholder="Confirm your password"
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Terms Agreement */}
+            <div className="flex items-center">
+              <input
+                id="agreeToTerms"
+                name="agreeToTerms"
+                type="checkbox"
+                checked={formData.agreeToTerms}
+                onChange={handleInputChange}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor="agreeToTerms" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+                I agree to the{' '}
+                <button
+                  type="button"
+                  className="text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+                >
+                  Terms and Conditions
+                </button>
+                {' '}and{' '}
+                <button
+                  type="button"
+                  className="text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+                >
+                  Privacy Policy
+                </button>
+              </label>
+            </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-lg p-4">
+                <div className="flex">
+                  <AlertCircle className="h-5 w-5 text-red-400 mr-3 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none transition-all duration-200 transform hover:scale-[1.02]"
+            >
+              {isLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Creating Account...
+                </>
+              ) : (
+                <>
+                  <GraduationCap className="h-4 w-4 mr-2" />
+                  Create Student Account
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Login Link */}
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Already have an account?{' '}
+              <button
+                onClick={() => router.push('/login')}
+                className="text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+              >
+                Sign in
+              </button>
+            </p>
+          </div>
+        </div>
+
+        {/* Security Notice */}
         <div className="text-center">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            © 2024 AnkurShala. Empowering education through technology.
-          </p>
+          <div className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
+            <p>🔒 Your connection is secured with enterprise-grade encryption</p>
+            <p>📚 Start your learning journey with Ankurshala</p>
+          </div>
         </div>
       </div>
     </div>
+  )
+}
+
+export default function StudentSignupPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <StudentSignupForm />
+    </Suspense>
   )
 }

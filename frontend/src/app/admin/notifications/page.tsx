@@ -39,6 +39,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { toast } from 'sonner'
+import { api } from '@/utils/api'
+import { Loader2 } from 'lucide-react'
 
 interface Notification {
   id: number
@@ -65,6 +68,7 @@ export default function AdminNotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [stats, setStats] = useState<NotificationStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [audienceFilter, setAudienceFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -72,6 +76,7 @@ export default function AdminNotificationsPage() {
   const [showPreviewDialog, setShowPreviewDialog] = useState(false)
   const [sending, setSending] = useState(false)
   const [broadcastResult, setBroadcastResult] = useState<any>(null)
+  const [error, setError] = useState('')
   
   // Form states
   const [formData, setFormData] = useState({
@@ -82,63 +87,52 @@ export default function AdminNotificationsPage() {
   })
 
   useEffect(() => {
-    const checkAuthAndFetch = () => {
-      const token = localStorage.getItem('accessToken')
-      if (token) {
-        fetchNotifications()
-        fetchStats()
-      } else {
-        setTimeout(checkAuthAndFetch, 100)
-      }
-    }
-    checkAuthAndFetch()
+    fetchAllData()
   }, [])
 
-  const fetchNotifications = async () => {
+  const fetchAllData = async () => {
     try {
-      const token = localStorage.getItem('accessToken')
-      const params = new URLSearchParams()
-      if (audienceFilter) params.append('audience', audienceFilter)
-      if (statusFilter) params.append('status', statusFilter)
+      setLoading(true)
+      setError('')
       
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/notifications?${params}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setNotifications(data.content || data)
-      } else {
-        console.warn('Failed to fetch notifications:', response.status)
-        setNotifications([]) // Set empty array on failure
-      }
+      await Promise.all([
+        fetchNotifications(),
+        fetchStats()
+      ])
     } catch (error) {
-      console.error('Error fetching notifications:', error)
-      setNotifications([]) // Set empty array on error
+      console.error('Error fetching data:', error)
+      setError('Failed to load data. Please try again.')
+      toast.error('Failed to load notification data')
     } finally {
       setLoading(false)
     }
   }
 
+  const fetchNotifications = async () => {
+    try {
+      console.log('Fetching notifications...')
+      const params = new URLSearchParams()
+      if (audienceFilter && audienceFilter !== 'all') params.append('audience', audienceFilter)
+      if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter)
+      
+      const response = await api.get(`/admin/notifications?${params}`)
+      const data = response.data
+      console.log('Notifications response:', data)
+      setNotifications(data.content || data || [])
+    } catch (error) {
+      console.error('Error fetching notifications:', error)
+      setNotifications([]) // Set empty array on error
+      throw error
+    }
+  }
+
   const fetchStats = async () => {
     try {
-      const token = localStorage.getItem('accessToken')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/notifications/stats`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setStats(data)
-      } else {
-        console.warn('Failed to fetch notification stats:', response.status)
-        // Set default stats on failure
-        setStats({
-          totalNotifications: 0,
-          queuedNotifications: 0,
-          sentNotifications: 0,
-          failedNotifications: 0,
-          notificationsLast30Days: 0
-        })
-      }
+      console.log('Fetching notification stats...')
+      const response = await api.get('/admin/notifications/statistics')
+      const data = response.data
+      console.log('Stats response:', data)
+      setStats(data)
     } catch (error) {
       console.error('Error fetching notification stats:', error)
       // Set default stats on error
@@ -149,41 +143,54 @@ export default function AdminNotificationsPage() {
         failedNotifications: 0,
         notificationsLast30Days: 0
       })
+      throw error
     }
   }
 
   const handleSendNotification = async () => {
     try {
       setSending(true)
-      const token = localStorage.getItem('accessToken')
+      setError('')
       
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/notifications/broadcast`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData)
+      console.log('Sending notification:', formData)
+      const response = await api.post('/admin/notifications/broadcast', formData)
+      const result = response.data
+      console.log('Broadcast result:', result)
+      
+      setBroadcastResult(result)
+      setShowComposeDialog(false)
+      setFormData({
+        title: '',
+        body: '',
+        audience: 'STUDENT',
+        delivery: 'IN_APP'
       })
-
-      if (response.ok) {
-        const result = await response.json()
-        setBroadcastResult(result)
-        setShowComposeDialog(false)
-        setFormData({
-          title: '',
-          body: '',
-          audience: 'STUDENT',
-          delivery: 'IN_APP'
-        })
-        fetchNotifications()
-        fetchStats()
-      }
-    } catch (error) {
+      
+      toast.success('Notification sent successfully!')
+      await fetchNotifications()
+      await fetchStats()
+    } catch (error: any) {
       console.error('Error sending notification:', error)
+      const errorMessage = error.response?.data?.message || 'Failed to send notification'
+      setError(errorMessage)
+      toast.error(errorMessage)
     } finally {
       setSending(false)
     }
+  }
+
+  const clearError = () => {
+    setError('')
+  }
+
+  const openComposeDialog = () => {
+    clearError()
+    setShowComposeDialog(true)
+  }
+
+  const closeComposeDialog = () => {
+    clearError()
+    setShowComposeDialog(false)
   }
 
   const getStatusIcon = (status: string) => {
@@ -274,8 +281,24 @@ export default function AdminNotificationsPage() {
       <AdminLayoutSimple>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
             <p className="text-gray-600 dark:text-gray-400">Loading notifications...</p>
+          </div>
+        </div>
+      </AdminLayoutSimple>
+    )
+  }
+
+  if (error) {
+    return (
+      <AdminLayoutSimple>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
+            <Button onClick={fetchAllData} variant="outline">
+              Try Again
+            </Button>
           </div>
         </div>
       </AdminLayoutSimple>
@@ -292,7 +315,7 @@ export default function AdminNotificationsPage() {
             <p className="text-gray-600 dark:text-gray-400">Send notifications to students and teachers</p>
           </div>
           <Button 
-            onClick={() => setShowComposeDialog(true)}
+            onClick={openComposeDialog}
             className="flex items-center space-x-2"
           >
             <Plus className="h-4 w-4" />
@@ -519,7 +542,7 @@ export default function AdminNotificationsPage() {
         </Card>
 
         {/* Compose Notification Dialog */}
-        <Dialog open={showComposeDialog} onOpenChange={setShowComposeDialog}>
+        <Dialog open={showComposeDialog} onOpenChange={closeComposeDialog}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Compose Notification</DialogTitle>
@@ -528,6 +551,14 @@ export default function AdminNotificationsPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
+              {error && (
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+                  <div className="flex">
+                    <AlertCircle className="h-5 w-5 text-red-400 mr-2" />
+                    <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="audience">Target Audience</Label>
@@ -587,7 +618,7 @@ export default function AdminNotificationsPage() {
               >
                 {sending ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     Sending...
                   </>
                 ) : (

@@ -42,9 +42,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Get token from cookies or headers
-  const token = request.cookies.get('accessToken')?.value || 
-                request.headers.get('authorization')?.replace('Bearer ', '')
+  // Get token from httpOnly cookies
+  const accessToken = request.cookies.get('accessToken')?.value
+  const refreshToken = request.cookies.get('refreshToken')?.value
 
   // Check if route is public
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
@@ -61,7 +61,7 @@ export function middleware(request: NextRequest) {
   }
 
   // If accessing protected route without token, redirect to login with proper message
-  if (isProtectedRoute && !token) {
+  if (isProtectedRoute && !accessToken && !refreshToken) {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('redirect', pathname)
     loginUrl.searchParams.set('message', 'Please login to access this page')
@@ -69,7 +69,7 @@ export function middleware(request: NextRequest) {
   }
 
   // If accessing admin route without token, redirect to login
-  if (isAdminRoute && !token) {
+  if (isAdminRoute && !accessToken && !refreshToken) {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('redirect', pathname)
     loginUrl.searchParams.set('message', 'Admin access required. Please login with admin credentials')
@@ -86,11 +86,24 @@ export function middleware(request: NextRequest) {
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
   
-  // CSP header for additional security
+  // Enhanced Content Security Policy
   response.headers.set(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http://localhost:8080 https://api.ankurshala.com;"
+    "default-src 'self'; " +
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+    "style-src 'self' 'unsafe-inline'; " +
+    "img-src 'self' data: https:; " +
+    "font-src 'self' data:; " +
+    "connect-src 'self' http://localhost:8080 https://api.ankurshala.com; " +
+    "frame-ancestors 'none'; " +
+    "base-uri 'self'; " +
+    "form-action 'self';"
   )
+
+  // Strict Transport Security (HSTS) for production
+  if (process.env.NODE_ENV === 'production') {
+    response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload')
+  }
 
   return response
 }

@@ -74,7 +74,7 @@ test.describe('Authentication Flow', () => {
     await expect(page.locator('text=Security Notice: Credentials in URL have been cleared')).toBeVisible();
     
     // URL should be clean
-    expect(page.url()).toBe('http://localhost:3001/login');
+    expect(page.url()).toBe('http://localhost:3000/login');
   });
 
   test('should validate email format', async ({ page }) => {

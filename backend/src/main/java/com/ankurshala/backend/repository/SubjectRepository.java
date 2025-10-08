@@ -89,10 +89,10 @@ public interface SubjectRepository extends JpaRepository<Subject, Long>, JpaSpec
     @Query("SELECT COUNT(c) FROM Chapter c WHERE c.subjectId = :subjectId AND c.softDeleted = false")
     Long countChaptersBySubjectId(@Param("subjectId") Long subjectId);
 
-    @Query("SELECT COUNT(t) FROM Topic t WHERE t.chapter.subjectId = :subjectId AND t.softDeleted = false")
+    @Query("SELECT COUNT(t) FROM Topic t WHERE t.chapterId IN (SELECT c.id FROM Chapter c WHERE c.subjectId = :subjectId AND c.softDeleted = false) AND t.softDeleted = false")
     Long countTopicsBySubjectId(@Param("subjectId") Long subjectId);
 
-    @Query("SELECT COUNT(tn) FROM TopicNote tn WHERE tn.topic.chapter.subjectId = :subjectId AND tn.softDeleted = false")
+    @Query("SELECT COUNT(tn) FROM TopicNote tn WHERE tn.topicId IN (SELECT t.id FROM Topic t WHERE t.chapterId IN (SELECT c.id FROM Chapter c WHERE c.subjectId = :subjectId AND c.softDeleted = false) AND t.softDeleted = false) AND tn.softDeleted = false")
     Long countTopicNotesBySubjectId(@Param("subjectId") Long subjectId);
 
     @Query("SELECT COUNT(s) FROM Subject s WHERE s.gradeId = :gradeId AND s.softDeleted = false")

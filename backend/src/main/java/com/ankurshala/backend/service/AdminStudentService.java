@@ -7,6 +7,7 @@ import com.ankurshala.backend.entity.ClassLevel;
 import com.ankurshala.backend.entity.EducationalBoard;
 import com.ankurshala.backend.entity.StudentProfile;
 import com.ankurshala.backend.entity.User;
+import com.ankurshala.backend.exception.ResourceNotFoundException;
 import com.ankurshala.backend.repository.StudentProfileRepository;
 import com.ankurshala.backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,7 +44,7 @@ public class AdminStudentService {
 
     public StudentDetailDto updateStudent(Long id, StudentUpdateDto updateDto) {
         StudentProfile student = studentProfileRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Student not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Student not found with id: " + id));
 
         User user = student.getUser();
 
@@ -80,7 +81,7 @@ public class AdminStudentService {
 
     public boolean toggleStudentStatus(Long id) {
         StudentProfile student = studentProfileRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Student not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Student not found with id: " + id));
         
         User user = student.getUser();
         user.setEnabled(!user.getEnabled());
@@ -91,7 +92,7 @@ public class AdminStudentService {
 
     public void deleteStudent(Long id) {
         StudentProfile student = studentProfileRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Student not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Student not found with id: " + id));
         
         // Delete the user (which will cascade to student profile due to relationship)
         userRepository.delete(student.getUser());

@@ -14,7 +14,7 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { api } from '@/utils/api'
-import { authManager } from '@/utils/auth'
+import { useAuthStore } from '@/store/auth'
 
 interface DashboardMetrics {
   totalStudents: number
@@ -37,45 +37,71 @@ interface DashboardMetrics {
 }
 
 export default function AdminDashboard() {
+  const user = useAuthStore((state) => state.user)
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [mounted, setMounted] = useState(false)
+  const [hasFetchedMetrics, setHasFetchedMetrics] = useState(false)
 
   const fetchMetrics = async () => {
     try {
+      console.log('Admin Dashboard - Starting metrics fetch...')
       setLoading(true)
       setError(null)
       
-      // Fetch metrics using secure API client
-      const response = await api.get<DashboardMetrics>('/admin/dashboard/metrics')
-      setMetrics(response.data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load dashboard metrics')
-      console.error('Error fetching metrics:', err)
+      // Direct API call - the backend returns DashboardMetricsDto directly, not wrapped
+      const response = await api.get('/admin/dashboard/metrics')
+      
+      console.log('Admin Dashboard - Raw response:', response)
+      
+      // The response.data contains the actual metrics (not wrapped in ApiResponse)
+      const metricsData = response.data as DashboardMetrics
+      
+      console.log('Admin Dashboard - Metrics fetched successfully:', metricsData)
+      setMetrics(metricsData)
+      
+    } catch (err: any) {
+      console.error('Admin Dashboard - Error fetching metrics:', err)
+      console.error('Admin Dashboard - Error details:', {
+        message: err?.message,
+        response: err?.response,
+        status: err?.response?.status
+      })
+      
+      // Handle 401 Unauthorized specifically
+      if (err?.message?.includes('Unauthorized') || err?.message?.includes('401')) {
+        setError('Session expired or unauthorized. Please login again.')
+      } else {
+        const errorMessage = err?.message || 'Failed to load dashboard metrics'
+        setError(errorMessage)
+      }
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    setMounted(true)
-    // Wait for authentication token to be available
-    const checkAuthAndFetch = () => {
-      if (authManager.isAuthenticated()) {
-        fetchMetrics()
-      } else {
-        // Retry after a short delay
-        setTimeout(checkAuthAndFetch, 100)
-      }
+    console.log('Admin Dashboard - Checking authentication...', {
+      hasUser: !!user,
+      userEmail: user?.email,
+      hasFetchedMetrics
+    })
+    
+    if (!user) {
+      console.log('Admin Dashboard - No user authenticated')
+      setLoading(false)
+      return
     }
-    checkAuthAndFetch()
 
-    // Cleanup function to prevent memory leaks
-    return () => {
-      setMounted(false)
+    if (hasFetchedMetrics) {
+      console.log('Admin Dashboard - Metrics already fetched, skipping')
+      return
     }
-  }, [])
+
+    console.log('Admin Dashboard - User authenticated, fetching metrics...')
+    setHasFetchedMetrics(true)
+    fetchMetrics()
+  }, [user, hasFetchedMetrics])
 
   // Loading skeleton component
   const MetricsSkeleton = () => (
@@ -110,17 +136,6 @@ export default function AdminDashboard() {
       </Button>
     </Card>
   )
-
-  if (!mounted) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading dashboard...</p>
-        </div>
-      </div>
-    )
-  }
 
   // Define metric cards data
   const metricCards = [

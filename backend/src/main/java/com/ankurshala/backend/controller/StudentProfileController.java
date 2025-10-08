@@ -4,6 +4,7 @@ import com.ankurshala.backend.dto.student.StudentDocumentDto;
 import com.ankurshala.backend.dto.student.StudentProfileDto;
 import com.ankurshala.backend.security.UserPrincipal;
 import com.ankurshala.backend.service.StudentProfileService;
+import com.ankurshala.backend.service.ResourceAuthorizationService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -24,10 +25,19 @@ public class StudentProfileController {
     @Autowired
     private StudentProfileService studentProfileService;
 
+    @Autowired
+    private ResourceAuthorizationService resourceAuthorizationService;
+
     @GetMapping("/profile")
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<StudentProfileDto> getProfile(Authentication authentication) {
         Long userId = getUserIdFromAuthentication(authentication);
+        
+        // Verify ownership
+        if (!resourceAuthorizationService.canAccessStudentProfile(userId)) {
+            return ResponseEntity.status(403).build();
+        }
+        
         StudentProfileDto profile = studentProfileService.getStudentProfile(userId);
         return ResponseEntity.ok(profile);
     }
@@ -38,6 +48,12 @@ public class StudentProfileController {
             @Valid @RequestBody StudentProfileDto profileDto,
             Authentication authentication) {
         Long userId = getUserIdFromAuthentication(authentication);
+        
+        // Verify ownership
+        if (!resourceAuthorizationService.canAccessStudentProfile(userId)) {
+            return ResponseEntity.status(403).build();
+        }
+        
         StudentProfileDto updatedProfile = studentProfileService.updateStudentProfile(userId, profileDto);
         return ResponseEntity.ok(updatedProfile);
     }
@@ -46,6 +62,12 @@ public class StudentProfileController {
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<List<StudentDocumentDto>> getDocuments(Authentication authentication) {
         Long userId = getUserIdFromAuthentication(authentication);
+        
+        // Verify ownership
+        if (!resourceAuthorizationService.canAccessStudentProfile(userId)) {
+            return ResponseEntity.status(403).build();
+        }
+        
         List<StudentDocumentDto> documents = studentProfileService.getStudentDocuments(userId);
         return ResponseEntity.ok(documents);
     }
@@ -56,6 +78,12 @@ public class StudentProfileController {
             @Valid @RequestBody StudentDocumentDto documentDto,
             Authentication authentication) {
         Long userId = getUserIdFromAuthentication(authentication);
+        
+        // Verify ownership
+        if (!resourceAuthorizationService.canAccessStudentProfile(userId)) {
+            return ResponseEntity.status(403).build();
+        }
+        
         StudentDocumentDto addedDocument = studentProfileService.addStudentDocument(userId, documentDto);
         return ResponseEntity.ok(addedDocument);
     }
@@ -66,6 +94,12 @@ public class StudentProfileController {
             @PathVariable Long documentId,
             Authentication authentication) {
         Long userId = getUserIdFromAuthentication(authentication);
+
+        // Verify ownership before deletion
+        if (!resourceAuthorizationService.canAccessStudentDocument(userId, documentId)) {
+            return ResponseEntity.status(403).build();
+        }
+
         studentProfileService.deleteStudentDocument(userId, documentId);
         return ResponseEntity.ok().build();
     }

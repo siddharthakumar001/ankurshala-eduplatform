@@ -45,11 +45,8 @@ export default function AdminLayoutSimple({ children }: AdminLayoutProps) {
 
   const handleLogout = async () => {
     try {
-      const refreshToken = localStorage.getItem('refreshToken')
-      if (refreshToken) {
-        // Call logout API to invalidate refresh token
-        await authAPI.logout(refreshToken)
-      }
+      // Call logout API to invalidate refresh token
+      await authAPI.logout()
     } catch (error) {
       console.error('Logout error:', error)
     } finally {
@@ -140,6 +137,15 @@ export default function AdminLayoutSimple({ children }: AdminLayoutProps) {
               className="text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              className="text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="hidden sm:inline">Logout</span>
             </Button>
           </div>
         </header>

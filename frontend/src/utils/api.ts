@@ -32,7 +32,15 @@ class SecureApiClient {
   private defaultTimeout: number = 30000 // 30 seconds
 
   constructor(baseURL?: string) {
-    this.baseURL = baseURL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'
+    // In browser, use relative URLs to leverage Next.js proxy
+    // On server, use direct backend URL
+    if (typeof window !== 'undefined') {
+      // Client-side: use relative path for Next.js rewrites
+      this.baseURL = '/api'
+    } else {
+      // Server-side: use full backend URL
+      this.baseURL = baseURL || process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'
+    }
   }
 
   /**
@@ -110,20 +118,9 @@ class SecureApiClient {
    * Handle API response with standardized response format
    */
   private async handleResponse<T>(response: Response): Promise<HttpResponse<T>> {
-    // Check for token expiration
+    // Let callers handle 401 with cookie-based flows
     if (response.status === 401) {
-      console.log('Unauthorized response, checking token')
-      if (authManager.isAuthenticated()) {
-        console.log('Token expired, attempting refresh')
-        const refreshed = await authManager.refreshToken()
-        if (!refreshed) {
-          authManager.forceLogout('Session expired. Please log in again.')
-          throw new Error('Authentication failed')
-        }
-      } else {
-        authManager.forceLogout('Please log in to continue')
-        throw new Error('Authentication required')
-      }
+      throw new Error('Unauthorized')
     }
 
     // Handle other error statuses
@@ -199,10 +196,7 @@ class SecureApiClient {
       ...fetchOptions
     } = options
 
-    // Check authentication if required
-    if (requireAuth && !authManager.isAuthenticated()) {
-      throw new Error('Authentication required')
-    }
+    // Do not block requests based on legacy localStorage auth; rely on cookies when needed
 
     // Sanitize request body
     if (fetchOptions.body && typeof fetchOptions.body === 'string') {

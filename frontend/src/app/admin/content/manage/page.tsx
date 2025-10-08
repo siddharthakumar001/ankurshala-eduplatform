@@ -102,6 +102,13 @@ export default function ContentManagePage() {
 function ContentManagePageContent() {
   const [activeTab, setActiveTab] = useState('boards')
 
+  console.log('ContentManagePageContent: activeTab =', activeTab);
+
+  const handleTabChange = (value: string) => {
+    console.log('ContentManagePageContent: Tab changing from', activeTab, 'to', value);
+    setActiveTab(value);
+  };
+
   return (
     <AdminLayoutSimple>
       <div className="min-h-screen bg-gray-50">
@@ -114,7 +121,7 @@ function ContentManagePageContent() {
             </p>
           </div>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
             <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="boards" className="flex items-center gap-2">
                 <BookOpen className="w-4 h-4" />
@@ -304,13 +311,19 @@ function BoardsTab() {
       <CardContent>
         {/* Filters */}
         <div className="flex gap-4 mb-6">
-          <div className="relative flex-1">
+          <div className="relative flex-1" onClick={() => {
+            // Keep focus in the input when results refresh
+            const el = document.getElementById('boards-search-input') as HTMLInputElement | null
+            el?.focus()
+          }}>
             <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
             <Input
+              id="boards-search-input"
               placeholder="Search boards..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
+              onFocus={(e) => e.currentTarget.select()}
             />
           </div>
           <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
@@ -350,6 +363,8 @@ function BoardsTab() {
                     variant="ghost"
                     size="sm"
                     onClick={() => handleEditClick(board)}
+                    aria-label={`Edit ${board.name}`}
+                    title={`Edit ${board.name}`}
                   >
                     <Edit className="w-4 h-4" />
                   </Button>
@@ -358,6 +373,8 @@ function BoardsTab() {
                     size="sm"
                     onClick={() => handleDelete(board)}
                     className="text-red-500 hover:text-red-700"
+                    aria-label={`Delete ${board.name}`}
+                    title={`Delete ${board.name}`}
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -484,6 +501,8 @@ function BoardsTab() {
 
 // Grades Tab Component
 function GradesTab() {
+  console.log('GradesTab: Component rendering');
+  
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [selectedBoardFilter, setSelectedBoardFilter] = useState<number | null>(null)
@@ -500,6 +519,7 @@ function GradesTab() {
   })
 
   // API hooks
+  console.log('GradesTab: Calling useGrades hook');
   const { data: gradesData, isLoading, error, refetch } = useGrades({
     page: currentPage,
     size: pageSize,
@@ -508,6 +528,8 @@ function GradesTab() {
     boardId: selectedBoardFilter || undefined
   })
 
+  console.log('GradesTab: API response:', { gradesData, isLoading, error });
+
   const { data: boardsDropdown } = useBoardsDropdown()
   const createGradeMutation = useCreateGrade()
   const updateGradeMutation = useUpdateGrade()
@@ -515,6 +537,8 @@ function GradesTab() {
 
   const grades = gradesData?.content || []
   const totalElements = gradesData?.totalElements || 0
+
+  console.log('GradesTab: Processed data:', { grades, totalElements });
 
   // Handle filter changes
   const onFilterChange = () => {
@@ -587,6 +611,7 @@ function GradesTab() {
   }, [searchTerm, statusFilter, selectedBoardFilter])
 
   if (isLoading) {
+    console.log('GradesTab: Showing loading state');
     return <div className="flex justify-center items-center h-64">Loading grades...</div>
   }
 
@@ -595,6 +620,7 @@ function GradesTab() {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     const errorName = error instanceof Error ? error.name : 'Unknown';
     const errorStack = error instanceof Error ? error.stack : 'No stack trace available';
+    console.log('GradesTab: Showing error state:', { errorMessage, errorName });
     return (
       <div className="text-red-500 text-center space-y-2">
         <div>Error loading grades: {errorMessage}</div>
@@ -609,6 +635,8 @@ function GradesTab() {
       </div>
     )
   }
+
+  console.log('GradesTab: Rendering main content with', grades.length, 'grades');
 
   return (
     <Card>
@@ -690,6 +718,8 @@ function GradesTab() {
                     variant="ghost"
                     size="sm"
                     onClick={() => handleEditClick(grade)}
+                    aria-label={`Edit ${grade.displayName}`}
+                    title={`Edit ${grade.displayName}`}
                   >
                     <Edit className="w-4 h-4" />
                   </Button>
@@ -698,6 +728,8 @@ function GradesTab() {
                     size="sm"
                     onClick={() => handleDelete(grade)}
                     className="text-red-500 hover:text-red-700"
+                    aria-label={`Delete ${grade.displayName}`}
+                    title={`Delete ${grade.displayName}`}
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -915,7 +947,13 @@ function SubjectsTab() {
 
   // Handle create button click
   const handleCreateClick = () => {
-    setFormData({ name: '', boardId: 0, gradeId: 0, active: true })
+    // Prefill with selected filters if present
+    setFormData({ 
+      name: '', 
+      boardId: selectedBoardFilter || 0, 
+      gradeId: selectedGradeFilter || 0, 
+      active: true 
+    })
     setIsCreateDialogOpen(true)
   }
 
@@ -1099,6 +1137,8 @@ function SubjectsTab() {
                     variant="ghost"
                     size="sm"
                     onClick={() => handleEditClick(subject)}
+                    aria-label={`Edit ${subject.name}`}
+                    title={`Edit ${subject.name}`}
                   >
                     <Edit className="w-4 h-4" />
                   </Button>
@@ -1107,6 +1147,8 @@ function SubjectsTab() {
                     size="sm"
                     onClick={() => handleDelete(subject)}
                     className="text-red-500 hover:text-red-700"
+                    aria-label={`Delete ${subject.name}`}
+                    title={`Delete ${subject.name}`}
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -1151,20 +1193,40 @@ function SubjectsTab() {
             <DialogTitle>Create New Subject</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="grade">Grade</Label>
-              <Select value={formData.gradeId.toString()} onValueChange={(value) => setFormData({ ...formData, gradeId: parseInt(value) })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a grade" />
-                </SelectTrigger>
-                <SelectContent>
-                  {gradesDropdown?.map((grade) => (
-                    <SelectItem key={grade.id} value={grade.id.toString()}>
-                      {grade.displayName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="board">Board</Label>
+                <Select value={formData.boardId?.toString() || '0'} onValueChange={(value) => {
+                  const boardId = parseInt(value)
+                  setFormData({ ...formData, boardId, gradeId: 0 })
+                }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a board" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {boardsDropdown?.map((board) => (
+                      <SelectItem key={board.id} value={board.id.toString()}>
+                        {board.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="grade">Grade</Label>
+                <Select value={formData.gradeId?.toString() || '0'} onValueChange={(value) => setFormData({ ...formData, gradeId: parseInt(value) })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a grade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {gradesDropdown?.map((grade) => (
+                      <SelectItem key={grade.id} value={grade.id.toString()}>
+                        {grade.displayName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div>
               <Label htmlFor="name">Subject Name</Label>
@@ -1192,7 +1254,7 @@ function SubjectsTab() {
               </Button>
               <Button
                 onClick={handleCreateSubmit}
-                disabled={!formData.name.trim() || formData.gradeId === 0 || createSubjectMutation.isPending}
+                disabled={!formData.name.trim() || formData.boardId === 0 || formData.gradeId === 0 || createSubjectMutation.isPending}
               >
                 {createSubjectMutation.isPending ? 'Creating...' : 'Create Subject'}
               </Button>
@@ -1286,6 +1348,8 @@ function ChaptersTab() {
     page: currentPage,
     size: pageSize,
     search: searchTerm || undefined,
+    boardId: selectedBoard || undefined,
+    gradeId: selectedGrade || undefined,
     subjectId: selectedSubject || undefined,
     active: statusFilter === 'all' ? undefined : statusFilter === 'active'
   })
@@ -1399,7 +1463,7 @@ function ChaptersTab() {
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>Chapters Management</span>
-          <Button onClick={handleCreateClick} disabled={!selectedSubject}>
+          <Button onClick={handleCreateClick} disabled={!(selectedBoard && selectedGrade && selectedSubject)}>
             <Plus className="w-4 h-4 mr-2" />
             Add Chapter
           </Button>
@@ -1509,6 +1573,8 @@ function ChaptersTab() {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleEditClick(chapter)}
+                        aria-label={`Edit ${chapter.name}`}
+                        title={`Edit ${chapter.name}`}
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
@@ -1517,6 +1583,8 @@ function ChaptersTab() {
                         size="sm"
                         onClick={() => handleDelete(chapter)}
                         className="text-red-600 hover:text-red-700"
+                        aria-label={`Delete ${chapter.name}`}
+                        title={`Delete ${chapter.name}`}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -1894,6 +1962,8 @@ function TopicsTab() {
                           })
                           setIsEditDialogOpen(true)
                         }}
+                        aria-label={`Edit ${topic.title}`}
+                        title={`Edit ${topic.title}`}
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
@@ -1911,6 +1981,8 @@ function TopicsTab() {
                           }
                         }}
                         className="text-red-600 hover:text-red-700"
+                        aria-label={`Delete ${topic.title}`}
+                        title={`Delete ${topic.title}`}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -2297,10 +2369,21 @@ function TopicNotesTab() {
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-semibold">{note.title}</h3>
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="sm">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        aria-label={`Edit ${note.title}`}
+                        title={`Edit ${note.title}`}
+                      >
                         <Edit className="w-4 h-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-red-600 hover:text-red-700"
+                        aria-label={`Delete ${note.title}`}
+                        title={`Delete ${note.title}`}
+                      >
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>

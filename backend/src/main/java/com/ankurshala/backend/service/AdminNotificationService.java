@@ -19,7 +19,6 @@ import java.util.List;
 import java.util.Map;
 
 @Service
-@Transactional
 public class AdminNotificationService {
 
     @Autowired
@@ -53,77 +52,103 @@ public class AdminNotificationService {
     }
 
     public Map<String, Object> broadcastNotification(BroadcastNotificationRequest request) {
-        Notification.NotificationAudience audience = Notification.NotificationAudience.valueOf(
-                request.getAudience().toUpperCase());
-        Notification.NotificationDelivery delivery = Notification.NotificationDelivery.valueOf(
-                request.getDelivery().toUpperCase());
+        try {
+            Notification.NotificationAudience audience = Notification.NotificationAudience.valueOf(
+                    request.getAudience().toUpperCase());
+            Notification.NotificationDelivery delivery = Notification.NotificationDelivery.valueOf(
+                    request.getDelivery().toUpperCase());
 
-        // Get target users based on audience
-        List<User> targetUsers = getTargetUsers(audience);
-        
-        int inAppCount = 0;
-        int emailCount = 0;
-        int failedCount = 0;
+            // Get target users based on audience
+            List<User> targetUsers = getTargetUsers(audience);
+            
+            int inAppCount = 0;
+            int emailCount = 0;
+            int failedCount = 0;
 
-        for (User user : targetUsers) {
-            try {
-                // Create notification record
-                Notification notification = new Notification(
-                        request.getTitle(),
-                        request.getBody(),
-                        audience,
-                        delivery
-                );
-                notification.setUser(user);
-                notification.setStatus(Notification.NotificationStatus.QUEUED);
-                
-                notificationRepository.save(notification);
-
-                // Send email if requested
-                if (delivery == Notification.NotificationDelivery.EMAIL || 
-                    delivery == Notification.NotificationDelivery.BOTH) {
-                    // Email sending would be implemented here when mail service is configured
-                    emailCount++;
-                }
-
-                // Mark as sent for in-app notifications
-                if (delivery == Notification.NotificationDelivery.IN_APP || 
-                    delivery == Notification.NotificationDelivery.BOTH) {
-                    notification.setStatus(Notification.NotificationStatus.SENT);
-                    notification.setSentAt(LocalDateTime.now());
+            for (User user : targetUsers) {
+                try {
+                    // Create notification record
+                    Notification notification = new Notification(
+                            request.getTitle(),
+                            request.getBody(),
+                            audience,
+                            delivery
+                    );
+                    notification.setUser(user);
+                    notification.setStatus(Notification.NotificationStatus.QUEUED);
+                    
                     notificationRepository.save(notification);
-                    inAppCount++;
+
+                    // Send email if requested
+                    if (delivery == Notification.NotificationDelivery.EMAIL || 
+                        delivery == Notification.NotificationDelivery.BOTH) {
+                        // Email sending would be implemented here when mail service is configured
+                        emailCount++;
+                    }
+
+                    // Mark as sent for in-app notifications
+                    if (delivery == Notification.NotificationDelivery.IN_APP || 
+                        delivery == Notification.NotificationDelivery.BOTH) {
+                        notification.setStatus(Notification.NotificationStatus.SENT);
+                        notification.setSentAt(LocalDateTime.now());
+                        notificationRepository.save(notification);
+                        inAppCount++;
+                    }
+
+                } catch (Exception e) {
+                    failedCount++;
+                    // Log error but continue with other users
+                    System.err.println("Failed to send notification to user " + user.getId() + ": " + e.getMessage());
                 }
-
-            } catch (Exception e) {
-                failedCount++;
-                // Log error but continue with other users
-                System.err.println("Failed to send notification to user " + user.getId() + ": " + e.getMessage());
             }
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("totalUsers", targetUsers.size());
+            result.put("inAppSent", inAppCount);
+            result.put("emailSent", emailCount);
+            result.put("failed", failedCount);
+            result.put("message", "Notification broadcast completed");
+
+            return result;
+        } catch (Exception e) {
+            System.err.println("Error in broadcastNotification: " + e.getMessage());
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("totalUsers", 0);
+            errorResult.put("inAppSent", 0);
+            errorResult.put("emailSent", 0);
+            errorResult.put("failed", 1);
+            errorResult.put("message", "Error broadcasting notification: " + e.getMessage());
+            return errorResult;
         }
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("totalUsers", targetUsers.size());
-        result.put("inAppSent", inAppCount);
-        result.put("emailSent", emailCount);
-        result.put("failed", failedCount);
-        result.put("message", "Notification broadcast completed");
-
-        return result;
     }
 
     public Map<String, Object> getNotificationStats() {
         Map<String, Object> stats = new HashMap<>();
         
-        stats.put("totalNotifications", notificationRepository.count());
-        stats.put("queuedNotifications", notificationRepository.countByStatus(Notification.NotificationStatus.QUEUED));
-        stats.put("sentNotifications", notificationRepository.countByStatus(Notification.NotificationStatus.SENT));
-        stats.put("failedNotifications", notificationRepository.countByStatus(Notification.NotificationStatus.FAILED));
+        try {
+            // Get total count
+            long totalCount = notificationRepository.count();
+            stats.put("totalNotifications", totalCount);
+            
+            // Get counts by status
+            stats.put("queuedNotifications", notificationRepository.countByStatus(Notification.NotificationStatus.QUEUED));
+            stats.put("sentNotifications", notificationRepository.countByStatus(Notification.NotificationStatus.SENT));
+            stats.put("failedNotifications", notificationRepository.countByStatus(Notification.NotificationStatus.FAILED));
+            
+            // Get count for last 30 days
+            LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
+            stats.put("notificationsLast30Days", notificationRepository.countByCreatedAtBetween(thirtyDaysAgo, LocalDateTime.now()));
+            
+        } catch (Exception e) {
+            // If there's any error, return zero values
+            System.err.println("Error getting notification stats: " + e.getMessage());
+            stats.put("totalNotifications", 0);
+            stats.put("queuedNotifications", 0);
+            stats.put("sentNotifications", 0);
+            stats.put("failedNotifications", 0);
+            stats.put("notificationsLast30Days", 0);
+        }
         
-        // Last 30 days
-        LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
-        stats.put("notificationsLast30Days", notificationRepository.countByCreatedAtBetween(thirtyDaysAgo, LocalDateTime.now()));
-
         return stats;
     }
 

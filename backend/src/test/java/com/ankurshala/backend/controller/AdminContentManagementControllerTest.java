@@ -18,18 +18,24 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Comprehensive JUnit tests for AdminContentManagementController
@@ -40,7 +46,7 @@ class AdminContentManagementControllerTest {
 
     @Mock
     private AdminContentManagementService contentManagementService;
-
+    
     @Mock
     private LoggingService loggingService;
 
@@ -103,7 +109,7 @@ class AdminContentManagementControllerTest {
                 .thenReturn(boardPage);
 
         // When & Then
-        mockMvc.perform(get("/api/admin/content/boards")
+        mockMvc.perform(get("/admin/content/boards")
                         .param("page", "0")
                         .param("size", "10")
                         .param("search", "CBSE")
@@ -130,7 +136,7 @@ class AdminContentManagementControllerTest {
                 .thenReturn(emptyPage);
 
         // When & Then
-        mockMvc.perform(get("/api/admin/content/boards"))
+        mockMvc.perform(get("/admin/content/boards"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.content").isArray())
@@ -146,7 +152,7 @@ class AdminContentManagementControllerTest {
                 .thenThrow(new BusinessException("Database connection failed"));
 
         // When & Then
-        mockMvc.perform(get("/api/admin/content/boards"))
+        mockMvc.perform(get("/admin/content/boards"))
                 .andExpect(status().isBadRequest());
 
         verify(contentManagementService).getBoards(isNull(), isNull(), any(Pageable.class));
@@ -166,7 +172,7 @@ class AdminContentManagementControllerTest {
         when(contentManagementService.getBoardById(1L)).thenReturn(board);
 
         // When & Then
-        mockMvc.perform(get("/api/admin/content/boards/1"))
+        mockMvc.perform(get("/admin/content/boards/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.message").value("Board retrieved successfully"))
@@ -185,7 +191,7 @@ class AdminContentManagementControllerTest {
                 .thenThrow(new ResourceNotFoundException("Board not found with id: 999"));
 
         // When & Then
-        mockMvc.perform(get("/api/admin/content/boards/999"))
+        mockMvc.perform(get("/admin/content/boards/999"))
                 .andExpect(status().isNotFound());
 
         verify(contentManagementService).getBoardById(999L);
@@ -210,7 +216,7 @@ class AdminContentManagementControllerTest {
                 .thenReturn(createdBoard);
 
         // When & Then
-        mockMvc.perform(post("/api/admin/content/boards")
+        mockMvc.perform(post("/admin/content/boards")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -232,7 +238,7 @@ class AdminContentManagementControllerTest {
         request.setActive(true);
 
         // When & Then
-        mockMvc.perform(post("/api/admin/content/boards")
+        mockMvc.perform(post("/admin/content/boards")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
@@ -251,7 +257,7 @@ class AdminContentManagementControllerTest {
                 .thenThrow(new IllegalArgumentException("Board with name 'Existing Board' already exists"));
 
         // When & Then
-        mockMvc.perform(post("/api/admin/content/boards")
+        mockMvc.perform(post("/admin/content/boards")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
@@ -278,7 +284,7 @@ class AdminContentManagementControllerTest {
                 .thenReturn(updatedBoard);
 
         // When & Then
-        mockMvc.perform(put("/api/admin/content/boards/1")
+        mockMvc.perform(put("/admin/content/boards/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -303,7 +309,7 @@ class AdminContentManagementControllerTest {
                 .thenThrow(new ResourceNotFoundException("Board not found with id: 999"));
 
         // When & Then
-        mockMvc.perform(put("/api/admin/content/boards/999")
+        mockMvc.perform(put("/admin/content/boards/999")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound());
@@ -318,7 +324,7 @@ class AdminContentManagementControllerTest {
         doNothing().when(contentManagementService).deleteBoard(eq(1L), eq(false));
 
         // When & Then
-        mockMvc.perform(delete("/api/admin/content/boards/1"))
+        mockMvc.perform(delete("/admin/content/boards/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.message").value("Board deleted successfully"));
@@ -335,7 +341,7 @@ class AdminContentManagementControllerTest {
                 .when(contentManagementService).deleteBoard(eq(999L), eq(false));
 
         // When & Then
-        mockMvc.perform(delete("/api/admin/content/boards/999"))
+        mockMvc.perform(delete("/admin/content/boards/999"))
                 .andExpect(status().isNotFound());
 
         verify(contentManagementService).deleteBoard(eq(999L), eq(false));
@@ -364,7 +370,7 @@ class AdminContentManagementControllerTest {
                 .thenReturn(gradePage);
 
         // When & Then
-        mockMvc.perform(get("/api/admin/content/grades")
+        mockMvc.perform(get("/admin/content/grades")
                         .param("page", "0")
                         .param("size", "10")
                         .param("boardId", "1")
@@ -400,7 +406,7 @@ class AdminContentManagementControllerTest {
                 .thenReturn(createdGrade);
 
         // When & Then
-        mockMvc.perform(post("/api/admin/content/grades")
+        mockMvc.perform(post("/admin/content/grades")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -423,7 +429,7 @@ class AdminContentManagementControllerTest {
         request.setBoardId(1L);
 
         // When & Then
-        mockMvc.perform(post("/api/admin/content/grades")
+        mockMvc.perform(post("/admin/content/grades")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
@@ -437,7 +443,7 @@ class AdminContentManagementControllerTest {
         doNothing().when(contentManagementService).deleteGrade(eq(1L), eq(false));
 
         // When & Then
-        mockMvc.perform(delete("/api/admin/content/grades/1"))
+        mockMvc.perform(delete("/admin/content/grades/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.message").value("Grade deleted successfully"));
@@ -445,6 +451,249 @@ class AdminContentManagementControllerTest {
         verify(contentManagementService).deleteGrade(eq(1L), eq(false));
         verify(loggingService).logBusinessOperationStart(eq("DELETE_GRADE"), eq("1"), any());
         verify(loggingService).logBusinessOperationComplete(eq("DELETE_GRADE"), eq("1"), eq(true), anyLong());
+    }
+
+    // ============ SUBJECT TESTS ============
+
+    @Test
+    void testGetSubjects_Success() throws Exception {
+        // Given - Create simple test data without LocalDateTime
+        SubjectDto subject1 = SubjectDto.builder()
+                .id(1L)
+                .name("Mathematics")
+                .boardId(1L)
+                .boardName("CBSE")
+                .gradeId(1L)
+                .gradeName("Grade 9")
+                .active(true)
+                .softDeleted(false)
+                .chaptersCount(5L)
+                .topicsCount(25L)
+                .build();
+
+        Page<SubjectDto> subjectsPage = new PageImpl<>(Arrays.asList(subject1));
+        when(contentManagementService.getSubjects(any(), any(), any(), any(), any(Pageable.class)))
+                .thenReturn(subjectsPage);
+
+        // Test the controller directly
+        HttpServletRequest mockRequest = mock(HttpServletRequest.class);
+        ResponseEntity<ApiResponse<Page<SubjectDto>>> response = controller.getSubjects(0, 10, null, null, null, null, "name", "asc", mockRequest);
+        
+        // Verify the response
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().isSuccess()).isTrue();
+        assertThat(response.getBody().getMessage()).isEqualTo("Subjects retrieved successfully");
+        assertThat(response.getBody().getData().getContent()).hasSize(1);
+        assertThat(response.getBody().getData().getContent().get(0).getName()).isEqualTo("Mathematics");
+
+        verify(contentManagementService).getSubjects(any(), any(), any(), any(), any(Pageable.class));
+        verify(loggingService).logBusinessOperationStart(eq("GET_SUBJECTS"), isNull(), any());
+        verify(loggingService).logBusinessOperationComplete(eq("GET_SUBJECTS"), isNull(), eq(true), anyLong());
+    }
+
+    @Test
+    void testGetSubjectById_Success() throws Exception {
+        // Given
+        SubjectDto subject = SubjectDto.builder()
+                .id(1L)
+                .name("Mathematics")
+                .boardId(1L)
+                .boardName("CBSE")
+                .gradeId(1L)
+                .gradeName("Grade 9")
+                .active(true)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        when(contentManagementService.getSubjectById(1L)).thenReturn(subject);
+
+        // When & Then
+        mockMvc.perform(get("/admin/content/subjects/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("Subject retrieved successfully"))
+                .andExpect(jsonPath("$.data.id").value(1))
+                .andExpect(jsonPath("$.data.name").value("Mathematics"));
+
+        verify(contentManagementService).getSubjectById(1L);
+        verify(loggingService).logBusinessOperationStart(eq("GET_SUBJECT_BY_ID"), isNull(), any());
+        verify(loggingService).logBusinessOperationComplete(eq("GET_SUBJECT_BY_ID"), eq("1"), eq(true), anyLong());
+    }
+
+    @Test
+    void testGetSubjectById_NotFound() throws Exception {
+        // Given
+        when(contentManagementService.getSubjectById(999L))
+                .thenThrow(new ResourceNotFoundException("Subject not found with id: 999"));
+
+        // When & Then
+        mockMvc.perform(get("/admin/content/subjects/999"))
+                .andExpect(status().isNotFound());
+
+        verify(contentManagementService).getSubjectById(999L);
+        verify(loggingService).logError(eq("GET_SUBJECT_BY_ID"), any(Exception.class), any());
+    }
+
+    @Test
+    void testCreateSubject_Success() throws Exception {
+        // Given
+        CreateSubjectRequest request = new CreateSubjectRequest();
+        request.setName("Mathematics");
+        request.setBoardId(1L);
+        request.setGradeId(1L);
+        request.setActive(true);
+
+        SubjectDto createdSubject = SubjectDto.builder()
+                .id(3L)
+                .name("Mathematics")
+                .boardId(1L)
+                .boardName("CBSE")
+                .gradeId(1L)
+                .gradeName("Grade 9")
+                .active(true)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        when(contentManagementService.createSubject(any(CreateSubjectRequest.class)))
+                .thenReturn(createdSubject);
+
+        // When & Then
+        mockMvc.perform(post("/admin/content/subjects")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("Subject created successfully"))
+                .andExpect(jsonPath("$.data.id").value(3))
+                .andExpect(jsonPath("$.data.name").value("Mathematics"));
+
+        verify(contentManagementService).createSubject(any(CreateSubjectRequest.class));
+        verify(loggingService).logBusinessOperationStart(eq("CREATE_SUBJECT"), isNull(), any());
+        verify(loggingService).logBusinessOperationComplete(eq("CREATE_SUBJECT"), eq("3"), eq(true), anyLong());
+    }
+
+    @Test
+    void testCreateSubject_ValidationError() throws Exception {
+        // Given
+        CreateSubjectRequest request = new CreateSubjectRequest();
+        request.setName(""); // Invalid: empty name
+        request.setBoardId(1L);
+        request.setGradeId(1L);
+
+        // When & Then
+        mockMvc.perform(post("/admin/content/subjects")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+
+        verify(contentManagementService, never()).createSubject(any(CreateSubjectRequest.class));
+    }
+
+    @Test
+    void testCreateSubject_DuplicateName() throws Exception {
+        // Given
+        CreateSubjectRequest request = new CreateSubjectRequest();
+        request.setName("Existing Subject");
+        request.setBoardId(1L);
+        request.setGradeId(1L);
+
+        when(contentManagementService.createSubject(any(CreateSubjectRequest.class)))
+                .thenThrow(new IllegalArgumentException("Subject with name 'Existing Subject' already exists in grade 'Grade 9'"));
+
+        // When & Then
+        mockMvc.perform(post("/admin/content/subjects")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+
+        verify(contentManagementService).createSubject(any(CreateSubjectRequest.class));
+        verify(loggingService).logError(eq("CREATE_SUBJECT"), any(Exception.class), any());
+    }
+
+    @Test
+    void testUpdateSubject_Success() throws Exception {
+        // Given
+        UpdateSubjectRequest request = new UpdateSubjectRequest();
+        request.setName("Mathematics Updated");
+        request.setActive(false);
+
+        SubjectDto updatedSubject = SubjectDto.builder()
+                .id(1L)
+                .name("Mathematics Updated")
+                .boardId(1L)
+                .boardName("CBSE")
+                .gradeId(1L)
+                .gradeName("Grade 9")
+                .active(false)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        when(contentManagementService.updateSubject(eq(1L), any(UpdateSubjectRequest.class)))
+                .thenReturn(updatedSubject);
+
+        // When & Then
+        mockMvc.perform(put("/admin/content/subjects/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("Subject updated successfully"))
+                .andExpect(jsonPath("$.data.id").value(1))
+                .andExpect(jsonPath("$.data.name").value("Mathematics Updated"))
+                .andExpect(jsonPath("$.data.active").value(false));
+
+        verify(contentManagementService).updateSubject(eq(1L), any(UpdateSubjectRequest.class));
+        verify(loggingService).logBusinessOperationStart(eq("UPDATE_SUBJECT"), eq("1"), any());
+        verify(loggingService).logBusinessOperationComplete(eq("UPDATE_SUBJECT"), eq("1"), eq(true), anyLong());
+    }
+
+    @Test
+    void testUpdateSubject_NotFound() throws Exception {
+        // Given
+        UpdateSubjectRequest request = new UpdateSubjectRequest();
+        request.setName("Updated Subject");
+
+        when(contentManagementService.updateSubject(eq(999L), any(UpdateSubjectRequest.class)))
+                .thenThrow(new ResourceNotFoundException("Subject not found with id: 999"));
+
+        // When & Then
+        mockMvc.perform(put("/admin/content/subjects/999")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound());
+
+        verify(contentManagementService).updateSubject(eq(999L), any(UpdateSubjectRequest.class));
+        verify(loggingService).logError(eq("UPDATE_SUBJECT"), any(Exception.class), any());
+    }
+
+    @Test
+    void testDeleteSubject_Success() throws Exception {
+        // Given
+        doNothing().when(contentManagementService).deleteSubject(1L, false);
+
+        // When & Then
+        mockMvc.perform(delete("/admin/content/subjects/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("Subject deleted successfully"));
+
+        verify(contentManagementService).deleteSubject(1L, false);
+        verify(loggingService).logBusinessOperationStart(eq("DELETE_SUBJECT"), eq("1"), any());
+        verify(loggingService).logBusinessOperationComplete(eq("DELETE_SUBJECT"), eq("1"), eq(true), anyLong());
+    }
+
+    @Test
+    void testDeleteSubject_NotFound() throws Exception {
+        // Given
+        doThrow(new ResourceNotFoundException("Subject not found with id: 999"))
+                .when(contentManagementService).deleteSubject(999L, false);
+
+        // When & Then
+        mockMvc.perform(delete("/admin/content/subjects/999"))
+                .andExpect(status().isNotFound());
+
+        verify(contentManagementService).deleteSubject(999L, false);
+        verify(loggingService).logError(eq("DELETE_SUBJECT"), any(Exception.class), any());
     }
 
     // ============ DROPDOWN TESTS ============
@@ -459,7 +708,7 @@ class AdminContentManagementControllerTest {
         when(contentManagementService.getBoardsForDropdown()).thenReturn(boards);
 
         // When & Then
-        mockMvc.perform(get("/api/admin/content/boards/dropdown"))
+        mockMvc.perform(get("/admin/content/boards/dropdown"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.message").value("Boards dropdown retrieved successfully"))
@@ -480,7 +729,7 @@ class AdminContentManagementControllerTest {
         when(contentManagementService.getBoardsForDropdown()).thenReturn(Arrays.asList());
 
         // When & Then
-        mockMvc.perform(get("/api/admin/content/boards/dropdown"))
+        mockMvc.perform(get("/admin/content/boards/dropdown"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data").isArray())
@@ -499,7 +748,7 @@ class AdminContentManagementControllerTest {
         when(contentManagementService.getGradesForDropdown(1L)).thenReturn(grades);
 
         // When & Then
-        mockMvc.perform(get("/api/admin/content/grades/dropdown")
+        mockMvc.perform(get("/admin/content/grades/dropdown")
                         .param("boardId", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
@@ -522,7 +771,7 @@ class AdminContentManagementControllerTest {
         when(contentManagementService.getGradesForDropdown(null)).thenReturn(grades);
 
         // When & Then
-        mockMvc.perform(get("/api/admin/content/grades/dropdown"))
+        mockMvc.perform(get("/admin/content/grades/dropdown"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data").isArray());
@@ -540,7 +789,7 @@ class AdminContentManagementControllerTest {
         when(contentManagementService.getSubjectsForDropdown(1L)).thenReturn(subjects);
 
         // When & Then
-        mockMvc.perform(get("/api/admin/content/subjects/dropdown")
+        mockMvc.perform(get("/admin/content/subjects/dropdown")
                         .param("gradeId", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
@@ -564,7 +813,7 @@ class AdminContentManagementControllerTest {
         when(contentManagementService.getChaptersForDropdown(1L)).thenReturn(chapters);
 
         // When & Then
-        mockMvc.perform(get("/api/admin/content/chapters/dropdown")
+        mockMvc.perform(get("/admin/content/chapters/dropdown")
                         .param("subjectId", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
@@ -588,7 +837,7 @@ class AdminContentManagementControllerTest {
         when(contentManagementService.getTopicsForDropdown(1L)).thenReturn(topics);
 
         // When & Then
-        mockMvc.perform(get("/api/admin/content/topics/dropdown")
+        mockMvc.perform(get("/admin/content/topics/dropdown")
                         .param("chapterId", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
@@ -609,7 +858,7 @@ class AdminContentManagementControllerTest {
                 .thenThrow(new BusinessException("Database connection failed"));
 
         // When & Then
-        mockMvc.perform(get("/api/admin/content/boards/dropdown"))
+        mockMvc.perform(get("/admin/content/boards/dropdown"))
                 .andExpect(status().isBadRequest());
 
         verify(contentManagementService).getBoardsForDropdown();
@@ -623,7 +872,7 @@ class AdminContentManagementControllerTest {
                 .thenThrow(new BusinessException("Service unavailable"));
 
         // When & Then
-        mockMvc.perform(get("/api/admin/content/grades/dropdown")
+        mockMvc.perform(get("/admin/content/grades/dropdown")
                         .param("boardId", "1"))
                 .andExpect(status().isBadRequest());
 
@@ -638,7 +887,7 @@ class AdminContentManagementControllerTest {
                 .thenThrow(new BusinessException("Repository error"));
 
         // When & Then
-        mockMvc.perform(get("/api/admin/content/subjects/dropdown")
+        mockMvc.perform(get("/admin/content/subjects/dropdown")
                         .param("gradeId", "1"))
                 .andExpect(status().isBadRequest());
 
@@ -653,7 +902,7 @@ class AdminContentManagementControllerTest {
                 .thenThrow(new BusinessException("Data access error"));
 
         // When & Then
-        mockMvc.perform(get("/api/admin/content/chapters/dropdown")
+        mockMvc.perform(get("/admin/content/chapters/dropdown")
                         .param("subjectId", "1"))
                 .andExpect(status().isBadRequest());
 
@@ -668,7 +917,7 @@ class AdminContentManagementControllerTest {
                 .thenThrow(new BusinessException("Query execution failed"));
 
         // When & Then
-        mockMvc.perform(get("/api/admin/content/topics/dropdown")
+        mockMvc.perform(get("/admin/content/topics/dropdown")
                         .param("chapterId", "1"))
                 .andExpect(status().isBadRequest());
 

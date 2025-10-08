@@ -86,7 +86,7 @@ async function createBoard(page: Page, boardData: typeof TEST_DATA.board) {
   await page.getByRole('button', { name: 'Add Board' }).click();
   
   // Fill form
-  await page.fill('input[name="name"]', boardData.name);
+  await page.fill('input[id="name"]', boardData.name);
   
   // Submit form
   await page.getByRole('button', { name: 'Create Board' }).click();
@@ -100,9 +100,10 @@ async function createGrade(page: Page, gradeData: typeof TEST_DATA.grade, boardI
   await page.getByRole('button', { name: 'Add Grade' }).click();
   
   // Fill form
-  await page.selectOption('select[name="boardId"]', boardId.toString());
-  await page.fill('input[name="name"]', gradeData.name);
-  await page.fill('input[name="displayName"]', gradeData.displayName);
+  await page.click('[role="combobox"]');
+  await page.click(`text=${boardId}`);
+  await page.fill('input[id="name"]', gradeData.name);
+  await page.fill('input[id="displayName"]', gradeData.displayName);
   
   // Submit form
   await page.getByRole('button', { name: 'Create Grade' }).click();
@@ -255,8 +256,8 @@ test.describe('Admin Content Management - Comprehensive Tests', () => {
         await expect(page.locator('text=Create New Board')).toBeVisible();
         
         // Check form fields
-        await expect(page.locator('input[name="name"]')).toBeVisible();
-        await expect(page.locator('text=Active')).toBeVisible();
+        await expect(page.locator('input[id="name"]')).toBeVisible();
+        await expect(page.locator('text=Active').first()).toBeVisible();
         
         // Cancel dialog
         await page.getByRole('button', { name: 'Cancel' }).click();
@@ -329,16 +330,16 @@ test.describe('Admin Content Management - Comprehensive Tests', () => {
       const isButtonVisible = await createButton.isVisible();
       
       if (isButtonVisible) {
-        await createButton.click();
+        await createButton.click({ force: true });
         
         // Check dialog is open
         await expect(page.getByRole('dialog')).toBeVisible();
         await expect(page.locator('text=Create New Grade')).toBeVisible();
         
         // Check form fields
-        await expect(page.locator('select[name="boardId"]')).toBeVisible();
-        await expect(page.locator('input[name="name"]')).toBeVisible();
-        await expect(page.locator('input[name="displayName"]')).toBeVisible();
+        await expect(page.locator('[role="combobox"]').first()).toBeVisible();
+        await expect(page.locator('input[id="name"]')).toBeVisible();
+        await expect(page.locator('input[id="displayName"]')).toBeVisible();
         
         // Cancel dialog
         await page.getByRole('button', { name: 'Cancel' }).click();

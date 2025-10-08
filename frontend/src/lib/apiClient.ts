@@ -1,25 +1,20 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
+import axios, { AxiosInstance, AxiosResponse } from 'axios'
 import { toast } from 'sonner'
 
-// Create axios instance
+// Create axios instance for Next.js API routes (for auth)
 const apiClient: AxiosInstance = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api',
+  baseURL: '/api',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Include cookies in requests
 })
 
-// Request interceptor to add auth token
+// Request interceptor - cookies are automatically included
 apiClient.interceptors.request.use(
   (config) => {
-    // Get token from localStorage (in production, use httpOnly cookies)
-    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null
-    
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-    
+    // Cookies are automatically included with withCredentials: true
     return config
   },
   (error) => {
@@ -40,32 +35,16 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true
 
       try {
-        // Attempt to refresh token
-        const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('refreshToken') : null
+        // Attempt to refresh token via Next.js API route
+        const response = await apiClient.post('/auth/refresh')
         
-        if (refreshToken) {
-          const response = await axios.post(
-            `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'}/auth/refresh`,
-            { refreshToken }
-          )
-
-          const { accessToken, refreshToken: newRefreshToken } = response.data
-
-          // Update tokens in localStorage
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('accessToken', accessToken)
-            localStorage.setItem('refreshToken', newRefreshToken)
-          }
-
-          // Retry original request with new token
-          originalRequest.headers.Authorization = `Bearer ${accessToken}`
+        if (response.data.success) {
+          // Retry original request - cookies are automatically included
           return apiClient(originalRequest)
         }
       } catch (refreshError) {
         // Refresh failed, redirect to login
         if (typeof window !== 'undefined') {
-          localStorage.removeItem('accessToken')
-          localStorage.removeItem('refreshToken')
           window.location.href = '/login'
         }
         return Promise.reject(refreshError)
@@ -87,7 +66,7 @@ apiClient.interceptors.response.use(
 
 export default apiClient
 
-// Auth API functions
+// Auth API functions - using Next.js API routes for security
 export const authAPI = {
   signin: async (email: string, password: string) => {
     const response = await apiClient.post('/auth/signin', { email, password })
@@ -99,7 +78,6 @@ export const authAPI = {
       name,
       email,
       password,
-      role: 'STUDENT'
     })
     return response.data
   },
@@ -109,174 +87,159 @@ export const authAPI = {
       name,
       email,
       password,
-      role: 'TEACHER'
     })
     return response.data
   },
 
-  refresh: async (refreshToken: string) => {
-    const response = await apiClient.post('/auth/refresh', { refreshToken })
+  refresh: async () => {
+    const response = await apiClient.post('/auth/refresh')
     return response.data
   },
 
-  logout: async (refreshToken: string) => {
-    const response = await apiClient.post('/auth/logout', { refreshToken })
+  logout: async () => {
+    const response = await apiClient.post('/auth/logout')
     return response.data
   }
 }
 
-// Student API functions
+// User API functions
+export const userAPI = {
+  getCurrentUser: async () => {
+    const response = await apiClient.get('/user/me')
+    return response.data.data
+  }
+}
+
+// CSRF API functions
+export const csrfAPI = {
+  getToken: async () => {
+    const response = await apiClient.get('/csrf')
+    return response.data.token
+  }
+}
+
+// Create a separate client for protected backend routes
+const createProtectedClient = () => {
+  const protectedClient = axios.create({
+    // Use relative URLs to go through Next.js proxy
+    baseURL: '/api',
+    timeout: 10000,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    withCredentials: true,
+  })
+
+  // Add CSRF token to requests for state-changing operations
+  protectedClient.interceptors.request.use(async (config) => {
+    // Only add CSRF token for state-changing operations
+    if (['post', 'put', 'delete', 'patch'].includes(config.method?.toLowerCase() || '')) {
+      try {
+        // Get CSRF token from Next.js API route
+        const csrfResponse = await apiClient.get('/csrf')
+        const csrfToken = csrfResponse.data.token
+        if (csrfToken) {
+          config.headers['X-CSRF-TOKEN'] = csrfToken
+        }
+      } catch (error) {
+        console.warn('Failed to fetch CSRF token:', error)
+        // Fallback to cookie if API call fails
+        const csrfToken = document.cookie.split('; ').find(row => row.startsWith('XSRF-TOKEN='))?.split('=')[1]
+        if (csrfToken) {
+          config.headers['X-CSRF-TOKEN'] = csrfToken
+        }
+      }
+    }
+    return config
+  })
+
+  return protectedClient
+}
+
+export const protectedAPI = createProtectedClient()
+
+// Student API functions - using protected client for direct backend calls
 export const studentAPI = {
   getProfile: async () => {
-    const response = await apiClient.get('/student/profile')
+    const response = await protectedAPI.get('/student/profile')
     return response.data
   },
 
   updateProfile: async (profileData: any) => {
-    const response = await apiClient.put('/student/profile', profileData)
+    const response = await protectedAPI.put('/student/profile', profileData)
     return response.data
   },
 
   getDocuments: async () => {
-    const response = await apiClient.get('/student/profile/documents')
+    const response = await protectedAPI.get('/student/profile/documents')
     return response.data
   },
 
   addDocument: async (documentData: any) => {
-    const response = await apiClient.post('/student/profile/documents', documentData)
+    const response = await protectedAPI.post('/student/profile/documents', documentData)
     return response.data
   },
 
   deleteDocument: async (documentId: number) => {
-    const response = await apiClient.delete(`/student/profile/documents/${documentId}`)
+    const response = await protectedAPI.delete(`/student/profile/documents/${documentId}`)
     return response.data
   }
 }
 
-// Teacher API functions
+// Teacher API functions - using protected client for direct backend calls
 export const teacherAPI = {
   getProfile: async () => {
-    const response = await apiClient.get('/teacher/profile')
+    const response = await protectedAPI.get('/teacher/profile')
     return response.data
   },
 
   updateProfile: async (profileData: any) => {
-    const response = await apiClient.put('/teacher/profile', profileData)
+    const response = await protectedAPI.put('/teacher/profile', profileData)
     return response.data
   },
 
   // Qualifications
   getQualifications: async () => {
-    const response = await apiClient.get('/teacher/profile/qualifications')
+    const response = await protectedAPI.get('/teacher/profile/qualifications')
     return response.data
   },
 
   addQualification: async (qualificationData: any) => {
-    const response = await apiClient.post('/teacher/profile/qualifications', qualificationData)
+    const response = await protectedAPI.post('/teacher/profile/qualifications', qualificationData)
     return response.data
   },
 
   updateQualification: async (id: number, qualificationData: any) => {
-    const response = await apiClient.put(`/teacher/profile/qualifications/${id}`, qualificationData)
+    const response = await protectedAPI.put(`/teacher/profile/qualifications/${id}`, qualificationData)
     return response.data
   },
 
   deleteQualification: async (id: number) => {
-    const response = await apiClient.delete(`/teacher/profile/qualifications/${id}`)
-    return response.data
-  },
-
-  // Experiences
-  getExperiences: async () => {
-    const response = await apiClient.get('/teacher/profile/experiences')
-    return response.data
-  },
-
-  addExperience: async (experienceData: any) => {
-    const response = await apiClient.post('/teacher/profile/experiences', experienceData)
-    return response.data
-  },
-
-  updateExperience: async (id: number, experienceData: any) => {
-    const response = await apiClient.put(`/teacher/profile/experiences/${id}`, experienceData)
-    return response.data
-  },
-
-  deleteExperience: async (id: number) => {
-    const response = await apiClient.delete(`/teacher/profile/experiences/${id}`)
-    return response.data
-  },
-
-  // Certifications
-  getCertifications: async () => {
-    const response = await apiClient.get('/teacher/profile/certifications')
-    return response.data
-  },
-
-  addCertification: async (certificationData: any) => {
-    const response = await apiClient.post('/teacher/profile/certifications', certificationData)
-    return response.data
-  },
-
-  updateCertification: async (id: number, certificationData: any) => {
-    const response = await apiClient.put(`/teacher/profile/certifications/${id}`, certificationData)
-    return response.data
-  },
-
-  deleteCertification: async (id: number) => {
-    const response = await apiClient.delete(`/teacher/profile/certifications/${id}`)
+    const response = await protectedAPI.delete(`/teacher/profile/qualifications/${id}`)
     return response.data
   },
 
   // Bank Details
   getBankDetails: async () => {
-    const response = await apiClient.get('/teacher/profile/bank-details')
+    const response = await protectedAPI.get('/teacher/profile/bank-details')
     return response.data
   },
 
   updateBankDetails: async (bankData: any) => {
-    const response = await apiClient.put('/teacher/profile/bank-details', bankData)
-    return response.data
-  },
-
-  // Documents
-  getDocuments: async () => {
-    const response = await apiClient.get('/teacher/profile/documents')
-    return response.data
-  },
-
-  addDocument: async (documentData: any) => {
-    const response = await apiClient.post('/teacher/profile/documents', documentData)
-    return response.data
-  },
-
-  updateDocument: async (id: number, documentData: any) => {
-    const response = await apiClient.put(`/teacher/profile/documents/${id}`, documentData)
-    return response.data
-  },
-
-  deleteDocument: async (id: number) => {
-    const response = await apiClient.delete(`/teacher/profile/documents/${id}`)
+    const response = await protectedAPI.put('/teacher/profile/bank-details', bankData)
     return response.data
   }
 }
 
-// Admin API functions
+// Admin API functions - using protected client for direct backend calls
 export const adminAPI = {
   getProfile: async () => {
-    const response = await apiClient.get('/admin/profile')
+    const response = await protectedAPI.get('/admin/profile')
     return response.data
   },
 
   updateProfile: async (profileData: any) => {
-    const response = await apiClient.put('/admin/profile', profileData)
-    return response.data
-  }
-}
-
-export const userAPI = {
-  getCurrentUser: async () => {
-    const response = await apiClient.get('/user/me')
+    const response = await protectedAPI.put('/admin/profile', profileData)
     return response.data
   }
 }

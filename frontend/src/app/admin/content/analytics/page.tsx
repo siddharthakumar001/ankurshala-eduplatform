@@ -32,6 +32,7 @@ import {
   Pie,
   Cell
 } from 'recharts'
+import { api } from '@/utils/api'
 
 interface AnalyticsOverview {
   totalStudents: number
@@ -86,63 +87,76 @@ export default function AdminAnalyticsPage() {
   const [userAnalytics, setUserAnalytics] = useState<UserAnalytics | null>(null)
   const [contentAnalytics, setContentAnalytics] = useState<ContentAnalytics | null>(null)
   const [importAnalytics, setImportAnalytics] = useState<ImportAnalytics | null>(null)
+  const [series, setSeries] = useState<any[] | null>(null)
 
   useEffect(() => {
-    // Wait for authentication token to be available
-    const checkAuthAndFetch = () => {
-      const token = localStorage.getItem('accessToken')
-      if (token) {
-        fetchAnalytics()
-      } else {
-        // Retry after a short delay
-        setTimeout(checkAuthAndFetch, 100)
-      }
-    }
-    checkAuthAndFetch()
+    fetchAnalytics()
   }, [dateRange])
 
   const fetchAnalytics = async () => {
     try {
       setLoading(true)
-      const token = localStorage.getItem('accessToken')
-      if (!token) {
-        console.error('No access token found')
-        return
-      }
-
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      }
-
-      // Fetch all analytics data in parallel
-      const [overviewRes, usersRes, contentRes, importsRes] = await Promise.all([
-        fetch(`${baseUrl}/api/admin/analytics/overview?from=${getDateFromRange(dateRange)}`, { headers }),
-        fetch(`${baseUrl}/api/admin/analytics/users?from=${getDateFromRange(dateRange)}`, { headers }),
-        fetch(`${baseUrl}/api/admin/analytics/content?from=${getDateFromRange(dateRange)}`, { headers }),
-        fetch(`${baseUrl}/api/admin/analytics/imports?from=${getDateFromRange(dateRange)}`, { headers })
+      
+      // Use the correct backend endpoints
+      const [metricsRes, seriesRes] = await Promise.all([
+        api.get('/admin/dashboard/metrics'),
+        api.get('/admin/dashboard/series'),
       ])
 
-      if (overviewRes.ok) {
-        const overviewData = await overviewRes.json()
-        setOverview(overviewData)
+      const metrics = metricsRes.data as any
+      const series = seriesRes.data as any
+
+      // Transform the backend data to match frontend expectations
+      const overviewData: AnalyticsOverview = {
+        totalStudents: metrics.totalStudents || 0,
+        totalTeachers: metrics.totalTeachers || 0,
+        activeStudents: metrics.activeStudents || 0,
+        activeTeachers: metrics.activeTeachers || 0,
+        totalBoards: metrics.totalBoards || 0,
+        totalSubjects: metrics.totalSubjects || 0,
+        totalChapters: metrics.totalChapters || 0,
+        totalTopics: metrics.totalTopics || 0,
+        totalImports: metrics.totalImports || 0,
+        successfulImports: metrics.successfulImports || 0,
+        failedImports: metrics.failedImports || 0,
+        newStudents: dateRange === '7' ? metrics.newStudentsLast7Days : metrics.newStudentsLast30Days,
+        newTeachers: dateRange === '7' ? metrics.newTeachersLast7Days : metrics.newTeachersLast30Days,
       }
 
-      if (usersRes.ok) {
-        const usersData = await usersRes.json()
-        setUserAnalytics(usersData)
+      const userAnalyticsData: UserAnalytics = {
+        totalStudents: metrics.totalStudents || 0,
+        totalTeachers: metrics.totalTeachers || 0,
+        activeStudents: metrics.activeStudents || 0,
+        activeTeachers: metrics.activeTeachers || 0,
+        newStudents: dateRange === '7' ? metrics.newStudentsLast7Days : metrics.newStudentsLast30Days,
+        newTeachers: dateRange === '7' ? metrics.newTeachersLast7Days : metrics.newTeachersLast30Days,
+        boardDistribution: {}, // Not implemented yet
       }
 
-      if (contentRes.ok) {
-        const contentData = await contentRes.json()
-        setContentAnalytics(contentData)
+      const contentAnalyticsData: ContentAnalytics = {
+        totalBoards: metrics.totalBoards || 0,
+        totalSubjects: metrics.totalSubjects || 0,
+        totalChapters: metrics.totalChapters || 0,
+        totalTopics: metrics.totalTopics || 0,
+        activeBoards: metrics.totalBoards || 0, // Assuming all are active for now
+        activeSubjects: metrics.totalSubjects || 0,
+        activeChapters: metrics.totalChapters || 0,
+        activeTopics: metrics.totalTopics || 0,
       }
 
-      if (importsRes.ok) {
-        const importsData = await importsRes.json()
-        setImportAnalytics(importsData)
+      const importAnalyticsData: ImportAnalytics = {
+        totalImports: metrics.totalImports || 0,
+        successfulImports: metrics.successfulImports || 0,
+        failedImports: metrics.failedImports || 0,
+        pendingImports: metrics.pendingImports || 0,
+        runningImports: metrics.runningImports || 0,
       }
+
+      setOverview(overviewData)
+      setUserAnalytics(userAnalyticsData)
+      setContentAnalytics(contentAnalyticsData)
+      setImportAnalytics(importAnalyticsData)
+      setSeries(series)
     } catch (error) {
       console.error('Error fetching analytics:', error)
     } finally {
@@ -168,11 +182,15 @@ export default function AdminAnalyticsPage() {
   }
 
   // Chart data preparation
-  const userGrowthData = [
-    { name: 'Week 1', students: 45, teachers: 12 },
-    { name: 'Week 2', students: 52, teachers: 15 },
-    { name: 'Week 3', students: 48, teachers: 18 },
-    { name: 'Week 4', students: 61, teachers: 22 },
+  const userGrowthData = series ? series.map((item: any) => ({
+    name: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    students: item.students || 0,
+    teachers: item.teachers || 0,
+  })) : [
+    { name: 'Week 1', students: 0, teachers: 0 },
+    { name: 'Week 2', students: 0, teachers: 0 },
+    { name: 'Week 3', students: 0, teachers: 0 },
+    { name: 'Week 4', students: 0, teachers: 0 },
   ]
 
   const contentDistributionData = contentAnalytics ? [

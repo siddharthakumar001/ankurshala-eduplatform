@@ -57,8 +57,8 @@ export const adminContentKeys = {
   topicsDropdown: (chapterId?: number) => [...adminContentKeys.topics(), 'dropdown', chapterId] as const,
   topicNotes: () => [...adminContentKeys.all, 'topicNotes'] as const,
   topicNotesByTopic: (topicId?: number) => [...adminContentKeys.topicNotes(), 'byTopic', topicId] as const,
-  contentTree: (boardId?: number, gradeId?: number, subjectId?: number, chapterId?: number) => 
-    [...adminContentKeys.all, 'contentTree', boardId, gradeId, subjectId, chapterId] as const,
+  // contentTree: (boardId?: number, gradeId?: number, subjectId?: number, chapterId?: number) => 
+  //   [...adminContentKeys.all, 'contentTree', boardId, gradeId, subjectId, chapterId] as const,
   deletionImpact: (entityType: string, id: number) => 
     [...adminContentKeys.all, 'deletionImpact', entityType, id] as const,
 }
@@ -100,7 +100,20 @@ export function useCreateBoard() {
   
   return useMutation({
     mutationFn: (request: CreateBoardRequest) => adminContentService.createBoard(request),
-    onSuccess: () => {
+    onSuccess: (createdBoard) => {
+      // Optimistically inject the new board into any cached boards pages
+      const cachedPages = queryClient.getQueriesData<PageResponse<BoardDto>>({ queryKey: adminContentKeys.boards() })
+      cachedPages.forEach(([key, value]) => {
+        if (!value) return
+        const updated: PageResponse<BoardDto> = {
+          ...value,
+          content: [createdBoard, ...(value.content || [])],
+          totalElements: (value.totalElements || 0) + 1
+        }
+        queryClient.setQueryData(key, updated)
+      })
+
+      // Invalidate to ensure server truth on next focus/refetch
       queryClient.invalidateQueries({ queryKey: adminContentKeys.boards() })
       queryClient.invalidateQueries({ queryKey: adminContentKeys.boardsDropdown() })
       toast.success('Board created successfully')
@@ -280,7 +293,19 @@ export function useCreateSubject() {
   
   return useMutation({
     mutationFn: (request: CreateSubjectRequest) => adminContentService.createSubject(request),
-    onSuccess: () => {
+    onSuccess: (createdSubject) => {
+      // Optimistically update any cached subject pages keyed by current grade
+      const cachedPages = queryClient.getQueriesData<PageResponse<SubjectDto>>({ queryKey: adminContentKeys.subjects() })
+      cachedPages.forEach(([key, value]) => {
+        if (!value) return
+        const updated: PageResponse<SubjectDto> = {
+          ...value,
+          content: [createdSubject, ...(value.content || [])],
+          totalElements: (value.totalElements || 0) + 1
+        }
+        queryClient.setQueryData(key, updated)
+      })
+
       queryClient.invalidateQueries({ queryKey: adminContentKeys.subjects() })
       queryClient.invalidateQueries({ queryKey: adminContentKeys.subjectsDropdown() })
       toast.success('Subject created successfully')
@@ -352,7 +377,7 @@ export function useDeleteSubject() {
 
 // =========================== CHAPTERS ===========================
 
-export function useChapters(params?: PageRequest & { subjectId?: number }) {
+export function useChapters(params?: PageRequest & { boardId?: number; gradeId?: number; subjectId?: number }) {
   return useQuery({
     queryKey: [...adminContentKeys.chaptersBySubject(params?.subjectId), params],
     queryFn: () => adminContentService.getChapters(params),
@@ -611,10 +636,12 @@ export function useDeleteTopicNote() {
 
 // =========================== UTILITY HOOKS ===========================
 
-export function useContentTree(boardId?: number, gradeId?: number, subjectId?: number, chapterId?: number) {
-  return useQuery({
-    queryKey: adminContentKeys.contentTree(boardId, gradeId, subjectId, chapterId),
-    queryFn: () => adminContentService.getContentTree(boardId, gradeId, subjectId, chapterId),
-    staleTime: 60000,
-  })
-}
+// Note: getContentTree method was removed from AdminContentService
+// as it's not implemented in the backend yet
+// export function useContentTree(boardId?: number, gradeId?: number, subjectId?: number, chapterId?: number) {
+//   return useQuery({
+//     queryKey: adminContentKeys.contentTree(boardId, gradeId, subjectId, chapterId),
+//     queryFn: () => adminContentService.getContentTree(boardId, gradeId, subjectId, chapterId),
+//     staleTime: 60000,
+//   })
+// }

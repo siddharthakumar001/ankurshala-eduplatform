@@ -10,7 +10,13 @@
     "type-check": "tsc --noEmit",
     "test:e2e": "playwright test --project=chromium",
     "test:e2e:headed": "playwright test --headed --project=chromium",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "test:auth": "playwright test tests/auth*.spec.ts",
+    "test:auth:regression": "playwright test tests/auth-regression.spec.ts",
+    "test:auth:comprehensive": "playwright test tests/auth-comprehensive.spec.ts",
+    "test:auth:integration": "playwright test tests/auth-integration-comprehensive.spec.ts",
+    "test:login-flow": "playwright test tests/login-flow.spec.ts",
+    "test:auth:all": "npm run test:auth && npm run test:auth:regression && npm run test:auth:comprehensive && npm run test:auth:integration && npm run test:login-flow"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.15",

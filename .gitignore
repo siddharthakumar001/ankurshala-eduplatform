@@ -155,3 +155,60 @@ kafka-logs/
 
 # Local development
 docker-compose.override.yml
+
+# Production deployment exclusions
+# Documentation files (not needed in production)
+ADMIN_*.md
+BACKEND_*.md
+FRONTEND_*.md
+SECURITY_*.md
+TESTING_*.md
+API_*.md
+CICD_*.md
+DOCKER_*.md
+LOGIN_*.md
+QUICK_*.md
+COMPREHENSIVE_*.md
+CONTENT_*.md
+SESSION_*.md
+GITHUB_*.md
+PRODUCTION_*.md
+
+# Test and debug files
+temp_test_backup/
+debug-startup.sh
+test-*.sh
+run-*.sh
+verify-*.sh
+check-*.sh
+fix-*.sh
+setup-*.sh
+diagnose-*.sh
+smart-*.sh
+vm-*.sh
+stage1-*.sh
+
+# Development assets
+*.png
+cookies.txt
+azure-credentials-template.json
+
+# Local environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Development compose files
+docker-compose.yml
+docker-compose.override.yml
+
+# Build artifacts and temporary files
+*.tar
+*.tar.gz
+backend-image.tar
+frontend-image.tar
+deployment-report-*.txt
+.seed.override.yml
+.deploy-state.json

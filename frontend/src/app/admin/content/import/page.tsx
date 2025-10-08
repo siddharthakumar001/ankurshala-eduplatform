@@ -43,6 +43,7 @@ export default function AdminContentImportPage() {
   const [isUploading, setIsUploading] = useState(false)
   const [importJobs, setImportJobs] = useState<ImportJob[]>([])
   const [loading, setLoading] = useState(true)
+  const [rateLimitUntil, setRateLimitUntil] = useState<number | null>(null)
   const [dragActive, setDragActive] = useState(false)
   const [dryRun, setDryRun] = useState(true)
   const [previewData, setPreviewData] = useState<any>(null)
@@ -55,40 +56,47 @@ export default function AdminContentImportPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
+    // Initial load only. Further refreshes are manual or triggered after actions
     fetchImportJobs()
-    // Only poll for running jobs, not all jobs
-    const interval = setInterval(() => {
-      const hasRunningJobs = importJobs.some(job => job.status === 'RUNNING' || job.status === 'PENDING')
-      if (hasRunningJobs) {
-        fetchImportJobs()
-      }
-    }, 3000) // Reduced to 3 seconds for better UX
-    
-    return () => clearInterval(interval)
-  }, [importJobs]) // Add importJobs as dependency to check for running jobs
+  }, [])
 
   const fetchImportJobs = async () => {
+    // Back off if currently rate-limited
+    if (rateLimitUntil && Date.now() < rateLimitUntil) {
+      return
+    }
     try {
-      const token = localStorage.getItem('accessToken')
-      if (!token) {
-        toast.error('Authentication token not found. Please log in.')
-        setLoading(false)
-        return
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/import/jobs`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+      const response = await fetch(`/api/admin/content/import/jobs`, {
+        credentials: 'include'
       })
 
       if (response.ok) {
         const data = await response.json()
         // Handle paginated response - the actual array is in the 'content' field
         setImportJobs(data.content || data)
+        // Clear rate limit on successful fetch
+        if (rateLimitUntil) setRateLimitUntil(null)
       } else {
-        const errorData = await response.json()
-        toast.error(errorData.detail || errorData.title || 'Failed to fetch import jobs')
+        // Handle rate limiting responses gracefully
+        if (response.status === 429) {
+          let retryAfterSeconds = 30
+          const retryHeader = response.headers.get('Retry-After')
+          if (retryHeader) {
+            const parsed = parseInt(retryHeader, 10)
+            if (!isNaN(parsed)) retryAfterSeconds = parsed
+          } else {
+            try {
+              const body = await response.json()
+              if (body?.retryAfter) retryAfterSeconds = Number(body.retryAfter)
+            } catch {}
+          }
+          const until = Date.now() + retryAfterSeconds * 1000
+          setRateLimitUntil(until)
+          toast.info('Please wait before retrying import jobs...', { description: `Retrying in ~${retryAfterSeconds}s` })
+          return
+        }
+        const errorData = await response.json().catch(() => null)
+        toast.error(errorData?.detail || errorData?.title || 'Failed to fetch import jobs')
       }
     } catch (error) {
       console.error('Error fetching import jobs:', error)
@@ -151,19 +159,13 @@ export default function AdminContentImportPage() {
 
     setIsUploading(true)
     try {
-      const token = localStorage.getItem('accessToken')
-      if (!token) {
-        toast.error('Authentication token not found. Please log in.')
-        return
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/import/validate-duplicates`, {
+      const response = await fetch(`/api/admin/content/import/validate-duplicates`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'text/csv',
         },
         body: selectedFile,
+        credentials: 'include'
       })
 
       if (response.ok) {
@@ -198,19 +200,13 @@ export default function AdminContentImportPage() {
 
     setIsUploading(true)
     try {
-      const token = localStorage.getItem('accessToken')
-      if (!token) {
-        toast.error('Authentication token not found. Please log in.')
-        return
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/import/csv?dryRun=true`, {
+      const response = await fetch(`/api/admin/content/import/csv?dryRun=true`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'text/csv',
         },
         body: selectedFile,
+        credentials: 'include'
       })
 
       if (response.ok) {
@@ -245,19 +241,13 @@ export default function AdminContentImportPage() {
 
     setIsUploading(true)
     try {
-      const token = localStorage.getItem('accessToken')
-      if (!token) {
-        toast.error('Authentication token not found. Please log in.')
-        return
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/import/csv?dryRun=false`, {
+      const response = await fetch(`/api/admin/content/import/csv?dryRun=false`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'text/csv',
         },
         body: selectedFile,
+        credentials: 'include'
       })
 
       if (response.ok) {

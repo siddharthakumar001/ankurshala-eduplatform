@@ -395,7 +395,7 @@ class AdminContentService {
 
   // ============ CHAPTER OPERATIONS ============
 
-  async getChapters(params: PageRequest & { subjectId?: number } = {}): Promise<PageResponse<ChapterDto>> {
+  async getChapters(params: PageRequest & { boardId?: number; gradeId?: number; subjectId?: number } = {}): Promise<PageResponse<ChapterDto>> {
     const searchParams = new URLSearchParams()
     if (params.page !== undefined) searchParams.append('page', params.page.toString())
     if (params.size !== undefined) searchParams.append('size', params.size.toString())
@@ -403,6 +403,8 @@ class AdminContentService {
     if (params.sortDir) searchParams.append('sortDir', params.sortDir)
     if (params.search) searchParams.append('search', params.search)
     if (params.active !== undefined) searchParams.append('active', params.active.toString())
+    if (params.boardId) searchParams.append('boardId', params.boardId.toString())
+    if (params.gradeId) searchParams.append('gradeId', params.gradeId.toString())
     if (params.subjectId) searchParams.append('subjectId', params.subjectId.toString())
     
     const response = await api.get<PageResponse<ChapterDto>>(`${this.baseUrl}/chapters?${searchParams}`)

@@ -245,14 +245,14 @@ public class AuthService {
                         org.springframework.http.HttpStatus.UNAUTHORIZED, "INVALID_REFRESH_TOKEN");
             }
 
-            String email = jwtTokenProvider.getEmailFromToken(refreshToken);
-            User user = userRepository.findByEmail(email)
+            Long userId = jwtTokenProvider.getUserIdFromToken(refreshToken);
+            User user = userRepository.findById(userId)
                     .orElseThrow(() -> new BusinessException("User not found", 
                             org.springframework.http.HttpStatus.NOT_FOUND, "USER_NOT_FOUND"));
 
             if (!user.getEnabled()) {
-                log.warn("Token refresh failed - user inactive - TraceId: {}, Email: {}", 
-                        traceId, email);
+                log.warn("Token refresh failed - user inactive - TraceId: {}, UserId: {}", 
+                        traceId, userId);
                 throw new BusinessException("User account is inactive", 
                         org.springframework.http.HttpStatus.FORBIDDEN, "USER_INACTIVE");
             }
