@@ -104,7 +104,7 @@ export default function AdminFeesPage() {
   const fetchFeeWaivers = async () => {
     try {
       const response = await api.get('/admin/fees/waivers')
-      const data = response.data
+      const data = response.data as any
       setFeeWaivers(data.content || data)
     } catch (error) {
       console.error('Error fetching fee waivers:', error)
@@ -115,7 +115,7 @@ export default function AdminFeesPage() {
   const fetchUsers = async () => {
     try {
       const response = await api.get('/admin/students')
-      const data = response.data
+      const data = response.data as any
       setUsers(data.content || data)
     } catch (error) {
       console.error('Error fetching users:', error)
@@ -126,7 +126,7 @@ export default function AdminFeesPage() {
   const fetchStats = async () => {
     try {
       const response = await api.get('/admin/fees/waivers/stats')
-      const data = response.data
+      const data = response.data as any
       setStats(data)
     } catch (error) {
       console.error('Error fetching fee waiver stats:', error)
