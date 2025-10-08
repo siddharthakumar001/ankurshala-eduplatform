@@ -73,7 +73,7 @@ function LoginForm() {
     // Check for redirect message
     const message = urlParams.get('message')
     if (message) {
-      setError(message)
+      setError(message || '')
       // Clear the message from URL after showing it
       const newUrl = new URL(window.location.href)
       newUrl.searchParams.delete('message')

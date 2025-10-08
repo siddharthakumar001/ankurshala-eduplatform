@@ -116,7 +116,7 @@ export default function AdminNotificationsPage() {
       if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter)
       
       const response = await api.get(`/admin/notifications?${params}`)
-      const data = response.data
+      const data = response.data as any
       console.log('Notifications response:', data)
       setNotifications(data.content || data || [])
     } catch (error) {
@@ -130,7 +130,7 @@ export default function AdminNotificationsPage() {
     try {
       console.log('Fetching notification stats...')
       const response = await api.get('/admin/notifications/statistics')
-      const data = response.data
+      const data = response.data as any
       console.log('Stats response:', data)
       setStats(data)
     } catch (error) {
@@ -154,7 +154,7 @@ export default function AdminNotificationsPage() {
       
       console.log('Sending notification:', formData)
       const response = await api.post('/admin/notifications/broadcast', formData)
-      const result = response.data
+      const result = response.data as any
       console.log('Broadcast result:', result)
       
       setBroadcastResult(result)

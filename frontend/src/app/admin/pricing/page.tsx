@@ -177,7 +177,7 @@ export default function AdminPricingPage() {
     try {
       console.log('Fetching pricing rules...')
       const response = await api.get('/admin/pricing')
-      const data = response.data
+      const data = response.data as any
       console.log('Pricing rules response:', data)
       setPricingRules(data.content || data || [])
     } catch (error) {
@@ -190,7 +190,7 @@ export default function AdminPricingPage() {
     try {
       console.log('Fetching boards...')
       const response = await api.get('/admin/content/boards')
-      const data = response.data
+      const data = response.data as any
       console.log('Boards response:', data)
       setBoards(data.content || data || [])
     } catch (error) {
@@ -203,7 +203,7 @@ export default function AdminPricingPage() {
     try {
       console.log('Fetching grades...')
       const response = await api.get('/admin/content/grades/dropdown')
-      const data = response.data
+      const data = response.data as any
       console.log('Grades response:', data)
       setGrades(data || [])
     } catch (error) {
@@ -216,7 +216,7 @@ export default function AdminPricingPage() {
     try {
       console.log('Fetching subjects...')
       const response = await api.get('/admin/content/subjects/dropdown')
-      const data = response.data
+      const data = response.data as any
       console.log('Subjects response:', data)
       setSubjects(data || [])
     } catch (error) {
@@ -229,7 +229,7 @@ export default function AdminPricingPage() {
     try {
       console.log('Fetching chapters...')
       const response = await api.get('/admin/content/chapters/dropdown')
-      const data = response.data
+      const data = response.data as any
       console.log('Chapters response:', data)
       setChapters(data || [])
     } catch (error) {
@@ -242,7 +242,7 @@ export default function AdminPricingPage() {
     try {
       console.log('Fetching topics...')
       const response = await api.get('/admin/content/topics/dropdown')
-      const data = response.data
+      const data = response.data as any
       console.log('Topics response:', data)
       setTopics(data || [])
     } catch (error) {
@@ -373,7 +373,7 @@ export default function AdminPricingPage() {
       if (testFormData.topicId && testFormData.topicId !== 'all') params.append('topicId', testFormData.topicId)
 
       const response = await api.get(`/admin/pricing/resolve?${params}`)
-      const data = response.data
+      const data = response.data as any
       
       setTestResult(data.rule)
       setShowTestDialog(true)
