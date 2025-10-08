@@ -1,10 +1,11 @@
 name: AnkurShala Production CI/CD Pipeline
 
-on:
-  push:
-    branches: [ ankurshala/prod-1.0-final ]
-  pull_request:
-    branches: [ ankurshala/prod-1.0-final ]
+# DISABLED - Using production-cicd.yml instead
+# on:
+#   push:
+#     branches: [ ankurshala/prod-1.0-final ]
+#   pull_request:
+#     branches: [ ankurshala/prod-1.0-final ]
 
 env:
   STORAGE_ACCOUNT: ankurimage
