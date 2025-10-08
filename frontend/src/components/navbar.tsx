@@ -22,14 +22,13 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     try {
-      // Call logout API to invalidate refresh token
-      await authAPI.logout()
+      // Use the centralized logout from auth store which handles everything
+      await logout()
+      // Redirect to home page after logout
+      router.push('/')
     } catch (error) {
       console.error('Logout error:', error)
-    } finally {
-      localStorage.removeItem('accessToken')
-      localStorage.removeItem('refreshToken')
-      logout()
+      // Even if logout fails, redirect to home
       router.push('/')
     }
   }

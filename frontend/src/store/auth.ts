@@ -62,6 +62,9 @@ export const useAuthStore = create<AuthState>()(
             localStorage.removeItem('refreshToken')
             localStorage.removeItem('user')
             localStorage.removeItem('lastActivity')
+            
+            // Force redirect to home page to clear any cached state
+            window.location.href = '/'
           }
         }
       },
