@@ -5,6 +5,8 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: ankurshala_db_prod
+    env_file:
+      - .env-prod
     environment:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USERNAME}
@@ -105,6 +107,8 @@ services:
         SPRING_PROFILES_ACTIVE: production
     image: ankurshala/backend:${BACKEND_TAG:-prod}
     container_name: ankurshala_backend_prod
+    env_file:
+      - .env-prod
     depends_on:
       postgres:
         condition: service_healthy
@@ -158,6 +162,8 @@ services:
         NODE_ENV: production
     image: ankurshala/frontend:${FRONTEND_TAG:-prod}
     container_name: ankurshala_frontend_prod
+    env_file:
+      - .env-prod
     depends_on:
       backend:
         condition: service_healthy
