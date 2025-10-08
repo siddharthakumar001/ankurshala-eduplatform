@@ -179,8 +179,14 @@ if ! wait_healthy "ankurshala_kafka_prod" 300; then
   log WARN "Kafka health check failed, checking if it's running..."
   if docker ps --format '{{.Names}}' | grep -q '^ankurshala_kafka_prod$'; then
     log WARN "Kafka is running but health check failed - continuing with deployment"
+    # Show recent logs for debugging
+    log INFO "Recent Kafka logs:"
+    docker logs --tail 20 ankurshala_kafka_prod 2>&1 | head -10
   else
     log FAIL "Kafka failed to start - aborting deployment"
+    # Show logs for debugging
+    log INFO "Kafka startup logs:"
+    docker logs ankurshala_kafka_prod 2>&1 | tail -20
     exit 1
   fi
 fi

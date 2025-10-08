@@ -74,10 +74,10 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     healthcheck:
-      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9092' || exit 1"]
-      interval: 20s
-      timeout: 15s
-      retries: 30
+      test: ["CMD-SHELL", "timeout 5 bash -c 'exec 3<>/dev/tcp/127.0.0.1/9092' || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
       start_period: 120s
     networks: [ankurshala-network]
     restart: unless-stopped

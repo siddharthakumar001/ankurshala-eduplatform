@@ -310,6 +310,10 @@ jobs:
           echo "🔍 Running pre-deployment database health check..."
           ./scripts/database-health-check.sh
           
+          # Test Kafka health check methods for debugging
+          echo "🔍 Testing Kafka health check methods..."
+          ./scripts/test-kafka-health.sh || echo "Kafka health check test completed with warnings"
+          
           # Deploy application
           echo "🚀 Deploying application..."
           ./scripts/deploy-production-fixed.sh
