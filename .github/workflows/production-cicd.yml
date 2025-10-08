@@ -300,6 +300,14 @@ jobs:
           echo "🔧 Loading environment variables..."
           export $(cat .env-prod | grep -v '^#' | xargs)
           
+          # Pre-deployment database backup
+          echo "💾 Creating database backup..."
+          ./scripts/database-backup.sh
+          
+          # Pre-deployment database health check
+          echo "🔍 Running pre-deployment database health check..."
+          ./scripts/database-health-check.sh
+          
           # Deploy application
           echo "🚀 Deploying application..."
           ./scripts/deploy-production-fixed.sh
@@ -363,6 +371,15 @@ jobs:
         fi
         
         echo "🎉 All application tests passed!"
+        
+    - name: Post-Deployment Database Verification
+      run: |
+        echo "🔍 Running post-deployment database verification..."
+        ssh -o StrictHostKeyChecking=no ${{ env.VM_USER }}@${{ env.VM_IP }} << 'EOF'
+          cd /opt/ankurshala
+          export $(cat .env-prod | grep -v '^#' | xargs)
+          ./scripts/database-health-check.sh
+        EOF
         
     - name: Performance Check
       run: |
@@ -466,6 +483,28 @@ jobs:
         path: deployment-report-*.txt
         retention-days: 30
         
+    - name: Automatic Rollback on Failure
+      if: failure()
+      run: |
+        echo "🔄 DEPLOYMENT FAILED - Initiating automatic rollback..."
+        ssh -o StrictHostKeyChecking=no ${{ env.VM_USER }}@${{ env.VM_IP }} << 'EOF'
+          cd /opt/ankurshala
+          export $(cat .env-prod | grep -v '^#' | xargs)
+          
+          echo "🔄 Rolling back to previous database state..."
+          if ./scripts/database-rollback.sh --latest; then
+            echo "✅ Database rollback completed successfully"
+          else
+            echo "❌ Database rollback failed - manual intervention required"
+          fi
+          
+          echo "🔄 Rolling back application to previous version..."
+          git reset --hard HEAD~1 || echo "Git rollback failed - manual intervention required"
+          
+          echo "🔄 Restarting services..."
+          docker-compose -f docker-compose.prod.yml --env-file .env-prod up -d
+        EOF
+        
     - name: Final Status Notification
       if: always()
       run: |
@@ -478,6 +517,7 @@ jobs:
           echo "✅ Health check: https://ankurshala.com/health"
           echo "✅ All tests passed"
           echo "✅ Production deployment completed"
+          echo "✅ Database verified and healthy"
           echo ""
           echo "🚀 Your application is ready for users!"
         else
@@ -485,11 +525,13 @@ jobs:
           echo ""
           echo "❌ Check the logs above for error details"
           echo "❌ Application may not be accessible"
+          echo "🔄 Automatic rollback attempted"
           echo ""
           echo "🔧 Next steps:"
           echo "1. Review error messages above"
           echo "2. Check GitHub Actions logs"
           echo "3. Verify VM and service status"
-          echo "4. Re-run deployment after fixes"
+          echo "4. Check if rollback was successful"
+          echo "5. Re-run deployment after fixes"
         fi
         echo "=========================================="
