@@ -3,9 +3,10 @@
 
 name: AnkurShala Production CI/CD Pipeline
 
-on:
-  push:
-    branches: [ ankurshala/prod-1.0-final ]
+# DISABLED - Using simplified production-cicd.yml instead
+# on:
+#   push:
+#     branches: [ ankurshala/prod-1.0-final ]
   # Removed pull_request trigger to prevent duplicate runs
 
 env:
