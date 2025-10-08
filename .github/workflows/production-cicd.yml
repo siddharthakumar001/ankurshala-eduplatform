@@ -233,6 +233,15 @@ jobs:
           echo "🔍 Running pre-deployment database health check..."
           ./scripts/database-health-check.sh
           
+            # Verify Docker Compose file is updated
+            echo "🔍 Verifying Docker Compose configuration..."
+            if grep -q "KAFKA_PROCESS_ROLES" docker-compose.prod.yml; then
+              echo "✅ Docker Compose file contains KRaft configuration"
+            else
+              echo "❌ Docker Compose file missing KRaft configuration!"
+              exit 1
+            fi
+            
             # Deploy application with robust error handling
             echo "🚀 Deploying application with robust error handling..."
             ./scripts/deploy-production-robust.sh --force-kafka-reset --remove-orphans

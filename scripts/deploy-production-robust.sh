@@ -198,6 +198,24 @@ if [[ "$REMOVE_ORPHANS" == "true" ]]; then
   $COMPOSE -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down --remove-orphans || true
   docker volume rm ankurshala-eduplatform_kafka_data 2>/dev/null || true
   docker volume rm ankurshala-eduplatform_zookeeper_data 2>/dev/null || true
+  
+  # Force stop and remove any remaining Kafka/Zookeeper containers
+  log INFO "🔧 Force stopping old Kafka/Zookeeper containers..."
+  docker stop ankurshala_kafka_prod ankurshala_zookeeper_prod 2>/dev/null || true
+  docker rm ankurshala_kafka_prod ankurshala_zookeeper_prod 2>/dev/null || true
+  
+  # Remove all volumes to ensure clean start
+  log INFO "🗑️ Removing all Kafka-related volumes..."
+  docker volume ls -q | grep -E "(kafka|zookeeper)" | xargs -r docker volume rm 2>/dev/null || true
+fi
+
+# Verify Docker Compose configuration
+log INFO "🔍 Verifying Docker Compose configuration..."
+if grep -q "KAFKA_PROCESS_ROLES" "$COMPOSE_FILE"; then
+  log PASS "Docker Compose file contains KRaft configuration"
+else
+  log FAIL "Docker Compose file missing KRaft configuration!"
+  exit 1
 fi
 
 # Handle Kafka KRaft mode startup
@@ -205,6 +223,11 @@ if [[ "$FORCE_KAFKA_RESET" == "true" ]]; then
   log INFO "Force resetting Kafka KRaft cluster..."
   $COMPOSE -f "$COMPOSE_FILE" --env-file "$ENV_FILE" stop kafka || true
   docker volume rm ankurshala-eduplatform_kafka_data 2>/dev/null || true
+  
+  # Show Kafka configuration before starting
+  log INFO "📋 Kafka KRaft configuration:"
+  docker run --rm confluentinc/cp-kafka:7.4.0 env | grep -E "(KAFKA_|CLUSTER_ID)" | head -10
+  
   $COMPOSE -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d kafka
 fi
 
@@ -212,6 +235,15 @@ fi
 log INFO "Waiting for Kafka KRaft cluster to be ready..."
 if wait_healthy "ankurshala_kafka_prod" 180; then
   log PASS "Kafka KRaft cluster is healthy"
+  
+  # Verify KRaft mode is actually running
+  log INFO "🔍 Verifying KRaft mode..."
+  if docker logs ankurshala_kafka_prod 2>&1 | grep -q "KRaft"; then
+    log PASS "Kafka is running in KRaft mode"
+  else
+    log WARN "Kafka mode verification unclear - checking logs..."
+    docker logs ankurshala_kafka_prod 2>&1 | tail -5
+  fi
 else
   log WARN "Kafka health check failed, checking status..."
   if docker ps --format '{{.Names}}' | grep -q '^ankurshala_kafka_prod$'; then
