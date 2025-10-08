@@ -6,8 +6,7 @@ name: AnkurShala Production CI/CD Pipeline
 on:
   push:
     branches: [ ankurshala/prod-1.0-final ]
-  pull_request:
-    branches: [ ankurshala/prod-1.0-final ]
+  # Removed pull_request trigger to prevent duplicate runs
 
 env:
   STORAGE_ACCOUNT: ankurimage
@@ -218,6 +217,9 @@ jobs:
     - name: Download Images from Azure Storage
       run: |
         echo "📥 Downloading pre-built images from Azure Storage..."
+        echo "🔍 Debug: GitHub SHA: ${{ github.sha }}"
+        echo "🔍 Debug: Storage Account: ${{ env.STORAGE_ACCOUNT }}"
+        echo "🔍 Debug: Container: ${{ env.CONTAINER_NAME }}"
         
         # Check if Azure CLI is available and working
         if ! az --version >/dev/null 2>&1; then
@@ -225,31 +227,45 @@ jobs:
           exit 0
         fi
         
+        # List available blobs for debugging
+        echo "🔍 Available blobs in container:"
+        az storage blob list \
+          --container-name ${{ env.CONTAINER_NAME }} \
+          --account-name ${{ env.STORAGE_ACCOUNT }} \
+          --account-key ${{ secrets.STORAGE_KEY }} \
+          --output table || echo "Failed to list blobs"
+        
         # Download backend image
+        echo "📥 Attempting to download backend-prod-${{ github.sha }}.tar..."
         if az storage blob download \
           --container-name ${{ env.CONTAINER_NAME }} \
           --name "backend-prod-${{ github.sha }}.tar" \
           --file backend-image.tar \
           --account-name ${{ env.STORAGE_ACCOUNT }} \
-          --account-key ${{ secrets.STORAGE_KEY }} 2>/dev/null; then
-          echo "✅ Backend image downloaded successfully"
+          --account-key ${{ secrets.STORAGE_KEY }}; then
+          echo "✅ Backend image downloaded successfully ($(ls -lh backend-image.tar | awk '{print $5}'))"
         else
           echo "⚠️ Backend image not found in Azure Storage - will build locally"
           rm -f backend-image.tar
         fi
         
         # Download frontend image
+        echo "📥 Attempting to download frontend-prod-${{ github.sha }}.tar..."
         if az storage blob download \
           --container-name ${{ env.CONTAINER_NAME }} \
           --name "frontend-prod-${{ github.sha }}.tar" \
           --file frontend-image.tar \
           --account-name ${{ env.STORAGE_ACCOUNT }} \
-          --account-key ${{ secrets.STORAGE_KEY }} 2>/dev/null; then
-          echo "✅ Frontend image downloaded successfully"
+          --account-key ${{ secrets.STORAGE_KEY }}; then
+          echo "✅ Frontend image downloaded successfully ($(ls -lh frontend-image.tar | awk '{print $5}'))"
         else
           echo "⚠️ Frontend image not found in Azure Storage - will build locally"
           rm -f frontend-image.tar
         fi
+        
+        # Show what files we have
+        echo "🔍 Files available for upload:"
+        ls -la *.tar 2>/dev/null || echo "No tar files found"
       continue-on-error: true
         
     - name: Upload Images to VM

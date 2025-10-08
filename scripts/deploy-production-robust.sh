@@ -135,8 +135,14 @@ recreate_service() {
       rm -f frontend-image.tar
       log INFO "Cleaned up frontend-image.tar"
     else
-      log INFO "No pre-built image found - building locally: $svc ($buildFlags)"
-      $COMPOSE -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build $buildFlags "$svc"
+      log WARN "No pre-built image found for $svc - checking if image already exists..."
+      # Check if the image already exists locally
+      if docker images | grep -q "ankurshala/$svc:prod"; then
+        log INFO "Image ankurshala/$svc:prod already exists locally - skipping build"
+      else
+        log INFO "Building image locally: $svc ($buildFlags)"
+        $COMPOSE -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build $buildFlags "$svc"
+      fi
     fi
   else
     log INFO "Skipping build for: $svc"
