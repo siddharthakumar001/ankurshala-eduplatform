@@ -377,7 +377,7 @@ class AuthManager {
       const refreshToken = this.authState.refreshToken;
       if (refreshToken) {
         try {
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'}/auth/logout`, {
+          const response = await fetch('/api/auth/logout', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

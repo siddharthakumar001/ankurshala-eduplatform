@@ -290,20 +290,9 @@ export default function AdminContentImportPage() {
         return
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/import/jobs/${jobId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
-
-      if (response.ok) {
-        toast.success('Import job and associated content deleted successfully!')
-        fetchImportJobs() // Refresh the jobs list
-      } else {
-        const errorData = await response.json()
-        toast.error(errorData.detail || errorData.title || 'Failed to delete import job')
-      }
+      await api.delete(`/admin/content/import/jobs/${jobId}`)
+      toast.success('Import job and associated content deleted successfully!')
+      fetchImportJobs() // Refresh the jobs list
     } catch (error) {
       console.error('Error deleting import job:', error)
       toast.error('An unexpected error occurred while deleting the import job.')
@@ -323,10 +312,8 @@ export default function AdminContentImportPage() {
         return
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/content/import/sample-csv`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+      const response = await fetch('/api/admin/content/import/sample-csv', {
+        credentials: 'include',
       })
 
       if (response.ok) {
