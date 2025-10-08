@@ -8,14 +8,6 @@ export async function GET(request: NextRequest) {
     const cookieStore = cookies()
     const accessToken = cookieStore.get('accessToken')?.value
 
-    // Debug logging for production
-    if (process.env.NODE_ENV === 'production') {
-      console.log('Reading cookies in production:', {
-        hasAccessToken: !!accessToken,
-        accessTokenLength: accessToken?.length || 0,
-        allCookies: cookieStore.getAll().map(c => c.name)
-      })
-    }
 
     if (!accessToken) {
       return NextResponse.json(

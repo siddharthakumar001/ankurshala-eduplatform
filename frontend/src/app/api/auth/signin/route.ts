@@ -29,22 +29,12 @@ export async function POST(request: NextRequest) {
     // Set secure httpOnly cookies
     const cookieStore = cookies()
     
-    // Debug logging for production
-    if (process.env.NODE_ENV === 'production') {
-      console.log('Setting cookies in production:', {
-        hasAccessToken: !!accessToken,
-        hasRefreshToken: !!refreshToken,
-        secure: true,
-        sameSite: 'lax',
-        path: '/'
-      })
-    }
     
     // Access token - 15 minutes
     cookieStore.set('accessToken', accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'strict',
+      sameSite: 'lax',
       maxAge: 15 * 60, // 15 minutes
       path: '/',
     })
@@ -53,7 +43,7 @@ export async function POST(request: NextRequest) {
     cookieStore.set('refreshToken', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'strict',
+      sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60, // 7 days
       path: '/',
     })
