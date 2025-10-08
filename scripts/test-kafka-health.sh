@@ -1,8 +1,8 @@
 #!/bin/bash
-# Kafka Health Check Script - Tests multiple health check methods
+# Kafka KRaft Health Check Script - Tests multiple health check methods
 
-echo "🔍 Testing Kafka Health Check Methods"
-echo "====================================="
+echo "🔍 Testing Kafka KRaft Health Check Methods"
+echo "==========================================="
 
 # Method 1: Simple port check
 echo "Method 1: Port 9092 check"
@@ -44,11 +44,25 @@ else
     echo "❌ Kafka process not found"
 fi
 
-# Method 6: Check Kafka logs for errors
-echo "Method 6: Recent Kafka logs (last 10 lines)"
+# Method 6: Check Kafka KRaft logs for errors
+echo "Method 6: Recent Kafka KRaft logs (last 10 lines)"
 docker logs --tail 10 ankurshala_kafka_prod 2>&1 | head -10
 
+# Method 7: Check for KRaft-specific errors
+echo "Method 7: KRaft cluster status check"
+if docker logs ankurshala_kafka_prod 2>&1 | grep -q "KRaft"; then
+    echo "✅ Kafka is running in KRaft mode"
+else
+    echo "⚠️ KRaft mode status unclear"
+fi
+
 echo ""
-echo "🎯 Recommended Health Check Method:"
+echo "🎯 Recommended Health Check Method for KRaft:"
 echo "Use Method 1 (port check) as it's most reliable:"
 echo 'test: ["CMD-SHELL", "timeout 5 bash -c \"exec 3<>/dev/tcp/127.0.0.1/9092\" || exit 1"]'
+echo ""
+echo "🚀 KRaft Mode Benefits:"
+echo "• No Zookeeper dependency"
+echo "• Simplified cluster management"
+echo "• Better performance and reliability"
+echo "• No cluster ID mismatch issues"

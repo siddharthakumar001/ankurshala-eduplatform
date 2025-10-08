@@ -23,7 +23,7 @@ FORCE_KAFKA_RESET="false"
 
 usage(){ cat <<EOF
 Usage: $(basename "$0") [options] [services...]
-Services: postgres redis zookeeper kafka mailhog backend frontend nginx
+Services: postgres redis kafka mailhog backend frontend nginx
 Options:
   --seed-once       Enable demo seed just for this deploy
   --no-build        Skip local builds (recreate containers only)
@@ -45,7 +45,7 @@ while [[ $# -gt 0 ]]; do
     *) log FAIL "Unknown argument: $1"; usage; exit 1;;
   esac; shift
 done
-[[ ${#SERVICES[@]} -eq 0 ]] && SERVICES=(postgres redis zookeeper kafka mailhog backend frontend nginx)
+[[ ${#SERVICES[@]} -eq 0 ]] && SERVICES=(postgres redis kafka mailhog backend frontend nginx)
 
 log INFO "🚀 Starting Robust AnkurShala Production Deployment"
 echo "======================================================"
@@ -138,30 +138,30 @@ recreate_service() {
   esac
 }
 
-# Kafka cluster ID fix
-fix_kafka_cluster_id() {
-  log INFO "🔧 Fixing Kafka cluster ID mismatch..."
+# Kafka KRaft mode management
+manage_kafka_kraft() {
+  log INFO "🔧 Managing Kafka KRaft cluster..."
   
   # Stop Kafka if running
   $COMPOSE -f "$COMPOSE_FILE" --env-file "$ENV_FILE" stop kafka || true
   
-  # Remove Kafka volume to reset cluster ID
-  log INFO "Removing Kafka volume to reset cluster ID..."
+  # Remove Kafka volume to reset cluster metadata
+  log INFO "Removing Kafka volume to reset cluster metadata..."
   docker volume rm ankurshala-eduplatform_kafka_data 2>/dev/null || true
   
-  # Start Kafka fresh
-  log INFO "Starting Kafka with fresh cluster ID..."
+  # Start Kafka KRaft fresh
+  log INFO "Starting Kafka KRaft cluster..."
   $COMPOSE -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d kafka
   
-  # Wait for Kafka with extended timeout
+  # Wait for Kafka KRaft with extended timeout
   if wait_healthy "ankurshala_kafka_prod" 300; then
-    log PASS "Kafka started successfully with new cluster ID"
+    log PASS "Kafka KRaft cluster started successfully"
   else
-    log WARN "Kafka health check failed, but continuing..."
+    log WARN "Kafka KRaft health check failed, but continuing..."
     if docker ps --format '{{.Names}}' | grep -q '^ankurshala_kafka_prod$'; then
-      log WARN "Kafka is running - deployment will continue"
+      log WARN "Kafka KRaft is running - deployment will continue"
     else
-      log FAIL "Kafka failed to start completely"
+      log FAIL "Kafka KRaft failed to start completely"
       return 1
     fi
   fi
@@ -183,49 +183,42 @@ else
   [[ -f "$SEED_FILE" ]] && rm -f "$SEED_FILE"
 fi
 
-# Bring base infrastructure up
-log INFO "Bringing base infra up (keeps volumes/data)..."
-$COMPOSE -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d postgres redis zookeeper mailhog
+# Bring base infrastructure up (Kafka KRaft mode - no Zookeeper needed)
+log INFO "Bringing base infra up (Kafka KRaft mode)..."
+$COMPOSE -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d postgres redis mailhog kafka
 wait_healthy "ankurshala_db_prod" 180
 wait_healthy "ankurshala_redis_prod" 120
-wait_healthy "ankurshala_zookeeper_prod" 120
 wait_healthy "ankurshala_mailhog_prod" 30
 
-# Handle Kafka with cluster ID fix if needed
+# Handle Kafka KRaft mode startup
 if [[ "$FORCE_KAFKA_RESET" == "true" ]]; then
-  fix_kafka_cluster_id
-else
-  log INFO "Starting Kafka after Zookeeper is ready..."
+  log INFO "Force resetting Kafka KRaft cluster..."
+  $COMPOSE -f "$COMPOSE_FILE" --env-file "$ENV_FILE" stop kafka || true
+  docker volume rm ankurshala-eduplatform_kafka_data 2>/dev/null || true
   $COMPOSE -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d kafka
-  
-  # Check if Kafka has cluster ID issues
-  sleep 10
-  if docker logs ankurshala_kafka_prod 2>&1 | grep -q "InconsistentClusterIdException"; then
-    log WARN "Detected Kafka cluster ID mismatch - fixing automatically..."
-    fix_kafka_cluster_id
-  elif ! wait_healthy "ankurshala_kafka_prod" 300; then
-    log WARN "Kafka health check failed, checking for cluster ID issues..."
-    if docker logs ankurshala_kafka_prod 2>&1 | grep -q "InconsistentClusterIdException"; then
-      log WARN "Cluster ID issue detected - fixing automatically..."
-      fix_kafka_cluster_id
-    else
-      log WARN "Kafka is running but health check failed - continuing with deployment"
-      docker logs --tail 10 ankurshala_kafka_prod 2>&1 | head -5
-    fi
+fi
+
+# Wait for Kafka KRaft to be ready
+log INFO "Waiting for Kafka KRaft cluster to be ready..."
+if wait_healthy "ankurshala_kafka_prod" 180; then
+  log PASS "Kafka KRaft cluster is healthy"
+else
+  log WARN "Kafka health check failed, checking status..."
+  if docker ps --format '{{.Names}}' | grep -q '^ankurshala_kafka_prod$'; then
+    log WARN "Kafka is running but health check failed - continuing with deployment"
+    docker logs --tail 10 ankurshala_kafka_prod 2>&1 | head -5
+  else
+    log FAIL "Kafka failed to start - aborting deployment"
+    docker logs ankurshala_kafka_prod 2>&1 | tail -20
+    exit 1
   fi
 fi
 
 # Deploy requested services
 for svc in "${SERVICES[@]}"; do
   case "$svc" in
-    postgres|redis|zookeeper|mailhog) recreate_service "$svc";;
-    kafka)
-      if [[ "$FORCE_KAFKA_RESET" == "true" ]]; then
-        log INFO "Kafka already reset - skipping recreate"
-      else
-        recreate_service kafka
-      fi
-      ;;
+    postgres|redis|mailhog) recreate_service "$svc";;
+    zookeeper) log WARN "Zookeeper not needed in KRaft mode - skipping";;
     backend)
       if [[ "$SEED_ONCE" == "true" ]]; then
         log INFO "Recreating backend WITH seed override (one-time)"
