@@ -1,6 +1,3 @@
-# Production-Ready CI/CD Pipeline Configuration
-# Handles all edge cases: Kafka cluster ID, volume management, rollbacks, etc.
-
 name: AnkurShala Production CI/CD Pipeline
 
 on:
@@ -108,20 +105,100 @@ jobs:
         docker build --no-cache -t ankurshala/frontend:prod-${{ github.sha }} .
         docker tag ankurshala/frontend:prod-${{ github.sha }} ankurshala/frontend:latest
         
-    - name: Login to Azure
-      uses: azure/login@v1
-      with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
-        
     - name: Save Backend image
       run: |
-        cd backend
-        docker save ankurshala/backend:prod-${{ github.sha }} > backend-image.tar
+        docker save ankurshala/backend:prod-${{ github.sha }} -o backend-image.tar
         
     - name: Save Frontend image
       run: |
-        cd frontend
-        docker save ankurshala/frontend:prod-${{ github.sha }} > frontend-image.tar
+        docker save ankurshala/frontend:prod-${{ github.sha }} -o frontend-image.tar
+        
+    - name: Install Azure CLI
+      run: |
+        curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+        
+    - name: Setup Azure Storage Container
+      run: |
+        echo "🔧 Setting up Azure Storage container..."
+        
+        # Debug: Check if STORAGE_KEY is set (without exposing it)
+        if [[ -z "${{ secrets.STORAGE_KEY }}" ]]; then
+          echo "❌ STORAGE_KEY secret is not set in GitHub repository"
+          echo "Please add the STORAGE_KEY secret to your repository settings"
+          echo "Go to: Settings > Secrets and variables > Actions > New repository secret"
+          echo "Name: STORAGE_KEY"
+          echo "Value: Your Azure storage account key"
+          exit 1
+        fi
+        echo "✅ STORAGE_KEY secret is configured"
+        
+        # Debug: Test basic Azure CLI connectivity
+        echo "Testing Azure CLI connectivity..."
+        if ! az --version >/dev/null 2>&1; then
+          echo "❌ Azure CLI is not working properly"
+          exit 1
+        fi
+        echo "✅ Azure CLI is working"
+        
+        # Debug: Test storage account access
+        echo "Testing storage account access..."
+        if ! az storage container list --account-name ${{ env.STORAGE_ACCOUNT }} --account-key ${{ secrets.STORAGE_KEY }} >/dev/null 2>&1; then
+          echo "❌ Cannot access storage account '${{ env.STORAGE_ACCOUNT }}'"
+          echo "Please check your STORAGE_KEY secret"
+          exit 1
+        fi
+        echo "✅ Storage account access successful"
+        
+        # Debug: List existing containers
+        echo "Listing existing containers..."
+        az storage container list \
+          --account-name ${{ env.STORAGE_ACCOUNT }} \
+          --account-key ${{ secrets.STORAGE_KEY }} \
+          --output table
+        
+        # Check if container already exists
+        echo "Checking if container '${{ env.CONTAINER_NAME }}' exists..."
+        if az storage container show \
+          --name ${{ env.CONTAINER_NAME }} \
+          --account-name ${{ env.STORAGE_ACCOUNT }} \
+          --account-key ${{ secrets.STORAGE_KEY }} >/dev/null 2>&1; then
+          echo "✅ Container '${{ env.CONTAINER_NAME }}' already exists"
+        else
+          echo "Container does not exist, creating..."
+          
+          # Create container with detailed output
+          echo "Creating container with private access..."
+          CONTAINER_RESULT=$(az storage container create \
+            --name ${{ env.CONTAINER_NAME }} \
+            --account-name ${{ env.STORAGE_ACCOUNT }} \
+            --account-key ${{ secrets.STORAGE_KEY }} \
+            --public-access off 2>&1)
+          
+          echo "Container creation result: $CONTAINER_RESULT"
+          
+          # Check if creation was successful
+          if echo "$CONTAINER_RESULT" | grep -q '"created": true'; then
+            echo "✅ Container created successfully"
+          else
+            echo "⚠️  Container creation returned false, but checking if it exists anyway..."
+          fi
+          
+          # Verify container exists
+          if az storage container show \
+            --name ${{ env.CONTAINER_NAME }} \
+            --account-name ${{ env.STORAGE_ACCOUNT }} \
+            --account-key ${{ secrets.STORAGE_KEY }} >/dev/null 2>&1; then
+            echo "✅ Container '${{ env.CONTAINER_NAME }}' is ready for use"
+          else
+            echo "❌ Container verification failed"
+            echo "Final container list:"
+            az storage container list \
+              --account-name ${{ env.STORAGE_ACCOUNT }} \
+              --account-key ${{ secrets.STORAGE_KEY }} \
+              --output table
+            exit 1
+          fi
+        fi
         
     - name: Upload Backend to Azure Storage
       run: |
@@ -206,7 +283,7 @@ jobs:
       run: |
         ssh -o StrictHostKeyChecking=no ${{ env.VM_USER }}@${{ env.VM_IP }} << 'EOF'
           set -e
-          echo "🚀 Starting robust deployment process..."
+          echo "🚀 Starting deployment process..."
           
           # Navigate to project directory
           cd /opt/ankurshala
@@ -232,6 +309,10 @@ jobs:
           # Pre-deployment database health check
           echo "🔍 Running pre-deployment database health check..."
           ./scripts/database-health-check.sh
+          
+          # Test Kafka health check methods for debugging
+          echo "🔍 Testing Kafka health check methods..."
+          ./scripts/test-kafka-health.sh || echo "Kafka health check test completed with warnings"
           
           # Deploy application with robust error handling
           echo "🚀 Deploying application with robust error handling..."
@@ -374,8 +455,6 @@ jobs:
           echo "✅ Application is accessible at https://ankurshala.com" >> $REPORT_FILE
           echo "✅ Health endpoint responding" >> $REPORT_FILE
           echo "✅ All services running" >> $REPORT_FILE
-          echo "✅ Database verified and healthy" >> $REPORT_FILE
-          echo "✅ Kafka cluster ID issues resolved" >> $REPORT_FILE
           echo "" >> $REPORT_FILE
           echo "🔗 Application URL: https://ankurshala.com" >> $REPORT_FILE
           echo "🔗 Health Check: https://ankurshala.com/health" >> $REPORT_FILE
@@ -391,7 +470,6 @@ jobs:
           echo "2. Verify VM connectivity" >> $REPORT_FILE
           echo "3. Check Docker services status" >> $REPORT_FILE
           echo "4. Review application logs" >> $REPORT_FILE
-          echo "5. Check Kafka cluster ID issues" >> $REPORT_FILE
         fi
         
         echo "" >> $REPORT_FILE
@@ -446,7 +524,6 @@ jobs:
           echo "✅ All tests passed"
           echo "✅ Production deployment completed"
           echo "✅ Database verified and healthy"
-          echo "✅ Kafka cluster ID issues resolved"
           echo ""
           echo "🚀 Your application is ready for users!"
         else
