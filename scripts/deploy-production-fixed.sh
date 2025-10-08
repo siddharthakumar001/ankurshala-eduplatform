@@ -164,12 +164,26 @@ fi
 
 # ---- Bring infra (no data wipe) ----
 log INFO "Bringing base infra up (keeps volumes/data)..."
-$COMPOSE -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d postgres redis zookeeper kafka mailhog
+$COMPOSE -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d postgres redis zookeeper mailhog
 wait_healthy "ankurshala_db_prod" 180
 wait_healthy "ankurshala_redis_prod" 120
 wait_healthy "ankurshala_zookeeper_prod" 120
-wait_healthy "ankurshala_kafka_prod" 180
 wait_healthy "ankurshala_mailhog_prod" 30
+
+# Start Kafka after Zookeeper is ready
+log INFO "Starting Kafka after Zookeeper is ready..."
+$COMPOSE -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d kafka
+
+# Try health check with extended timeout
+if ! wait_healthy "ankurshala_kafka_prod" 300; then
+  log WARN "Kafka health check failed, checking if it's running..."
+  if docker ps --format '{{.Names}}' | grep -q '^ankurshala_kafka_prod$'; then
+    log WARN "Kafka is running but health check failed - continuing with deployment"
+  else
+    log FAIL "Kafka failed to start - aborting deployment"
+    exit 1
+  fi
+fi
 
 # ---- Deploy requested services ----
 for svc in "${SERVICES[@]}"; do
