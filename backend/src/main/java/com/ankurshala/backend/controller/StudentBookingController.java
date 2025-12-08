@@ -1,11 +1,17 @@
 package com.ankurshala.backend.controller;
 
 import com.ankurshala.backend.dto.student.*;
+import com.ankurshala.backend.entity.TeacherReview;
 import com.ankurshala.backend.security.UserPrincipal;
 import com.ankurshala.backend.service.StudentBookingService;
+import com.ankurshala.backend.service.TeacherReviewService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -25,6 +31,7 @@ import java.util.Map;
 public class StudentBookingController {
 
     private final StudentBookingService bookingService;
+    private final TeacherReviewService reviewService;
 
     @PostMapping("/quote")
     @PreAuthorize("hasRole('STUDENT')")
@@ -102,12 +109,16 @@ public class StudentBookingController {
 
     @GetMapping("/history")
     @PreAuthorize("hasRole('STUDENT')")
-    public ResponseEntity<List<BookingResponse>> getBookingHistory(
+    public ResponseEntity<Page<BookingResponse>> getBookingHistory(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
         
-        log.info("Getting booking history for student {}", userPrincipal.getId());
+        log.info("Getting booking history for student {} (page={}, size={})", 
+                userPrincipal.getId(), page, size);
         
-        List<BookingResponse> bookings = bookingService.getBookingHistory(userPrincipal);
+        Pageable pageable = PageRequest.of(page, size, Sort.by("startTs").descending());
+        Page<BookingResponse> bookings = bookingService.getBookingHistory(userPrincipal, pageable);
         return ResponseEntity.ok(bookings);
     }
 
@@ -202,5 +213,46 @@ public class StudentBookingController {
             "sessionUrl", "https://meet.ankurshala.com/session/" + id,
             "sessionId", id.toString()
         ));
+    }
+
+    @PostMapping("/reviews")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<SubmitReviewResponse> submitReview(
+            @Valid @RequestBody SubmitReviewRequest request,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        
+        log.info("Student {} submitting review for teacher {} and booking {}", 
+                userPrincipal.getId(), request.getTeacherId(), request.getBookingId());
+        
+        TeacherReview review = reviewService.submitReview(
+                userPrincipal.getId(),
+                request.getTeacherId(),
+                request.getBookingId(),
+                request.getRating(),
+                request.getComment()
+        );
+
+        SubmitReviewResponse response = SubmitReviewResponse.builder()
+                .reviewId(review.getId())
+                .teacherId(review.getTeacherId())
+                .bookingId(review.getBookingId())
+                .rating(review.getRating())
+                .comment(review.getComment())
+                .createdAt(review.getCreatedAt())
+                .message("Review submitted successfully")
+                .build();
+
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/reviews/my-reviews")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<List<TeacherSearchResponse.TeacherReviewDto>> getMyReviews(
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        
+        log.info("Getting reviews for student {}", userPrincipal.getId());
+        
+        List<TeacherSearchResponse.TeacherReviewDto> reviews = reviewService.getStudentReviews(userPrincipal.getId());
+        return ResponseEntity.ok(reviews);
     }
 }

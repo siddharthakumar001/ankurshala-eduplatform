@@ -1,12 +1,9 @@
 package com.ankurshala.backend.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -14,37 +11,82 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "fee_waivers")
 @Data
-@NoArgsConstructor
 public class FeeWaiver {
-    
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
+
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "booking_id")
-    private Booking booking;
-    
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id")
     private User user;
-    
-    @NotBlank
-    @Column(name = "reason", nullable = false, length = 500)
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "fee_application_id")
+    private FeeApplication feeApplication;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "waiver_type", nullable = false)
+    private WaiverType waiverType;
+
+    @Column(name = "waiver_amount_cents")
+    private Long waiverAmountCents = 0L;
+
+    @Column(name = "waiver_percentage", precision = 5, scale = 2)
+    private BigDecimal waiverPercentage = BigDecimal.ZERO;
+
+    @Column(name = "reason", columnDefinition = "TEXT", nullable = false)
     private String reason;
-    
-    @NotNull
-    @DecimalMin("0.00")
-    @Column(name = "amount", nullable = false, precision = 8, scale = 2)
-    private BigDecimal amount;
-    
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "approved_by")
+    private User approvedBy;
+
+    @Column(name = "approved_at")
+    private LocalDateTime approvedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private WaiverStatus status = WaiverStatus.PENDING;
+
+    @Column(name = "expires_at")
+    private LocalDateTime expiresAt;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
-    
-    public FeeWaiver(User user, String reason, BigDecimal amount) {
-        this.user = user;
-        this.reason = reason;
-        this.amount = amount;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    public enum WaiverType {
+        FULL, PARTIAL, PERCENTAGE
+    }
+
+    public enum WaiverStatus {
+        PENDING, APPROVED, REJECTED, EXPIRED
+    }
+
+    // Helper methods for compatibility
+    public Long getUserId() {
+        return user != null ? user.getId() : null;
+    }
+
+    public void setUserId(Long userId) {
+        if (userId != null) {
+            this.user = new User();
+            this.user.setId(userId);
+        }
+    }
+
+    public Long getFeeApplicationId() {
+        return feeApplication != null ? feeApplication.getId() : null;
+    }
+
+    public void setFeeApplicationId(Long feeApplicationId) {
+        if (feeApplicationId != null) {
+            this.feeApplication = new FeeApplication();
+            this.feeApplication.setId(feeApplicationId);
+        }
     }
 }

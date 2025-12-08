@@ -10,6 +10,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -221,19 +224,20 @@ class StudentBookingControllerTest {
     void testGetBookingHistory_Success() {
         // Setup
         List<BookingResponse> bookings = List.of(bookingResponse);
+        Page<BookingResponse> bookingsPage = new PageImpl<>(bookings);
 
         // Mock service
-        when(bookingService.getBookingHistory(any(UserPrincipal.class)))
-                .thenReturn(bookings);
+        when(bookingService.getBookingHistory(any(UserPrincipal.class), any(Pageable.class)))
+                .thenReturn(bookingsPage);
 
         // Execute
-        ResponseEntity<List<BookingResponse>> response = controller.getBookingHistory(userPrincipal);
+        ResponseEntity<Page<BookingResponse>> response = controller.getBookingHistory(0, 20, userPrincipal);
 
         // Verify
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(bookings, response.getBody());
-        verify(bookingService).getBookingHistory(userPrincipal);
+        assertEquals(bookingsPage, response.getBody());
+        verify(bookingService).getBookingHistory(eq(userPrincipal), any(Pageable.class));
     }
 
     @Test

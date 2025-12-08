@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import AdminLayoutSimple from '@/components/admin-layout-simple'
+import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -278,20 +278,20 @@ export default function AdminNotificationsPage() {
 
   if (loading) {
     return (
-      <AdminLayoutSimple>
+      <DashboardLayout role="admin">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
             <p className="text-gray-600 dark:text-gray-400">Loading notifications...</p>
           </div>
         </div>
-      </AdminLayoutSimple>
+      </DashboardLayout>
     )
   }
 
   if (error) {
     return (
-      <AdminLayoutSimple>
+      <DashboardLayout role="admin">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
@@ -301,12 +301,12 @@ export default function AdminNotificationsPage() {
             </Button>
           </div>
         </div>
-      </AdminLayoutSimple>
+      </DashboardLayout>
     )
   }
 
   return (
-    <AdminLayoutSimple>
+    <DashboardLayout role="admin">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -715,6 +715,6 @@ export default function AdminNotificationsPage() {
           </Dialog>
         )}
       </div>
-    </AdminLayoutSimple>
+    </DashboardLayout>
   )
 }

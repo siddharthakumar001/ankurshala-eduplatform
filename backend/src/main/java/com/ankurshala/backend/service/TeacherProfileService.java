@@ -317,6 +317,8 @@ public class TeacherProfileService {
         dto.setVerified(profile.getVerified());
         dto.setRating(profile.getRating());
         dto.setTotalReviews(profile.getTotalReviews());
+        dto.setTeacherCategory(profile.getTeacherCategory());
+        dto.setLanguages(profile.getLanguages());
         return dto;
     }
 
@@ -340,6 +342,8 @@ public class TeacherProfileService {
         profile.setHourlyRate(dto.getHourlyRate());
         profile.setYearsOfExperience(dto.getYearsOfExperience());
         profile.setSpecialization(dto.getSpecialization());
+        profile.setTeacherCategory(dto.getTeacherCategory());
+        profile.setLanguages(dto.getLanguages());
         // Note: verified, rating, totalReviews are typically not updated by user
     }
 
@@ -418,18 +422,16 @@ public class TeacherProfileService {
     private TeacherAvailabilityDto convertToDto(TeacherAvailability availability) {
         TeacherAvailabilityDto dto = new TeacherAvailabilityDto();
         dto.setId(availability.getId());
-        dto.setAvailableFrom(availability.getAvailableFrom());
-        dto.setAvailableTo(availability.getAvailableTo());
-        dto.setPreferredStudentLevels(availability.getPreferredStudentLevels());
-        dto.setLanguagesSpoken(availability.getLanguagesSpoken());
+        dto.setAvailableFrom(availability.getStartTime());
+        dto.setAvailableTo(availability.getEndTime());
+        // Note: preferredStudentLevels and languagesSpoken are not available in TeacherAvailability entity
         return dto;
     }
 
     private void updateAvailabilityFromDto(TeacherAvailability availability, TeacherAvailabilityDto dto) {
-        availability.setAvailableFrom(dto.getAvailableFrom());
-        availability.setAvailableTo(dto.getAvailableTo());
-        availability.setPreferredStudentLevels(dto.getPreferredStudentLevels());
-        availability.setLanguagesSpoken(dto.getLanguagesSpoken());
+        availability.setStartTime(dto.getAvailableFrom());
+        availability.setEndTime(dto.getAvailableTo());
+        // Note: preferredStudentLevels and languagesSpoken are not available in TeacherAvailability entity
     }
 
     private TeacherAddressDto convertToDto(TeacherAddress address) {

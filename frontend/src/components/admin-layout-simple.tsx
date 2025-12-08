@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
+import Image from 'next/image'
 import { useAuthStore } from '@/store/auth'
 import { authAPI } from '@/lib/apiClient'
 import { Button } from '@/components/ui/button'
@@ -79,9 +80,13 @@ export default function AdminLayoutSimple({ children }: AdminLayoutProps) {
       >
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
           <Link href="/admin" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-md flex items-center justify-center">
-              <span className="text-white font-bold text-sm">A</span>
-            </div>
+            <Image 
+              src="/ankurshala-logo-small.png" 
+              alt="Ankurshala" 
+              width={32} 
+              height={32} 
+              className="rounded-lg"
+            />
             <span className="text-xl font-semibold">Admin Panel</span>
           </Link>
           <Button

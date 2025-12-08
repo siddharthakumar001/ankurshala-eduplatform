@@ -18,6 +18,7 @@ import org.springframework.transaction.support.DefaultTransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -559,17 +560,19 @@ public class BulkDemoSeeder implements CommandLineRunner {
 
     private void createTeacherAvailability(Teacher teacher) {
         // Check if availability already exists for this teacher
-        if (teacherAvailabilityRepository.existsByTeacher(teacher)) {
+        if (!teacherAvailabilityRepository.findByTeacher_IdAndActive(teacher.getId(), true).isEmpty()) {
             logger.debug("TeacherAvailability already exists for teacher {}, skipping creation", teacher.getId());
             return;
         }
         
         TeacherAvailability availability = new TeacherAvailability();
         availability.setTeacher(teacher);
-        availability.setAvailableFrom(dataGenerator.generateAvailableFrom());
-        availability.setAvailableTo(dataGenerator.generateAvailableTo());
-        availability.setPreferredStudentLevels(dataGenerator.generatePreferredStudentLevels());
-        availability.setLanguagesSpoken(dataGenerator.generateLanguagesSpoken());
+        availability.setStartTime(LocalTime.of(9, 0)); // 9:00 AM
+        availability.setEndTime(LocalTime.of(17, 0)); // 5:00 PM
+        availability.setWeekday(1); // Monday
+        availability.setActive(true);
+        availability.setTimezone("Asia/Kolkata");
+        // Note: preferredStudentLevels and languagesSpoken not available in current entity
         teacherAvailabilityRepository.save(availability);
     }
 

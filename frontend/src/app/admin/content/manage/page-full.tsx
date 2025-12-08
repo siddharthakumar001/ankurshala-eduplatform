@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
-import AdminLayoutSimple from '@/components/admin-layout-simple'
+import DashboardLayout from '@/components/layout/DashboardLayout'
 import AuthGuard from '@/components/AuthGuard'
 import SessionManager from '@/components/SessionManager'
 import { 
@@ -159,7 +159,7 @@ function ContentManagePageContent() {
   }, [searchTerm, statusFilter])
 
   return (
-    <AdminLayoutSimple>
+    <DashboardLayout role="admin">
       <div className="min-h-screen bg-gray-50">
         <div className="container mx-auto p-6">
           {/* Header */}
@@ -405,7 +405,7 @@ function ContentManagePageContent() {
           />
         </div>
       </div>
-    </AdminLayoutSimple>
+    </DashboardLayout>
   )
 }
 

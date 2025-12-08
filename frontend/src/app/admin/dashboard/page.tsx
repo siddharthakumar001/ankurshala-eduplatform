@@ -3,15 +3,30 @@
 import { useState, useEffect } from 'react'
 import AuthGuard from '@/components/AuthGuard'
 import SessionManager from '@/components/SessionManager'
-import AdminLayoutSimple from '@/components/admin-layout-simple'
-import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import DashboardLayout from '@/components/layout/DashboardLayout'
+import MetricCard from '@/components/ui/MetricCard'
+import QuickActionCard from '@/components/ui/QuickActionCard'
+import ActivityFeed, { ActivityType } from '@/components/ui/ActivityFeed'
+import SystemStatusCard, { SystemStatus } from '@/components/ui/SystemStatusCard'
 import { 
   Users, 
   GraduationCap, 
-  CheckCircle,
+  BookOpen,
+  Calendar,
+  CreditCard,
+  Bell,
+  Settings,
+  UserPlus,
+  FileText,
+  TrendingUp,
   Clock,
-  AlertCircle
+  AlertCircle,
+  RefreshCw,
+  ChevronRight,
+  Activity,
+  DollarSign,
+  CheckCircle,
+  BarChart3,
 } from 'lucide-react'
 import { api } from '@/utils/api'
 import { useAuthStore } from '@/store/auth'
@@ -42,232 +57,313 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [hasFetchedMetrics, setHasFetchedMetrics] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
-  const fetchMetrics = async () => {
+  const fetchMetrics = async (isRefresh = false) => {
     try {
-      console.log('Admin Dashboard - Starting metrics fetch...')
-      setLoading(true)
+      if (isRefresh) setIsRefreshing(true)
+      else setLoading(true)
       setError(null)
       
-      // Direct API call - the backend returns DashboardMetricsDto directly, not wrapped
       const response = await api.get('/admin/dashboard/metrics')
-      
-      console.log('Admin Dashboard - Raw response:', response)
-      
-      // The response.data contains the actual metrics (not wrapped in ApiResponse)
       const metricsData = response.data as DashboardMetrics
-      
-      console.log('Admin Dashboard - Metrics fetched successfully:', metricsData)
       setMetrics(metricsData)
       
     } catch (err: any) {
       console.error('Admin Dashboard - Error fetching metrics:', err)
-      console.error('Admin Dashboard - Error details:', {
-        message: err?.message,
-        response: err?.response,
-        status: err?.response?.status
-      })
-      
-      // Handle 401 Unauthorized specifically
       if (err?.message?.includes('Unauthorized') || err?.message?.includes('401')) {
         setError('Session expired or unauthorized. Please login again.')
       } else {
-        const errorMessage = err?.message || 'Failed to load dashboard metrics'
-        setError(errorMessage)
+        setError(err?.message || 'Failed to load dashboard metrics')
       }
     } finally {
       setLoading(false)
+      setIsRefreshing(false)
     }
   }
 
   useEffect(() => {
-    console.log('Admin Dashboard - Checking authentication...', {
-      hasUser: !!user,
-      userEmail: user?.email,
-      hasFetchedMetrics
-    })
-    
-    if (!user) {
-      console.log('Admin Dashboard - No user authenticated')
-      setLoading(false)
-      return
-    }
-
-    if (hasFetchedMetrics) {
-      console.log('Admin Dashboard - Metrics already fetched, skipping')
-      return
-    }
-
-    console.log('Admin Dashboard - User authenticated, fetching metrics...')
+    if (!user || hasFetchedMetrics) return
     setHasFetchedMetrics(true)
     fetchMetrics()
   }, [user, hasFetchedMetrics])
 
-  // Loading skeleton component
-  const MetricsSkeleton = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {[...Array(4)].map((_, index) => (
-        <Card key={index} className="p-6">
-          <div className="animate-pulse">
-            <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-            <div className="h-8 bg-gray-200 rounded w-1/2 mb-2"></div>
-            <div className="h-3 bg-gray-200 rounded w-1/4"></div>
-          </div>
-        </Card>
-      ))}
-    </div>
-  )
+  // Calculate percentage changes (mock data for demonstration)
+  const studentGrowth = metrics?.newStudentsLast7Days && metrics?.totalStudents 
+    ? Math.round((metrics.newStudentsLast7Days / metrics.totalStudents) * 100 * 10) / 10
+    : 0
+  const teacherGrowth = metrics?.newTeachersLast7Days && metrics?.totalTeachers
+    ? Math.round((metrics.newTeachersLast7Days / metrics.totalTeachers) * 100 * 10) / 10
+    : 0
 
-  // Error component
-  const ErrorDisplay = () => (
-    <Card className="p-6 border-red-200 bg-red-50 dark:bg-red-900/20">
-      <div className="flex items-center space-x-2 text-red-600 dark:text-red-400">
-        <AlertCircle className="h-5 w-5" />
-        <span className="font-medium">Error loading dashboard</span>
-      </div>
-      <p className="text-red-600 dark:text-red-400 mt-2">{error}</p>
-      <Button 
-        onClick={fetchMetrics} 
-        variant="outline" 
-        size="sm" 
-        className="mt-4"
-      >
-        Try Again
-      </Button>
-    </Card>
-  )
-
-  // Define metric cards data
-  const metricCards = [
-    {
-      title: 'Total Students',
-      value: metrics?.totalStudents || 0,
-      change: metrics?.newStudentsLast7Days || 0,
-      changeLabel: 'New this week',
-      icon: Users,
-      color: 'text-blue-600 dark:text-blue-400',
-      bgColor: 'bg-blue-100 dark:bg-blue-900'
-    },
-    {
-      title: 'Total Teachers',
-      value: metrics?.totalTeachers || 0,
-      change: metrics?.newTeachersLast7Days || 0,
-      changeLabel: 'New this week',
-      icon: GraduationCap,
-      color: 'text-green-600 dark:text-green-400',
-      bgColor: 'bg-green-100 dark:bg-green-900'
-    },
-    {
-      title: 'Active Students',
-      value: metrics?.activeStudents || 0,
-      change: metrics?.activeStudents || 0,
-      changeLabel: 'Currently active',
-      icon: CheckCircle,
-      color: 'text-emerald-600 dark:text-emerald-400',
-      bgColor: 'bg-emerald-100 dark:bg-emerald-900'
-    },
-    {
-      title: 'Active Teachers',
-      value: metrics?.activeTeachers || 0,
-      change: metrics?.activeTeachers || 0,
-      changeLabel: 'Currently active',
-      icon: CheckCircle,
-      color: 'text-purple-600 dark:text-purple-400',
-      bgColor: 'bg-purple-100 dark:bg-purple-900'
-    }
+  // Recent activity data (mock - would come from API)
+  const recentActivity = [
+    { id: '1', type: 'success' as ActivityType, title: 'New student registered', description: 'John Doe enrolled in Class 10 Physics', timestamp: '2 min ago', user: 'System' },
+    { id: '2', type: 'info' as ActivityType, title: 'Booking confirmed', description: 'Class scheduled for tomorrow at 4 PM', timestamp: '15 min ago', user: 'Priya Sharma' },
+    { id: '3', type: 'warning' as ActivityType, title: 'Payment pending', description: 'Invoice #INV-2024-001 awaiting payment', timestamp: '1 hour ago', user: 'Rahul Kumar' },
+    { id: '4', type: 'success' as ActivityType, title: 'Teacher approved', description: 'Dr. Amit Singh is now verified', timestamp: '2 hours ago', user: 'Admin' },
+    { id: '5', type: 'info' as ActivityType, title: 'Course content updated', description: 'New chapter added to Class 12 Mathematics', timestamp: '3 hours ago', user: 'Content Team' },
   ]
+
+  // System status data (would come from API in production)
+  const systemStatus = [
+    { name: 'Backend API', status: 'operational' as SystemStatus, latency: '45ms', uptime: '99.9%' },
+    { name: 'Database', status: 'operational' as SystemStatus, latency: '12ms', uptime: '99.99%' },
+    { name: 'Redis Cache', status: 'operational' as SystemStatus, latency: '2ms', uptime: '99.9%' },
+    { name: 'Payment Gateway', status: 'operational' as SystemStatus, latency: '120ms', uptime: '99.8%' },
+  ]
+
+  // Loading skeleton
+  if (loading && !metrics) {
+    return (
+      <AuthGuard requiredRoles={['ADMIN']}>
+        <SessionManager showSessionInfo={false}>
+          <DashboardLayout role="admin">
+            <div className="space-y-6 animate-pulse">
+              <div className="h-32 bg-gray-200 rounded-2xl" />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="h-36 bg-gray-200 rounded-xl" />
+                ))}
+              </div>
+            </div>
+          </DashboardLayout>
+        </SessionManager>
+      </AuthGuard>
+    )
+  }
 
   return (
     <AuthGuard requiredRoles={['ADMIN']}>
-      <SessionManager showSessionInfo={true}>
-        <AdminLayoutSimple>
+      <SessionManager showSessionInfo={false}>
+        <DashboardLayout role="admin">
           <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between">
+            {/* Page Header */}
+            <div className="bg-gradient-to-r from-ankur-secondary to-[#2a4a73] rounded-2xl p-8 text-white">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <h1 className="text-2xl md:text-3xl font-bold mb-2">
+                    Welcome back, {user?.name || 'Admin'}! 👋
+                  </h1>
+                  <p className="text-white/80">
+                    Here&apos;s what&apos;s happening with your platform today.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => fetchMetrics(true)}
+                    disabled={isRefreshing}
+                    className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2.5 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    {isRefreshing ? 'Refreshing...' : 'Refresh'}
+                  </button>
+                  <div className="flex items-center gap-2 bg-white/10 px-4 py-2.5 rounded-lg text-sm">
+                    <Clock className="w-4 h-4" />
+                    <span>{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Error Alert */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-red-800 font-medium">Error loading dashboard</p>
+                  <p className="text-red-600 text-sm">{error}</p>
+                </div>
+                <button
+                  onClick={() => fetchMetrics(true)}
+                  className="text-red-600 hover:text-red-800 font-medium text-sm"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+
+            {/* Key Metrics */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <MetricCard
+                title="Total Students"
+                value={metrics?.totalStudents?.toLocaleString() || '0'}
+                change={studentGrowth}
+                changeLabel="growth this week"
+                icon={GraduationCap}
+                iconBgColor="bg-blue-500"
+              />
+              <MetricCard
+                title="Total Teachers"
+                value={metrics?.totalTeachers?.toLocaleString() || '0'}
+                change={teacherGrowth}
+                changeLabel="growth this week"
+                icon={Users}
+                iconBgColor="bg-ankur-primary"
+              />
+              <MetricCard
+                title="Active Courses"
+                value={metrics?.totalSubjects?.toLocaleString() || '0'}
+                change={5}
+                changeLabel="new this month"
+                icon={BookOpen}
+                iconBgColor="bg-purple-500"
+              />
+              <MetricCard
+                title="Revenue"
+                value="₹4,52,000"
+                change={12.5}
+                changeLabel="vs last month"
+                icon={DollarSign}
+                iconBgColor="bg-ankur-accent"
+                iconColor="text-gray-900"
+              />
+            </div>
+
+            {/* Quick Actions */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
+                <a href="/admin/settings" className="text-sm text-ankur-primary hover:underline flex items-center gap-1">
+                  View all settings <ChevronRight className="w-4 h-4" />
+                </a>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                <QuickActionCard
+                  title="Add Student"
+                  icon={UserPlus}
+                  href="/admin/students/new"
+                  iconBgColor="bg-blue-50"
+                  iconColor="text-blue-600"
+                />
+                <QuickActionCard
+                  title="Add Teacher"
+                  icon={Users}
+                  href="/admin/teachers/new"
+                  iconBgColor="bg-green-50"
+                  iconColor="text-green-600"
+                />
+                <QuickActionCard
+                  title="Manage Subjects"
+                  icon={BookOpen}
+                  href="/admin/subjects"
+                  iconBgColor="bg-purple-50"
+                  iconColor="text-purple-600"
+                />
+                <QuickActionCard
+                  title="View Bookings"
+                  icon={Calendar}
+                  href="/admin/bookings"
+                  iconBgColor="bg-orange-50"
+                  iconColor="text-orange-600"
+                />
+                <QuickActionCard
+                  title="Payments"
+                  icon={CreditCard}
+                  href="/admin/payments"
+                  iconBgColor="bg-emerald-50"
+                  iconColor="text-emerald-600"
+                />
+                <QuickActionCard
+                  title="Reports"
+                  icon={BarChart3}
+                  href="/admin/reports"
+                  iconBgColor="bg-indigo-50"
+                  iconColor="text-indigo-600"
+                />
+              </div>
+            </div>
+
+            {/* Main Content Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Activity Feed */}
+              <div className="lg:col-span-2">
+                <ActivityFeed
+                  items={recentActivity}
+                  maxItems={5}
+                  onViewAll={() => window.location.href = '/admin/activity'}
+                />
+              </div>
+
+              {/* System Status */}
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-                <p className="text-gray-600 dark:text-gray-400">Welcome back, Admin! Here's what's happening.</p>
-              </div>
-              <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
-                <Clock className="h-4 w-4" />
-                <span>Last updated: {new Date().toLocaleTimeString()}</span>
+                <SystemStatusCard items={systemStatus} />
               </div>
             </div>
 
-            {/* Metrics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" data-testid="dashboard-metrics">
-              {loading ? (
-                <MetricsSkeleton />
-              ) : error ? (
-                <div className="col-span-full">
-                  <ErrorDisplay />
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Content Statistics */}
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="font-semibold text-gray-900">Content Statistics</h3>
+                  <FileText className="w-5 h-5 text-gray-400" />
                 </div>
-              ) : (
-                metricCards.map((card, index) => (
-                  <Card key={index} className="p-6 hover:shadow-lg transition-shadow">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{card.title}</p>
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white">{card.value}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{card.changeLabel}: {card.change}</p>
+                <div className="space-y-4">
+                  {[
+                    { label: 'Total Boards', value: metrics?.totalBoards || 0, color: 'bg-blue-500' },
+                    { label: 'Total Grades', value: metrics?.totalGrades || 0, color: 'bg-green-500' },
+                    { label: 'Total Subjects', value: metrics?.totalSubjects || 0, color: 'bg-purple-500' },
+                    { label: 'Total Chapters', value: metrics?.totalChapters || 0, color: 'bg-orange-500' },
+                    { label: 'Total Topics', value: metrics?.totalTopics || 0, color: 'bg-pink-500' },
+                  ].map((item, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-2 h-2 rounded-full ${item.color}`} />
+                        <span className="text-sm text-gray-600">{item.label}</span>
                       </div>
-                      <div className={`p-3 rounded-full ${card.bgColor}`}>
-                        <card.icon className={`h-6 w-6 ${card.color}`} />
-                      </div>
+                      <span className="font-semibold text-gray-900">{item.value.toLocaleString()}</span>
                     </div>
-                  </Card>
-                ))
-              )}
-            </div>
+                  ))}
+                </div>
+              </div>
 
-            {/* Quick Stats */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Content Statistics</h3>
+              {/* User Growth */}
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="font-semibold text-gray-900">User Growth</h3>
+                  <TrendingUp className="w-5 h-5 text-green-500" />
+                </div>
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Total Boards</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">{metrics?.totalBoards || 0}</span>
+                  <div className="p-4 bg-blue-50 rounded-xl">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-blue-900">New Students</span>
+                      <span className="text-xs text-blue-600">Last 30 days</span>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-bold text-blue-900">{metrics?.newStudentsLast30Days || 0}</span>
+                      <span className="text-sm text-blue-600">
+                        (+{metrics?.newStudentsLast7Days || 0} this week)
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Total Subjects</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">{metrics?.totalSubjects || 0}</span>
+                  <div className="p-4 bg-green-50 rounded-xl">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-green-900">New Teachers</span>
+                      <span className="text-xs text-green-600">Last 30 days</span>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-bold text-green-900">{metrics?.newTeachersLast30Days || 0}</span>
+                      <span className="text-sm text-green-600">
+                        (+{metrics?.newTeachersLast7Days || 0} this week)
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Total Chapters</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">{metrics?.totalChapters || 0}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Total Topics</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">{metrics?.totalTopics || 0}</span>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-3 bg-gray-50 rounded-xl text-center">
+                      <p className="text-2xl font-bold text-gray-900">{metrics?.activeStudents || 0}</p>
+                      <p className="text-xs text-gray-500">Active Students</p>
+                    </div>
+                    <div className="p-3 bg-gray-50 rounded-xl text-center">
+                      <p className="text-2xl font-bold text-gray-900">{metrics?.activeTeachers || 0}</p>
+                      <p className="text-xs text-gray-500">Active Teachers</p>
+                    </div>
                   </div>
                 </div>
-              </Card>
-
-              <Card className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">User Activity</h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">New Students (7 days)</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">{metrics?.newStudentsLast7Days || 0}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">New Teachers (7 days)</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">{metrics?.newTeachersLast7Days || 0}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">New Students (30 days)</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">{metrics?.newStudentsLast30Days || 0}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">New Teachers (30 days)</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">{metrics?.newTeachersLast30Days || 0}</span>
-                  </div>
-                </div>
-              </Card>
+              </div>
             </div>
           </div>
-        </AdminLayoutSimple>
+        </DashboardLayout>
       </SessionManager>
     </AuthGuard>
   )

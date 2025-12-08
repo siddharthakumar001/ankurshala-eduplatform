@@ -57,7 +57,8 @@ services:
     image: confluentinc/cp-kafka:7.4.0
     container_name: ankurshala_kafka_local
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_healthy
     ports:
       - "9092:9092"
     volumes:
@@ -70,6 +71,14 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 300000
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      KAFKA_MIN_INSYNC_REPLICAS: 1
+      KAFKA_COMPRESSION_TYPE: snappy
     healthcheck:
       test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 >/dev/null 2>&1"]
       interval: 15s
@@ -101,7 +110,7 @@ services:
       redis:
         condition: service_healthy
       kafka:
-        condition: service_started
+        condition: service_healthy
       mailhog:
         condition: service_started
     ports:
@@ -183,10 +192,44 @@ services:
     networks: [ankurshala-local]
     restart: unless-stopped
 
+  # -------- Prometheus (Metrics Collection) --------
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ankurshala_prometheus_local
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks: [ankurshala-local]
+    restart: unless-stopped
+
+  # -------- Grafana (Metrics Visualization) --------
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ankurshala_grafana_local
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_INSTALL_PLUGINS=grafana-clock-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    networks: [ankurshala-local]
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:
   kafka_data:
+  prometheus_data:
+  grafana_data:
 
 networks:
   ankurshala-local:

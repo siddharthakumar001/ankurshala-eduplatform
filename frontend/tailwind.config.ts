@@ -51,24 +51,33 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // AnkurShala Brand Colors
-        brand: {
-          primary: "#2563eb",      // Main brand blue
-          secondary: "#4f46e5",    // Secondary blue
-          accent: "#3b82f6",       // Accent blue
-          success: "#10b981",      // Success green
-          warning: "#f59e0b",      // Warning orange
-          error: "#ef4444",        // Error red
-          info: "#06b6d4",          // Info cyan
+        // AnkurShala Brand Colors - Modern Design
+        ankur: {
+          primary: "#0F9D58",      // Green primary
+          "primary-dark": "#0d8a4d",
+          secondary: "#1E3A5F",    // Navy sidebar
+          "secondary-dark": "#152A45",
+          accent: "#F5B800",       // Gold accent
+          "accent-light": "#FFD700",
+          success: "#10B981",      // Success green
+          warning: "#F59E0B",      // Warning orange
+          error: "#EF4444",        // Error red
+          info: "#0EA5E9",         // Info blue
+        },
+        // Surface colors
+        surface: {
+          DEFAULT: "#F8FAFC",
+          elevated: "#FFFFFF",
+          overlay: "rgba(255, 255, 255, 0.95)",
         },
         // Educational Theme Colors
         education: {
-          grade7: "#8b5cf6",       // Purple for Grade 7
-          grade8: "#06b6d4",       // Cyan for Grade 8
-          grade9: "#10b981",       // Green for Grade 9
-          grade10: "#f59e0b",      // Orange for Grade 10
-          grade11: "#ef4444",      // Red for Grade 11
-          grade12: "#6366f1",      // Indigo for Grade 12
+          grade7: "#8B5CF6",       // Purple for Grade 7
+          grade8: "#06B6D4",       // Cyan for Grade 8
+          grade9: "#10B981",       // Green for Grade 9
+          grade10: "#F59E0B",      // Orange for Grade 10
+          grade11: "#EF4444",      // Red for Grade 11
+          grade12: "#6366F1",      // Indigo for Grade 12
         },
       },
       borderRadius: {

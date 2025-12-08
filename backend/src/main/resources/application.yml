@@ -8,7 +8,7 @@ spring:
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update  # Changed from validate to update for dev to auto-fix schema
       naming:
         physical-strategy: org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
     show-sql: false
@@ -38,11 +38,35 @@ spring:
     consumer:
       group-id: ankurshala-group
       auto-offset-reset: earliest
+      enable-auto-commit: true
+      auto-commit-interval: 1000
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        max.poll.records: 500
+        max.poll.interval.ms: 300000
+        session.timeout.ms: 30000
+        heartbeat.interval.ms: 3000
+        request.timeout.ms: 40000
+        connections.max.idle.ms: 540000
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: 1
+      retries: 3
+      properties:
+        max.in.flight.requests.per.connection: 5
+        retry.backoff.ms: 100
+        request.timeout.ms: 30000
+        delivery.timeout.ms: 120000
+        linger.ms: 0
+        batch.size: 16384
+        buffer.memory: 33554432
+        compression.type: snappy
+    properties:
+      reconnect.backoff.ms: 50
+      reconnect.backoff.max.ms: 1000
+      metadata.max.age.ms: 300000
 
 server:
   port: ${SERVER_PORT:8080}
@@ -53,11 +77,40 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,mappings
+        include: health,info,prometheus,metrics,mappings,env,loggers,business
+      base-path: /actuator
   endpoint:
     health:
+      show-details: always
       probes:
         enabled: true
+    prometheus:
+      enabled: true
+    metrics:
+      enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+        step: 10s
+  metrics:
+    distribution:
+      percentiles-histogram:
+        '[http.server.requests]': true
+        '[api.request.duration]': true
+        '[db.query.duration]': true
+        '[payment.processing.time]': true
+      slo:
+        '[http.server.requests]': 50ms,100ms,200ms,500ms,1s,2s,5s
+    tags:
+      application: ${spring.application.name}
+      environment: ${ENVIRONMENT:development}
+  tracing:
+    sampling:
+      probability: 1.0  # Sample all requests for development, reduce in production
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://localhost:9411/api/v2/spans}
 
 logging:
   level:
@@ -94,3 +147,36 @@ app:
   demo:
     seeder:
       enabled: ${DEMO_SEED_ON_START:false}
+  features:
+    ai:
+      enabled: ${FEATURES_AI_ENABLED:false}
+    payments:
+      enabled: ${FEATURES_PAYMENTS_ENABLED:false}
+    wallet:
+      enabled: ${FEATURES_WALLET_ENABLED:true}
+  booking:
+    buffer-minutes: 15
+    timezone-default: Asia/Kolkata
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    block-duration-seconds: 300  # 5 minutes
+    max-violations-before-block: 10
+    default-authenticated:
+      limit: 100  # requests
+      window-seconds: 60  # per minute
+    default-anonymous:
+      limit: 20  # requests
+      window-seconds: 60  # per minute
+    endpoints:
+      /auth/login:
+        limit: 5
+        window-seconds: 60  # 5 login attempts per minute
+      /auth/register:
+        limit: 3
+        window-seconds: 300  # 3 registrations per 5 minutes
+      /student/payments:
+        limit: 10
+        window-seconds: 60  # 10 payment operations per minute
+      /public/teachers/search:
+        limit: 30
+        window-seconds: 60  # 30 searches per minute

@@ -1,514 +1,563 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
-import { useAuthStore } from '@/store/auth'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { StudentRoute } from '@/components/route-guard'
-import { Calendar, Clock, DollarSign, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react'
+import { contentService, SubjectDropdown, ChapterDropdown, TopicDropdown, TopicDetail } from '@/services/contentService'
+import { bookingService, BookingQuote } from '@/services/bookingService'
+import { studentAPI } from '@/lib/apiClient'
+import { toast } from 'sonner'
+import { 
+  BookOpen, 
+  Calendar, 
+  Clock, 
+  DollarSign,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+  ArrowLeft,
+  ArrowRight
+} from 'lucide-react'
 
-const bookingSchema = z.object({
-  topicId: z.number().min(1, 'Please select a topic'),
-  startTime: z.string().min(1, 'Start time is required'),
-  durationMinutes: z.number().min(30).max(120),
-  studentNotes: z.string().optional(),
-  timezone: z.string().optional()
-})
-
-type BookingForm = z.infer<typeof bookingSchema>
-
-interface Topic {
-  id: number
-  title: string
-  description?: string
-  expectedTimeMins: number
-  chapter: {
-    id: number
-    name: string
-    subject: {
-      id: number
-      name: string
-    }
-  }
-}
-
-interface BookingQuote {
-  expectedMinutes: number
-  endTime: string
-  bufferOk: boolean
-  price: {
-    currency: string
-    min: number
-    max: number
-    ruleId?: number
-  }
-}
-
+// Main export wrapped in Suspense
 export default function StudentBookingPage() {
-  const [step, setStep] = useState<'select' | 'schedule' | 'confirm'>('select')
-  const [topics, setTopics] = useState<Topic[]>([])
-  const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null)
-  const [quote, setQuote] = useState<BookingQuote | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [quoteLoading, setQuoteLoading] = useState(false)
-  
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-ankur-primary" />
+      </div>
+    }>
+      <BookingContent />
+    </Suspense>
+  )
+}
+
+function BookingContent() {
   const router = useRouter()
-  const { user } = useAuthStore()
+  const searchParams = useSearchParams()
+  const [step, setStep] = useState(1)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  
+  // Form data
+  const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(null)
+  const [selectedChapterId, setSelectedChapterId] = useState<number | null>(null)
+  const [selectedTopicId, setSelectedTopicId] = useState<number | null>(null)
+  const [selectedTopic, setSelectedTopic] = useState<TopicDetail | null>(null)
+  const [selectedDate, setSelectedDate] = useState<string>('')
+  const [selectedTime, setSelectedTime] = useState<string>('')
+  const [selectedTeacherId, setSelectedTeacherId] = useState<number | null>(null)
+  const [notes, setNotes] = useState<string>('')
+  
+  // API data
+  const [subjects, setSubjects] = useState<SubjectDropdown[]>([])
+  const [chapters, setChapters] = useState<ChapterDropdown[]>([])
+  const [topics, setTopics] = useState<TopicDropdown[]>([])
+  const [bookingQuote, setBookingQuote] = useState<BookingQuote | null>(null)
+  const [availableTeachers, setAvailableTeachers] = useState<any[]>([])
+  const [studentGradeId, setStudentGradeId] = useState<number | null>(null)
 
-  const form = useForm<BookingForm>({
-    resolver: zodResolver(bookingSchema),
-    defaultValues: {
-      durationMinutes: 60,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-    }
-  })
-
+  // Load student profile to get gradeId
   useEffect(() => {
-    if (!user) {
-      router.push('/login')
+    const loadStudentProfile = async () => {
+      try {
+        const profile = await studentAPI.getProfile()
+        if (profile.gradeId) {
+          setStudentGradeId(profile.gradeId)
+        }
+      } catch (error) {
+        console.error('Failed to load student profile:', error)
+      }
+    }
+    loadStudentProfile()
+  }, [])
+
+  // Pre-fill from URL params (from discover page)
+  useEffect(() => {
+    const topicId = searchParams.get('topicId')
+    if (topicId) {
+      loadTopicAndPath(parseInt(topicId))
+    }
+  }, [searchParams])
+
+  // Load subjects when gradeId is available
+  useEffect(() => {
+    if (studentGradeId) {
+      loadSubjects(studentGradeId)
+    }
+  }, [studentGradeId])
+
+  const loadSubjects = async (gradeId: number) => {
+    try {
+      const subjectsList = await contentService.getSubjectsByGrade(gradeId)
+      setSubjects(subjectsList)
+    } catch (error) {
+      console.error('Failed to load subjects:', error)
+      toast.error('Failed to load subjects')
+    }
+  }
+
+  const loadTopicAndPath = async (topicId: number) => {
+    try {
+      setIsLoading(true)
+      const topicDetail = await contentService.getTopicById(topicId)
+      const path = await contentService.getTopicFullPath(topicId)
+      
+      setSelectedSubjectId(path.subject.id)
+      setSelectedChapterId(path.chapter.id)
+      setSelectedTopicId(topicId)
+      setSelectedTopic(topicDetail)
+      
+      // Load related data
+      await loadChapters(path.subject.id)
+      await loadTopics(path.chapter.id)
+    } catch (error: any) {
+      toast.error('Failed to load topic details')
+      console.error(error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const loadChapters = async (subjectId: number) => {
+    try {
+      const chapterList = await contentService.getChaptersBySubject(subjectId)
+      setChapters(chapterList)
+    } catch (error) {
+      console.error('Failed to load chapters:', error)
+    }
+  }
+
+  const loadTopics = async (chapterId: number) => {
+    try {
+      const topicList = await contentService.getTopicsByChapter(chapterId)
+      setTopics(topicList)
+    } catch (error) {
+      console.error('Failed to load topics:', error)
+    }
+  }
+
+  const handleChapterChange = async (chapterId: string) => {
+    const id = parseInt(chapterId)
+    setSelectedChapterId(id)
+    setSelectedTopicId(null)
+    setSelectedTopic(null)
+    await loadTopics(id)
+  }
+
+  const handleTopicChange = async (topicId: string) => {
+    const id = parseInt(topicId)
+    setSelectedTopicId(id)
+    try {
+      const topicDetail = await contentService.getTopicById(id)
+      setSelectedTopic(topicDetail)
+    } catch (error) {
+      toast.error('Failed to load topic details')
+    }
+  }
+
+  const handleGetQuote = async () => {
+    if (!selectedTopicId || !selectedDate || !selectedTime || !selectedTeacherId) {
+      setError('Please fill all required fields')
       return
     }
-    loadTopics()
-  }, [user, router])
 
-  const loadTopics = async () => {
+    setIsLoading(true)
+    setError(null)
+
     try {
-      // TODO: Replace with actual API call
-      // const topicsData = await studentAPI.getTopics()
-      
-      // Mock data for now
-      setTopics([
-        {
-          id: 1,
-          title: 'Quadratic Equations',
-          description: 'Learn to solve quadratic equations using various methods',
-          expectedTimeMins: 60,
-          chapter: {
-            id: 1,
-            name: 'Algebra',
-            subject: {
-              id: 1,
-              name: 'Mathematics'
-            }
-          }
-        },
-        {
-          id: 2,
-          title: 'Trigonometry Basics',
-          description: 'Introduction to trigonometric functions and identities',
-          expectedTimeMins: 90,
-          chapter: {
-            id: 2,
-            name: 'Trigonometry',
-            subject: {
-              id: 1,
-              name: 'Mathematics'
-            }
-          }
-        },
-        {
-          id: 3,
-          title: 'Chemical Bonding',
-          description: 'Understanding ionic and covalent bonds',
-          expectedTimeMins: 75,
-          chapter: {
-            id: 3,
-            name: 'Chemical Bonding',
-            subject: {
-              id: 2,
-              name: 'Chemistry'
-            }
-          }
-        }
-      ])
-    } catch (error) {
-      toast.error('Failed to load topics')
-    }
-  }
+      const quote = await bookingService.getQuote({
+        topicId: selectedTopicId,
+        date: selectedDate,
+        startTime: selectedTime,
+        teacherId: selectedTeacherId
+      })
 
-  const handleTopicSelect = (topic: Topic) => {
-    setSelectedTopic(topic)
-    form.setValue('topicId', topic.id)
-    form.setValue('durationMinutes', topic.expectedTimeMins)
-    setStep('schedule')
-  }
-
-  const handleScheduleChange = async () => {
-    const formData = form.getValues()
-    if (!formData.startTime || !formData.durationMinutes) return
-
-    setQuoteLoading(true)
-    try {
-      // TODO: Replace with actual API call
-      // const quoteData = await studentAPI.getBookingQuote({
-      //   topicId: formData.topicId,
-      //   startTime: formData.startTime,
-      //   durationMinutes: formData.durationMinutes,
-      //   timezone: formData.timezone
-      // })
-      
-      // Mock quote data
-      const mockQuote: BookingQuote = {
-        expectedMinutes: selectedTopic?.expectedTimeMins || 60,
-        endTime: new Date(new Date(formData.startTime).getTime() + formData.durationMinutes * 60000).toISOString(),
-        bufferOk: true,
-        price: {
-          currency: 'INR',
-          min: 500,
-          max: 500,
-          ruleId: 1
-        }
+      if (!quote.bufferOk) {
+        toast.warning('Warning: This booking is too close to your previous class')
       }
-      
-      setQuote(mockQuote)
-    } catch (error) {
-      toast.error('Failed to get booking quote')
+
+      setBookingQuote(quote)
+      setStep(2)
+    } catch (err: any) {
+      const message = err.response?.data?.message || 'Failed to get booking quote'
+      setError(message)
+      toast.error(message)
     } finally {
-      setQuoteLoading(false)
+      setIsLoading(false)
     }
   }
 
-  const handleConfirmBooking = async () => {
-    const formData = form.getValues()
-    setLoading(true)
-    
+  const handleCreateBooking = async () => {
+    if (!selectedTopicId || !selectedDate || !selectedTime || !selectedTeacherId) {
+      setError('Missing required booking information')
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+
     try {
-      // TODO: Replace with actual API call
-      // const booking = await studentAPI.createBooking(formData)
+      const booking = await bookingService.createBooking({
+        topicId: selectedTopicId,
+        date: selectedDate,
+        startTime: selectedTime,
+        teacherId: selectedTeacherId,
+        notes: notes || undefined
+      })
+
+      toast.success('Booking request submitted successfully!')
+      setStep(3)
       
-      toast.success('Class booked successfully!')
-      router.push('/student/dashboard')
-    } catch (error) {
-      toast.error('Failed to book class')
+      // Redirect to calendar after 2 seconds
+      setTimeout(() => {
+        router.push('/student/calendar')
+      }, 2000)
+    } catch (err: any) {
+      const message = err.response?.data?.message || 'Failed to create booking'
+      setError(message)
+      toast.error(message)
     } finally {
-      setLoading(false)
+      setIsLoading(false)
     }
   }
 
-  const formatTime = (timeString: string) => {
-    return new Date(timeString).toLocaleString()
+  // Generate time slots (9 AM to 8 PM, 30-min intervals)
+  const generateTimeSlots = () => {
+    const slots = []
+    for (let hour = 9; hour <= 20; hour++) {
+      for (let min = 0; min < 60; min += 30) {
+        const time = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`
+        slots.push(time)
+      }
+    }
+    return slots
   }
+
+  const timeSlots = generateTimeSlots()
+
+  // Get minimum date (today)
+  const today = new Date().toISOString().split('T')[0]
 
   return (
     <StudentRoute>
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Header */}
-          <div className="mb-8 flex items-center space-x-4">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => router.back()}
-              className="flex items-center space-x-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span>Back</span>
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Book a Class</h1>
-              <p className="text-gray-600">Schedule your learning session</p>
-            </div>
+      <div className="container mx-auto py-8 px-4 max-w-4xl">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Book a Class</h1>
+            <p className="text-gray-600 dark:text-gray-400">Schedule a session with expert teachers</p>
           </div>
-
-          {/* Progress Steps */}
-          <div className="mb-8">
-            <div className="flex items-center space-x-4">
-              <div className={`flex items-center space-x-2 ${step === 'select' ? 'text-emerald-600' : 'text-gray-400'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  step === 'select' ? 'bg-emerald-600 text-white' : 'bg-gray-200'
-                }`}>
-                  1
-                </div>
-                <span className="font-medium">Select Topic</span>
-              </div>
-              <div className="flex-1 h-px bg-gray-200"></div>
-              <div className={`flex items-center space-x-2 ${step === 'schedule' ? 'text-emerald-600' : 'text-gray-400'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  step === 'schedule' ? 'bg-emerald-600 text-white' : 'bg-gray-200'
-                }`}>
-                  2
-                </div>
-                <span className="font-medium">Schedule</span>
-              </div>
-              <div className="flex-1 h-px bg-gray-200"></div>
-              <div className={`flex items-center space-x-2 ${step === 'confirm' ? 'text-emerald-600' : 'text-gray-400'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  step === 'confirm' ? 'bg-emerald-600 text-white' : 'bg-gray-200'
-                }`}>
-                  3
-                </div>
-                <span className="font-medium">Confirm</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Main Content */}
-            <div className="lg:col-span-2">
-              {step === 'select' && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Select a Topic</CardTitle>
-                    <CardDescription>Choose the topic you want to learn</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {topics.map((topic) => (
-                        <div 
-                          key={topic.id}
-                          className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors"
-                          onClick={() => handleTopicSelect(topic)}
-                        >
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <h3 className="font-semibold text-lg">{topic.title}</h3>
-                              <p className="text-gray-600 mb-2">{topic.description}</p>
-                              <div className="flex items-center space-x-4 text-sm text-gray-500">
-                                <span>{topic.chapter.subject.name}</span>
-                                <span>•</span>
-                                <span>{topic.chapter.name}</span>
-                                <span>•</span>
-                                <div className="flex items-center space-x-1">
-                                  <Clock className="h-4 w-4" />
-                                  <span>{topic.expectedTimeMins} min</span>
-                                </div>
-                              </div>
-                            </div>
-                            <Button size="sm" variant="outline">
-                              Select
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {step === 'schedule' && selectedTopic && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Schedule Your Class</CardTitle>
-                    <CardDescription>Set the date, time, and duration for your session</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <form className="space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                          <Label htmlFor="startTime">Start Time *</Label>
-                          <Input
-                            id="startTime"
-                            type="datetime-local"
-                            {...form.register('startTime')}
-                            onChange={(e) => {
-                              form.setValue('startTime', e.target.value)
-                              handleScheduleChange()
-                            }}
-                          />
-                        </div>
-
-                        <div>
-                          <Label htmlFor="duration">Duration (minutes) *</Label>
-                          <Select
-                            value={form.watch('durationMinutes')?.toString()}
-                            onValueChange={(value) => {
-                              form.setValue('durationMinutes', parseInt(value))
-                              handleScheduleChange()
-                            }}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select duration" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="30">30 minutes</SelectItem>
-                              <SelectItem value="45">45 minutes</SelectItem>
-                              <SelectItem value="60">60 minutes</SelectItem>
-                              <SelectItem value="90">90 minutes</SelectItem>
-                              <SelectItem value="120">120 minutes</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="notes">Notes (Optional)</Label>
-                        <Textarea
-                          id="notes"
-                          placeholder="Any specific requirements or questions..."
-                          {...form.register('studentNotes')}
-                        />
-                      </div>
-
-                      <div className="flex space-x-4">
-                        <Button 
-                          type="button" 
-                          variant="outline"
-                          onClick={() => setStep('select')}
-                        >
-                          Back
-                        </Button>
-                        <Button 
-                          type="button"
-                          onClick={() => setStep('confirm')}
-                          disabled={!quote || !quote.bufferOk}
-                        >
-                          Continue
-                        </Button>
-                      </div>
-                    </form>
-                  </CardContent>
-                </Card>
-              )}
-
-              {step === 'confirm' && selectedTopic && quote && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Confirm Your Booking</CardTitle>
-                    <CardDescription>Review your booking details before confirming</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-6">
-                      <div className="border rounded-lg p-4">
-                        <h3 className="font-semibold text-lg mb-2">{selectedTopic.title}</h3>
-                        <p className="text-gray-600 mb-4">{selectedTopic.description}</p>
-                        <div className="flex items-center space-x-4 text-sm text-gray-500">
-                          <span>{selectedTopic.chapter.subject.name}</span>
-                          <span>•</span>
-                          <span>{selectedTopic.chapter.name}</span>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="flex items-center space-x-2">
-                          <Calendar className="h-5 w-5 text-gray-400" />
-                          <div>
-                            <p className="text-sm font-medium">Start Time</p>
-                            <p className="text-sm text-gray-600">{formatTime(form.getValues('startTime'))}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Clock className="h-5 w-5 text-gray-400" />
-                          <div>
-                            <p className="text-sm font-medium">Duration</p>
-                            <p className="text-sm text-gray-600">{form.getValues('durationMinutes')} minutes</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {form.getValues('studentNotes') && (
-                        <div>
-                          <p className="text-sm font-medium mb-1">Notes</p>
-                          <p className="text-sm text-gray-600">{form.getValues('studentNotes')}</p>
-                        </div>
-                      )}
-
-                      <div className="flex space-x-4">
-                        <Button 
-                          type="button" 
-                          variant="outline"
-                          onClick={() => setStep('schedule')}
-                        >
-                          Back
-                        </Button>
-                        <Button 
-                          type="button"
-                          onClick={handleConfirmBooking}
-                          disabled={loading}
-                          className="bg-emerald-600 hover:bg-emerald-700"
-                        >
-                          {loading ? 'Booking...' : 'Confirm Booking'}
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-
-            {/* Sidebar */}
-            <div className="space-y-6">
-              {/* Selected Topic Summary */}
-              {selectedTopic && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Selected Topic</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <h4 className="font-medium">{selectedTopic.title}</h4>
-                      <p className="text-sm text-gray-600">{selectedTopic.description}</p>
-                      <div className="flex items-center space-x-2 text-sm text-gray-500">
-                        <Clock className="h-4 w-4" />
-                        <span>{selectedTopic.expectedTimeMins} minutes</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Booking Quote */}
-              {quote && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Booking Summary</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">Duration</span>
-                        <span className="text-sm font-medium">{form.getValues('durationMinutes')} min</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">Price</span>
-                        <span className="text-sm font-medium">₹{quote.price.min}</span>
-                      </div>
-                      <div className="border-t pt-3">
-                        <div className="flex justify-between">
-                          <span className="font-medium">Total</span>
-                          <span className="font-medium">₹{quote.price.min}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Buffer Status */}
-              {quote && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Availability</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center space-x-2">
-                      {quote.bufferOk ? (
-                        <>
-                          <CheckCircle className="h-5 w-5 text-emerald-600" />
-                          <span className="text-sm text-emerald-600">Time slot available</span>
-                        </>
-                      ) : (
-                        <>
-                          <AlertCircle className="h-5 w-5 text-red-600" />
-                          <span className="text-sm text-red-600">Time slot conflicts</span>
-                        </>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          </div>
+          <Badge variant="outline" className="text-blue-600 border-blue-300 dark:bg-blue-900 dark:text-blue-200">
+            Step {step} of 3
+          </Badge>
         </div>
+
+        {error && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* Step 1: Topic & Schedule Selection */}
+        {step === 1 && (
+          <Card className="dark:bg-gray-800">
+            <CardHeader>
+              <CardTitle className="flex items-center dark:text-white">
+                <BookOpen className="h-5 w-5 mr-2 text-blue-500" />
+                Select Topic & Schedule
+              </CardTitle>
+              <CardDescription className="dark:text-gray-400">
+                Choose what you want to learn and when
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Topic Selection */}
+              {selectedTopic ? (
+                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-semibold text-lg dark:text-white">{selectedTopic.title}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        {selectedTopic.subjectName} • {selectedTopic.chapterName}
+                      </p>
+                      {selectedTopic.summary && (
+                        <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">{selectedTopic.summary}</p>
+                      )}
+                      <div className="flex items-center mt-2 text-sm text-gray-600 dark:text-gray-400">
+                        <Clock className="h-4 w-4 mr-1" />
+                        {selectedTopic.expectedMinutes} minutes
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => router.push('/student/discover')}
+                      className="dark:text-gray-300"
+                    >
+                      Change
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center p-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
+                  <BookOpen className="h-12 w-12 mx-auto text-gray-400 mb-3" />
+                  <p className="text-gray-600 dark:text-gray-400 mb-4">No topic selected</p>
+                  <Button onClick={() => router.push('/student/discover')} className="dark:bg-blue-600 dark:hover:bg-blue-700">
+                    Browse Topics
+                  </Button>
+                </div>
+              )}
+
+              {/* Manual Topic Selection (if not from discover) */}
+              {!selectedTopic && chapters.length > 0 && (
+                <>
+                  <div>
+                    <Label htmlFor="chapter" className="dark:text-gray-300">Chapter *</Label>
+                    <Select onValueChange={handleChapterChange} value={selectedChapterId?.toString()}>
+                      <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <SelectValue placeholder="Select a chapter" />
+                      </SelectTrigger>
+                      <SelectContent className="dark:bg-gray-700">
+                        {chapters.map((chapter) => (
+                          <SelectItem key={chapter.id} value={chapter.id.toString()}>
+                            {chapter.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {selectedChapterId && topics.length > 0 && (
+                    <div>
+                      <Label htmlFor="topic" className="dark:text-gray-300">Topic *</Label>
+                      <Select onValueChange={handleTopicChange} value={selectedTopicId?.toString()}>
+                        <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                          <SelectValue placeholder="Select a topic" />
+                        </SelectTrigger>
+                        <SelectContent className="dark:bg-gray-700">
+                          {topics.map((topic) => (
+                            <SelectItem key={topic.id} value={topic.id.toString()}>
+                              {topic.title}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Date & Time Selection */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="date" className="dark:text-gray-300">
+                    <Calendar className="inline h-4 w-4 mr-1" />
+                    Date *
+                  </Label>
+                  <input
+                    type="date"
+                    id="date"
+                    min={today}
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="time" className="dark:text-gray-300">
+                    <Clock className="inline h-4 w-4 mr-1" />
+                    Start Time *
+                  </Label>
+                  <Select onValueChange={setSelectedTime} value={selectedTime}>
+                    <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                      <SelectValue placeholder="Select time" />
+                    </SelectTrigger>
+                    <SelectContent className="dark:bg-gray-700 max-h-60">
+                      {timeSlots.map((slot) => (
+                        <SelectItem key={slot} value={slot}>
+                          {slot}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Teacher ID Selection (temporary - will be replaced with teacher search) */}
+              <div>
+                <Label htmlFor="teacherId" className="dark:text-gray-300">Teacher ID *</Label>
+                <input
+                  type="number"
+                  id="teacherId"
+                  value={selectedTeacherId || ''}
+                  onChange={(e) => setSelectedTeacherId(parseInt(e.target.value))}
+                  placeholder="Enter teacher ID"
+                  className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  required
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Temporary: Use teacher ID from teacher search feature
+                </p>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <Label htmlFor="notes" className="dark:text-gray-300">Notes (Optional)</Label>
+                <Textarea
+                  id="notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Any special requirements or questions for the teacher..."
+                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  onClick={handleGetQuote}
+                  disabled={!selectedTopicId || !selectedDate || !selectedTime || !selectedTeacherId || isLoading}
+                  className="dark:bg-blue-600 dark:hover:bg-blue-700"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Getting Quote...
+                    </>
+                  ) : (
+                    <>
+                      Get Quote
+                      <ArrowRight className="h-4 w-4 ml-2" />
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Step 2: Review & Confirm */}
+        {step === 2 && bookingQuote && selectedTopic && (
+          <Card className="dark:bg-gray-800">
+            <CardHeader>
+              <CardTitle className="flex items-center dark:text-white">
+                <CheckCircle className="h-5 w-5 mr-2 text-green-500" />
+                Review Booking Details
+              </CardTitle>
+              <CardDescription className="dark:text-gray-400">
+                Please review your booking before confirming
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Booking Summary */}
+              <div className="space-y-4">
+                <div className="flex items-start justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                  <div>
+                    <h3 className="font-semibold text-lg dark:text-white">{selectedTopic.title}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                      {selectedTopic.subjectName} • {selectedTopic.chapterName}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center text-gray-700 dark:text-gray-300">
+                    <Calendar className="h-4 w-4 mr-2" />
+                    <span>{new Date(selectedDate).toLocaleDateString()}</span>
+                  </div>
+                  <div className="flex items-center text-gray-700 dark:text-gray-300">
+                    <Clock className="h-4 w-4 mr-2" />
+                    <span>{selectedTime} - {new Date(bookingQuote.endTimeISO).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <div className="flex items-center text-gray-700 dark:text-gray-300">
+                    <DollarSign className="h-5 w-5 mr-2 text-blue-500" />
+                    <span className="font-medium">Estimated Price</span>
+                  </div>
+                  <span className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                    {bookingQuote.price.currency} {bookingQuote.price.min} - {bookingQuote.price.max}
+                  </span>
+                </div>
+
+                {notes && (
+                  <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Your Notes:</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">{notes}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-between gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setStep(1)}
+                  disabled={isLoading}
+                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back
+                </Button>
+                <Button
+                  onClick={handleCreateBooking}
+                  disabled={isLoading}
+                  className="dark:bg-blue-600 dark:hover:bg-blue-700"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Creating Booking...
+                    </>
+                  ) : (
+                    <>
+                      Confirm Booking
+                      <CheckCircle className="h-4 w-4 ml-2" />
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Step 3: Success */}
+        {step === 3 && (
+          <Card className="dark:bg-gray-800">
+            <CardContent className="text-center py-12">
+              <CheckCircle className="h-16 w-16 mx-auto text-green-500 mb-4" />
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Booking Request Submitted!</h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                Your booking request has been sent to the teacher. You'll be notified once it's confirmed.
+              </p>
+              <div className="flex justify-center gap-4">
+                <Button
+                  variant="outline"
+                  onClick={() => router.push('/student/dashboard')}
+                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                >
+                  Go to Dashboard
+                </Button>
+                <Button
+                  onClick={() => router.push('/student/calendar')}
+                  className="dark:bg-blue-600 dark:hover:bg-blue-700"
+                >
+                  View Calendar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </StudentRoute>
   )

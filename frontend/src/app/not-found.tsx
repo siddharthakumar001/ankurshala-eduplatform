@@ -8,7 +8,7 @@ export default function NotFound() {
       <div className="text-center">
         <div className="mb-8">
           <Image
-            src="/ankurshala.svg"
+            src="/ankurshala-logo-small.png"
             alt="Ankurshala Logo"
             width={80}
             height={80}

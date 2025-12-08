@@ -69,6 +69,14 @@ interface StudentDocument {
 }
 
 export default function StudentProfilePage() {
+  return (
+    <StudentRoute>
+      <ProfileContent />
+    </StudentRoute>
+  )
+}
+
+function ProfileContent() {
   const [activeTab, setActiveTab] = useState<'personal' | 'academic' | 'documents'>('personal')
   const [profile, setProfile] = useState<StudentProfile | null>(null)
   const [documents, setDocuments] = useState<StudentDocument[]>([])
@@ -93,13 +101,9 @@ export default function StudentProfilePage() {
   })
 
   useEffect(() => {
-    if (!user) {
-      router.push('/login')
-      return
-    }
     loadProfile()
     loadDocuments()
-  }, [user, router])
+  }, [])
 
   // Stage-1 FE complete: Load profile data using API client
   const loadProfile = async () => {
@@ -125,8 +129,15 @@ export default function StudentProfilePage() {
           schoolAddress: profileData.schoolAddress || '',
         })
       }
-    } catch (error) {
-      toast.error('Failed to load profile')
+    } catch (error: any) {
+      // If 404, profile doesn't exist yet - that's okay, user can create it
+      if (error.response?.status === 404) {
+        console.log('Profile not found - user can create one')
+        // Don't show error, just allow user to fill in the form
+      } else if (error.response?.status !== 401) {
+        // Only show error if it's not a 401 (auth handled elsewhere)
+        toast.error('Failed to load profile')
+      }
     } finally {
       setLoading(false)
     }
@@ -137,9 +148,16 @@ export default function StudentProfilePage() {
     setDocumentsLoading(true)
     try {
       const docs = await studentAPI.getDocuments()
-      setDocuments(docs)
-    } catch (error) {
-      toast.error('Failed to load documents')
+      setDocuments(Array.isArray(docs) ? docs : [])
+    } catch (error: any) {
+      // If 404, no documents yet - that's okay
+      if (error.response?.status === 404) {
+        setDocuments([])
+      } else if (error.response?.status !== 401) {
+        // Only show error if it's not a 401
+        toast.error('Failed to load documents')
+        setDocuments([])
+      }
     } finally {
       setDocumentsLoading(false)
     }
@@ -231,8 +249,7 @@ export default function StudentProfilePage() {
   }
 
   return (
-    <StudentRoute>
-      <div className="min-h-screen bg-gray-50 py-8" data-testid="student-profile-root">
+    <div className="min-h-screen bg-gray-50 py-8" data-testid="student-profile-root">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Stage-1 FE complete: Header with navigation */}
         <div className="mb-8 flex justify-between items-center">
@@ -633,6 +650,5 @@ export default function StudentProfilePage() {
         )}
         </div>
       </div>
-    </StudentRoute>
   )
 }

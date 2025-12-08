@@ -14,7 +14,7 @@ interface AuthGuardProps {
 const USER_DASHBOARD_ROUTES = {
   ADMIN: '/admin/dashboard',
   TEACHER: '/teacher/profile',
-  STUDENT: '/student/profile'
+  STUDENT: '/student/dashboard'
 } as const
 
 export default function AuthGuard({ 

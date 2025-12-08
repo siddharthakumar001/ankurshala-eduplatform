@@ -3,6 +3,8 @@ package com.ankurshala.backend.service;
 import com.ankurshala.backend.dto.student.StudentDocumentDto;
 import com.ankurshala.backend.dto.student.StudentProfileDto;
 import com.ankurshala.backend.entity.*;
+import com.ankurshala.backend.repository.BoardRepository;
+import com.ankurshala.backend.repository.GradeRepository;
 import com.ankurshala.backend.repository.StudentProfileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,6 +30,12 @@ class StudentProfileServiceTest {
 
     @Mock
     private StudentProfileRepository studentProfileRepository;
+
+    @Mock
+    private BoardRepository boardRepository;
+
+    @Mock
+    private GradeRepository gradeRepository;
 
     @InjectMocks
     private StudentProfileService studentProfileService;
@@ -374,5 +382,126 @@ class StudentProfileServiceTest {
         });
 
         verify(studentProfileRepository).save(any(StudentProfile.class));
+    }
+
+    @Test
+    @DisplayName("Should complete onboarding successfully")
+    void testCompleteOnboarding_Success() {
+        // Given
+        com.ankurshala.backend.dto.student.CompleteOnboardingRequest request = 
+            new com.ankurshala.backend.dto.student.CompleteOnboardingRequest();
+        request.setBoardId(1L);
+        request.setGradeId(10L);
+        request.setLanguage("English");
+        request.setGoals("Prepare for board exams");
+        request.setAvatarUrl("http://example.com/avatar.jpg");
+
+        Board board = new Board();
+        board.setId(1L);
+        board.setName("CBSE");
+
+        Grade grade = new Grade();
+        grade.setId(10L);
+        grade.setName("Grade 10");
+
+        when(studentProfileRepository.findByUserId(1L)).thenReturn(Optional.of(testProfile));
+        when(boardRepository.findById(1L)).thenReturn(Optional.of(board));
+        when(gradeRepository.findById(10L)).thenReturn(Optional.of(grade));
+        when(studentProfileRepository.save(any(StudentProfile.class))).thenReturn(testProfile);
+
+        // When
+        com.ankurshala.backend.dto.student.StudentProfileDto result = 
+            studentProfileService.completeOnboarding(1L, request);
+
+        // Then
+        assertNotNull(result);
+        verify(studentProfileRepository).save(argThat(profile -> 
+            profile.getBoardId().equals(1L) &&
+            profile.getGradeId().equals(10L) &&
+            profile.getLanguage().equals("English") &&
+            profile.getIsComplete().equals(true)
+        ));
+    }
+
+    @Test
+    @DisplayName("Should throw exception when board not found during onboarding")
+    void testCompleteOnboarding_BoardNotFound() {
+        // Given
+        com.ankurshala.backend.dto.student.CompleteOnboardingRequest request = 
+            new com.ankurshala.backend.dto.student.CompleteOnboardingRequest();
+        request.setBoardId(999L);
+        request.setGradeId(10L);
+        request.setLanguage("English");
+
+        when(studentProfileRepository.findByUserId(1L)).thenReturn(Optional.of(testProfile));
+        when(boardRepository.findById(999L)).thenReturn(Optional.empty());
+
+        // When & Then
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            studentProfileService.completeOnboarding(1L, request);
+        });
+        assertEquals("Board not found", exception.getMessage());
+    }
+
+    @Test
+    @DisplayName("Should update profile with partial data successfully")
+    void testUpdateProfile_PartialUpdate() {
+        // Given
+        com.ankurshala.backend.dto.student.UpdateStudentProfileRequest request = 
+            new com.ankurshala.backend.dto.student.UpdateStudentProfileRequest();
+        request.setFirstName("Jane");
+        request.setMobileNumber("9876543210");
+        // Other fields are null (partial update)
+
+        when(studentProfileRepository.findByUserId(1L)).thenReturn(Optional.of(testProfile));
+        when(studentProfileRepository.save(any(StudentProfile.class))).thenReturn(testProfile);
+
+        // When
+        com.ankurshala.backend.dto.student.StudentProfileDto result = 
+            studentProfileService.updateProfile(1L, request);
+
+        // Then
+        assertNotNull(result);
+        verify(studentProfileRepository).save(argThat(profile -> 
+            profile.getFirstName().equals("Jane") &&
+            profile.getMobileNumber().equals("9876543210") &&
+            profile.getLastName().equals("Doe") // Original value preserved
+        ));
+    }
+
+    @Test
+    @DisplayName("Should update onboarding fields in profile update")
+    void testUpdateProfile_WithOnboardingFields() {
+        // Given
+        com.ankurshala.backend.dto.student.UpdateStudentProfileRequest request = 
+            new com.ankurshala.backend.dto.student.UpdateStudentProfileRequest();
+        request.setBoardId(2L);
+        request.setGradeId(11L);
+        request.setLanguage("Hindi");
+
+        Board board = new Board();
+        board.setId(2L);
+        board.setName("ICSE");
+
+        Grade grade = new Grade();
+        grade.setId(11L);
+        grade.setName("Grade 11");
+
+        when(studentProfileRepository.findByUserId(1L)).thenReturn(Optional.of(testProfile));
+        when(boardRepository.findById(2L)).thenReturn(Optional.of(board));
+        when(gradeRepository.findById(11L)).thenReturn(Optional.of(grade));
+        when(studentProfileRepository.save(any(StudentProfile.class))).thenReturn(testProfile);
+
+        // When
+        com.ankurshala.backend.dto.student.StudentProfileDto result = 
+            studentProfileService.updateProfile(1L, request);
+
+        // Then
+        assertNotNull(result);
+        verify(studentProfileRepository).save(argThat(profile -> 
+            profile.getBoardId().equals(2L) &&
+            profile.getGradeId().equals(11L) &&
+            profile.getLanguage().equals("Hindi")
+        ));
     }
 }

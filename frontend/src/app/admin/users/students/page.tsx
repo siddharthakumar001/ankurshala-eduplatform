@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import AdminLayoutSimple from '@/components/admin-layout-simple'
+import DashboardLayout from '@/components/layout/DashboardLayout'
 import AuthGuard from '@/components/AuthGuard'
 import SessionManager from '@/components/SessionManager'
 import { Card } from '@/components/ui/card'
@@ -343,7 +343,7 @@ export default function AdminStudentsPage() {
     return (
       <AuthGuard requiredRoles={['ADMIN']}>
         <SessionManager showSessionInfo={true}>
-          <AdminLayoutSimple>
+          <DashboardLayout role="admin">
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -359,7 +359,7 @@ export default function AdminStudentsPage() {
                 </div>
               </Card>
             </div>
-          </AdminLayoutSimple>
+          </DashboardLayout>
         </SessionManager>
       </AuthGuard>
     )
@@ -368,7 +368,7 @@ export default function AdminStudentsPage() {
   return (
     <AuthGuard requiredRoles={['ADMIN']}>
       <SessionManager showSessionInfo={true}>
-        <AdminLayoutSimple>
+        <DashboardLayout role="admin">
           <div className="space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
@@ -832,7 +832,7 @@ export default function AdminStudentsPage() {
           </DialogContent>
         </Dialog>
       </div>
-    </AdminLayoutSimple>
+    </DashboardLayout>
   </SessionManager>
 </AuthGuard>
 )

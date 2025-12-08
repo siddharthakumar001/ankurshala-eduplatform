@@ -33,7 +33,15 @@ export default function RouteGuard({
         await initializeAuth()
         console.log('✅ RouteGuard: Auth initialized from API')
       } catch (error) {
-        console.log('⚠️ RouteGuard: Auth initialization failed (user not logged in):', error)
+        console.log('⚠️ RouteGuard: Auth initialization failed:', error)
+        // Don't clear auth state if we have cookies - might be temporary API issue
+        const hasCookies = typeof document !== 'undefined' && 
+          (document.cookie.includes('accessToken') || document.cookie.includes('refreshToken'))
+        
+        if (hasCookies) {
+          console.log('✅ RouteGuard: Cookies exist, keeping auth state')
+          // Keep the existing auth state if cookies exist
+        }
       } finally {
         setAuthInitialized(true)
       }
@@ -43,10 +51,21 @@ export default function RouteGuard({
     if (user && isAuthenticated) {
       console.log('✅ RouteGuard: User already in store:', user.email, user.role)
       setAuthInitialized(true)
-    } else {
-      console.log('🔄 RouteGuard: No user in store, fetching from API...')
+      // Don't call initializeAuth if user is already authenticated
+      return
+    }
+    
+    // Check if we have cookies before trying to initialize
+    const hasCookies = typeof document !== 'undefined' && 
+      (document.cookie.includes('accessToken') || document.cookie.includes('refreshToken'))
+    
+    if (hasCookies) {
+      console.log('🔄 RouteGuard: Cookies found, fetching user from API...')
       // Try to fetch user from API using cookies
       init()
+    } else {
+      console.log('⚠️ RouteGuard: No cookies found, user not authenticated')
+      setAuthInitialized(true)
     }
   }, [])
 
@@ -73,6 +92,16 @@ export default function RouteGuard({
 
       // Check if user is authenticated
       if (!isAuthenticated || !user) {
+        // Check if we have cookies - if so, wait a bit for auth to initialize
+        const hasCookies = typeof document !== 'undefined' && 
+          (document.cookie.includes('accessToken') || document.cookie.includes('refreshToken'))
+        
+        if (hasCookies && !authInitialized) {
+          console.log('⏳ RouteGuard: Cookies exist but auth not initialized yet, waiting...')
+          // Don't redirect yet if we have cookies - auth might still be initializing
+          return
+        }
+        
         console.log('❌ RouteGuard: User not authenticated, redirecting to login')
         // Redirect to login with return URL
         const returnUrl = encodeURIComponent(pathname)
@@ -94,7 +123,7 @@ export default function RouteGuard({
           // Default role-based redirects
           switch (user.role) {
             case 'STUDENT':
-              router.push('/student/profile')
+              router.push('/student/dashboard')
               break
             case 'TEACHER':
               router.push('/teacher/profile')

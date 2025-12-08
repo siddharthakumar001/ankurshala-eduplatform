@@ -157,4 +157,13 @@ public class Topic {
 
     public List<TopicLink> getLinks() { return links; }
     public void setLinks(List<TopicLink> links) { this.links = links; }
+
+    // Compatibility method
+    public Integer getExpectedMinutes() {
+        return expectedTimeMins;
+    }
+
+    public void setExpectedMinutes(Integer expectedMinutes) {
+        this.expectedTimeMins = expectedMinutes;
+    }
 }

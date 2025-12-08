@@ -288,7 +288,7 @@ public class BulkDemoSeederIntegrationTest extends BaseIntegrationTest {
         // Verify availability exists
         Optional<TeacherAvailability> availabilityOpt = teacherAvailabilityRepository.findAll()
                 .stream()
-                .filter(avail -> avail.getTeacher().getId().equals(teacher.getId()))
+                .filter(avail -> avail.getTeacher() != null && avail.getTeacher().getId().equals(teacher.getId()))
                 .findFirst();
         assertTrue(availabilityOpt.isPresent());
 

@@ -12,6 +12,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 // NOTE: server.servlet.context-path=/api is set for the app.
 // Therefore controller @RequestMapping must NOT start with "/api".
@@ -295,6 +296,19 @@ public class TeacherProfileController {
         TeacherBankDetailsDto updatedBankDetails = teacherProfileService.updateTeacherBankDetails(userId, bankDetailsDto);
         return ResponseEntity.ok(updatedBankDetails);
     }
+
+    // ============ ENHANCED TEACHER FEATURES ============
+    
+    @GetMapping("/dashboard")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ResponseEntity<?> getDashboard(Authentication authentication) {
+        Long userId = getUserIdFromAuthentication(authentication);
+        // This will be implemented by the EnhancedTeacherService
+        // For now, return a placeholder response
+        return ResponseEntity.ok(Map.of("message", "Teacher dashboard endpoint - to be implemented"));
+    }
+    
+    // Note: Booking-related endpoints (pending, accept, decline) are implemented in TeacherBookingController
 
     private Long getUserIdFromAuthentication(Authentication authentication) {
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();

@@ -104,6 +104,14 @@ public class TeacherProfile {
     @Column(name = "total_reviews")
     private Integer totalReviews = 0;
 
+    @Size(max = 50)
+    @Column(name = "teacher_category")
+    private String teacherCategory = "STANDARD"; // STANDARD, PREMIUM, PLATINUM
+
+    @Size(max = 500)
+    @Column(name = "languages")
+    private String languages; // Comma-separated list: "English,Hindi,Tamil"
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -319,6 +327,22 @@ public class TeacherProfile {
         this.totalReviews = totalReviews;
     }
 
+    public String getTeacherCategory() {
+        return teacherCategory;
+    }
+
+    public void setTeacherCategory(String teacherCategory) {
+        this.teacherCategory = teacherCategory;
+    }
+
+    public String getLanguages() {
+        return languages;
+    }
+
+    public void setLanguages(String languages) {
+        this.languages = languages;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -333,5 +357,14 @@ public class TeacherProfile {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    // Compatibility method
+    public Integer getYearsExperience() {
+        return yearsOfExperience;
+    }
+
+    public void setYearsExperience(Integer yearsExperience) {
+        this.yearsOfExperience = yearsExperience;
     }
 }

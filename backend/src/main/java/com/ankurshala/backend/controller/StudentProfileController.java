@@ -1,7 +1,9 @@
 package com.ankurshala.backend.controller;
 
+import com.ankurshala.backend.dto.student.CompleteOnboardingRequest;
 import com.ankurshala.backend.dto.student.StudentDocumentDto;
 import com.ankurshala.backend.dto.student.StudentProfileDto;
+import com.ankurshala.backend.dto.student.UpdateStudentProfileRequest;
 import com.ankurshala.backend.security.UserPrincipal;
 import com.ankurshala.backend.service.StudentProfileService;
 import com.ankurshala.backend.service.ResourceAuthorizationService;
@@ -45,7 +47,7 @@ public class StudentProfileController {
     @PutMapping("/profile")
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<StudentProfileDto> updateProfile(
-            @Valid @RequestBody StudentProfileDto profileDto,
+            @Valid @RequestBody UpdateStudentProfileRequest request,
             Authentication authentication) {
         Long userId = getUserIdFromAuthentication(authentication);
         
@@ -54,7 +56,23 @@ public class StudentProfileController {
             return ResponseEntity.status(403).build();
         }
         
-        StudentProfileDto updatedProfile = studentProfileService.updateStudentProfile(userId, profileDto);
+        StudentProfileDto updatedProfile = studentProfileService.updateProfile(userId, request);
+        return ResponseEntity.ok(updatedProfile);
+    }
+    
+    @PostMapping("/profile/complete-onboarding")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<StudentProfileDto> completeOnboarding(
+            @Valid @RequestBody CompleteOnboardingRequest request,
+            Authentication authentication) {
+        Long userId = getUserIdFromAuthentication(authentication);
+        
+        // Verify ownership
+        if (!resourceAuthorizationService.canAccessStudentProfile(userId)) {
+            return ResponseEntity.status(403).build();
+        }
+        
+        StudentProfileDto updatedProfile = studentProfileService.completeOnboarding(userId, request);
         return ResponseEntity.ok(updatedProfile);
     }
 

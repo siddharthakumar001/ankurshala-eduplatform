@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
-import AdminLayoutSimple from '@/components/admin-layout-simple'
+import DashboardLayout from '@/components/layout/DashboardLayout'
 import AuthGuard from '@/components/AuthGuard'
 import SessionManager from '@/components/SessionManager'
 import { 
@@ -110,7 +110,7 @@ function ContentManagePageContent() {
   };
 
   return (
-    <AdminLayoutSimple>
+    <DashboardLayout role="admin">
       <div className="min-h-screen bg-gray-50">
         <div className="container mx-auto p-6">
           {/* Header */}
@@ -175,7 +175,7 @@ function ContentManagePageContent() {
           </Tabs>
         </div>
       </div>
-    </AdminLayoutSimple>
+    </DashboardLayout>
   )
 }
 
@@ -790,13 +790,20 @@ function GradesTab() {
               </Select>
             </div>
             <div>
-              <Label htmlFor="name">Grade Name</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Enter grade name (e.g., grade-9)"
-              />
+              <Label htmlFor="name">Grade Name (7-12 only)</Label>
+              <Select value={formData.name || ''} onValueChange={(value) => setFormData({ ...formData, name: value, displayName: `Grade ${value}` })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select grade level" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7">Grade 7</SelectItem>
+                  <SelectItem value="8">Grade 8</SelectItem>
+                  <SelectItem value="9">Grade 9</SelectItem>
+                  <SelectItem value="10">Grade 10</SelectItem>
+                  <SelectItem value="11">Grade 11</SelectItem>
+                  <SelectItem value="12">Grade 12</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="displayName">Display Name</Label>
@@ -856,13 +863,20 @@ function GradesTab() {
               </Select>
             </div>
             <div>
-              <Label htmlFor="edit-name">Grade Name</Label>
-              <Input
-                id="edit-name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Enter grade name"
-              />
+              <Label htmlFor="edit-name">Grade Name (7-12 only)</Label>
+              <Select value={formData.name || ''} onValueChange={(value) => setFormData({ ...formData, name: value, displayName: `Grade ${value}` })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select grade level" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7">Grade 7</SelectItem>
+                  <SelectItem value="8">Grade 8</SelectItem>
+                  <SelectItem value="9">Grade 9</SelectItem>
+                  <SelectItem value="10">Grade 10</SelectItem>
+                  <SelectItem value="11">Grade 11</SelectItem>
+                  <SelectItem value="12">Grade 12</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="edit-displayName">Display Name</Label>
@@ -932,6 +946,8 @@ function SubjectsTab() {
 
   const { data: boardsDropdown } = useBoardsDropdown()
   const { data: gradesDropdown } = useGradesDropdown(selectedBoardFilter || undefined)
+  // For create/edit dialogs - fetch grades based on selected board in form
+  const { data: gradesDropdownForForm } = useGradesDropdown(formData.boardId || undefined)
   const createSubjectMutation = useCreateSubject()
   const updateSubjectMutation = useUpdateSubject()
   const deleteSubjectMutation = useDeleteSubject()
@@ -1214,12 +1230,16 @@ function SubjectsTab() {
               </div>
               <div>
                 <Label htmlFor="grade">Grade</Label>
-                <Select value={formData.gradeId?.toString() || '0'} onValueChange={(value) => setFormData({ ...formData, gradeId: parseInt(value) })}>
+                <Select 
+                  value={formData.gradeId?.toString() || '0'} 
+                  onValueChange={(value) => setFormData({ ...formData, gradeId: parseInt(value) })}
+                  disabled={!formData.boardId || formData.boardId === 0}
+                >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a grade" />
+                    <SelectValue placeholder={formData.boardId ? "Select a grade" : "Select a board first"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {gradesDropdown?.map((grade) => (
+                    {gradesDropdownForForm?.map((grade) => (
                       <SelectItem key={grade.id} value={grade.id.toString()}>
                         {grade.displayName}
                       </SelectItem>
@@ -1270,20 +1290,47 @@ function SubjectsTab() {
             <DialogTitle>Edit Subject</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="edit-grade">Grade</Label>
-              <Select value={formData.gradeId.toString()} onValueChange={(value) => setFormData({ ...formData, gradeId: parseInt(value) })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a grade" />
-                </SelectTrigger>
-                <SelectContent>
-                  {gradesDropdown?.map((grade) => (
-                    <SelectItem key={grade.id} value={grade.id.toString()}>
-                      {grade.displayName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-board">Board</Label>
+                <Select 
+                  value={formData.boardId?.toString() || '0'} 
+                  onValueChange={(value) => {
+                    const boardId = parseInt(value)
+                    setFormData({ ...formData, boardId, gradeId: 0 })
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a board" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {boardsDropdown?.map((board) => (
+                      <SelectItem key={board.id} value={board.id.toString()}>
+                        {board.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-grade">Grade</Label>
+                <Select 
+                  value={formData.gradeId?.toString() || '0'} 
+                  onValueChange={(value) => setFormData({ ...formData, gradeId: parseInt(value) })}
+                  disabled={!formData.boardId || formData.boardId === 0}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={formData.boardId ? "Select a grade" : "Select a board first"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {gradesDropdownForForm?.map((grade) => (
+                      <SelectItem key={grade.id} value={grade.id.toString()}>
+                        {grade.displayName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div>
               <Label htmlFor="edit-name">Subject Name</Label>
@@ -1311,7 +1358,7 @@ function SubjectsTab() {
               </Button>
               <Button
                 onClick={handleUpdateSubmit}
-                disabled={!formData.name.trim() || formData.gradeId === 0 || updateSubjectMutation.isPending}
+                disabled={!formData.name.trim() || formData.boardId === 0 || formData.gradeId === 0 || updateSubjectMutation.isPending}
               >
                 {updateSubjectMutation.isPending ? 'Updating...' : 'Update Subject'}
               </Button>

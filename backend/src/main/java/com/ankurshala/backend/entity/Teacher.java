@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Size;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -61,6 +62,24 @@ public class Teacher {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private TeacherStatus status = TeacherStatus.PENDING;
+
+    @Column(name = "years_experience")
+    private Integer yearsExperience;
+
+    @Column(name = "languages", columnDefinition = "TEXT")
+    private String languages; // JSON array of languages
+
+    @Column(name = "categories", columnDefinition = "TEXT")
+    private String categories; // JSON array of categories
+
+    @Column(name = "hourly_rate", precision = 8, scale = 2)
+    private BigDecimal hourlyRate;
+
+    @Column(name = "rating_avg", precision = 3, scale = 2)
+    private BigDecimal ratingAvg;
+
+    @Column(name = "rating_count")
+    private Integer ratingCount;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -288,5 +307,85 @@ public class Teacher {
 
     public void setAddresses(List<TeacherAddress> addresses) {
         this.addresses = addresses;
+    }
+
+    // Additional getters and setters for new fields
+    public Integer getYearsExperience() {
+        return yearsExperience;
+    }
+
+    public void setYearsExperience(Integer yearsExperience) {
+        this.yearsExperience = yearsExperience;
+    }
+
+    public String getLanguages() {
+        return languages;
+    }
+
+    public void setLanguages(String languages) {
+        this.languages = languages;
+    }
+
+    public String getCategories() {
+        return categories;
+    }
+
+    public void setCategories(String categories) {
+        this.categories = categories;
+    }
+
+    public BigDecimal getHourlyRate() {
+        return hourlyRate;
+    }
+
+    public void setHourlyRate(BigDecimal hourlyRate) {
+        this.hourlyRate = hourlyRate;
+    }
+
+    public BigDecimal getRatingAvg() {
+        return ratingAvg;
+    }
+
+    public void setRatingAvg(BigDecimal ratingAvg) {
+        this.ratingAvg = ratingAvg;
+    }
+
+    public Integer getRatingCount() {
+        return ratingCount;
+    }
+
+    public void setRatingCount(Integer ratingCount) {
+        this.ratingCount = ratingCount;
+    }
+
+    // Helper methods for array fields
+    public String[] getLanguagesArray() {
+        if (languages == null || languages.isEmpty()) {
+            return new String[0];
+        }
+        return languages.split(",");
+    }
+
+    public void setLanguagesArray(String[] languagesArray) {
+        if (languagesArray == null || languagesArray.length == 0) {
+            this.languages = null;
+        } else {
+            this.languages = String.join(",", languagesArray);
+        }
+    }
+
+    public String[] getCategoriesArray() {
+        if (categories == null || categories.isEmpty()) {
+            return new String[0];
+        }
+        return categories.split(",");
+    }
+
+    public void setCategoriesArray(String[] categoriesArray) {
+        if (categoriesArray == null || categoriesArray.length == 0) {
+            this.categories = null;
+        } else {
+            this.categories = String.join(",", categoriesArray);
+        }
     }
 }

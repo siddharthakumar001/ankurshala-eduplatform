@@ -34,6 +34,8 @@ public class TeacherDetailDto implements Serializable {
     private Boolean verified;
     private BigDecimal rating;
     private Integer totalReviews;
+    private String teacherCategory;
+    private String languages;
     private Boolean enabled;
     
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
@@ -75,6 +77,8 @@ public class TeacherDetailDto implements Serializable {
     public Boolean getVerified() { return verified; }
     public BigDecimal getRating() { return rating; }
     public Integer getTotalReviews() { return totalReviews; }
+    public String getTeacherCategory() { return teacherCategory; }
+    public String getLanguages() { return languages; }
     public Boolean getEnabled() { return enabled; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
@@ -107,6 +111,8 @@ public class TeacherDetailDto implements Serializable {
     public void setVerified(Boolean verified) { this.verified = verified; }
     public void setRating(BigDecimal rating) { this.rating = rating; }
     public void setTotalReviews(Integer totalReviews) { this.totalReviews = totalReviews; }
+    public void setTeacherCategory(String teacherCategory) { this.teacherCategory = teacherCategory; }
+    public void setLanguages(String languages) { this.languages = languages; }
     public void setEnabled(Boolean enabled) { this.enabled = enabled; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }

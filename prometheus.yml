@@ -1,0 +1,45 @@
+# Prometheus configuration for AnkurShala monitoring
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'ankurshala-monitor'
+    environment: 'development'
+
+# Alertmanager configuration (optional)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# Load rules once and periodically evaluate them
+rule_files:
+  # - "alerts.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Backend service
+  - job_name: 'ankurshala-backend'
+    metrics_path: '/api/actuator/prometheus'
+    static_configs:
+      - targets: ['backend:8080']
+        labels:
+          service: 'backend'
+          environment: 'development'
+    
+  # PostgreSQL exporter (if added later)
+  - job_name: 'postgres'
+    static_configs:
+      - targets: []
+        labels:
+          service: 'postgres'
+          environment: 'development'
+    
+  # Redis exporter (if added later)
+  - job_name: 'redis'
+    static_configs:
+      - targets: []
+        labels:
+          service: 'redis'
+          environment: 'development'

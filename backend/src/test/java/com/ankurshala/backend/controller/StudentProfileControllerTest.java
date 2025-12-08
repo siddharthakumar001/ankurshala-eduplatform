@@ -102,11 +102,16 @@ class StudentProfileControllerTest {
     @Test
     void testUpdateProfile_Success() {
         // Given
+        com.ankurshala.backend.dto.student.UpdateStudentProfileRequest request = 
+            new com.ankurshala.backend.dto.student.UpdateStudentProfileRequest();
+        request.setFirstName("Jane");
+        request.setLastName("Doe");
+        
         when(resourceAuthorizationService.canAccessStudentProfile(1L)).thenReturn(true);
-        when(studentProfileService.updateStudentProfile(1L, mockProfile)).thenReturn(mockProfile);
+        when(studentProfileService.updateProfile(1L, request)).thenReturn(mockProfile);
 
         // When
-        ResponseEntity<StudentProfileDto> response = studentProfileController.updateProfile(mockProfile, authentication);
+        ResponseEntity<StudentProfileDto> response = studentProfileController.updateProfile(request, authentication);
 
         // Then
         assertNotNull(response);
@@ -115,16 +120,18 @@ class StudentProfileControllerTest {
         assertEquals(1L, response.getBody().getId());
 
         verify(resourceAuthorizationService, times(1)).canAccessStudentProfile(1L);
-        verify(studentProfileService, times(1)).updateStudentProfile(1L, mockProfile);
+        verify(studentProfileService, times(1)).updateProfile(1L, request);
     }
 
     @Test
     void testUpdateProfile_Unauthorized() {
         // Given
+        com.ankurshala.backend.dto.student.UpdateStudentProfileRequest request = 
+            new com.ankurshala.backend.dto.student.UpdateStudentProfileRequest();
         when(resourceAuthorizationService.canAccessStudentProfile(1L)).thenReturn(false);
 
         // When
-        ResponseEntity<StudentProfileDto> response = studentProfileController.updateProfile(mockProfile, authentication);
+        ResponseEntity<StudentProfileDto> response = studentProfileController.updateProfile(request, authentication);
 
         // Then
         assertNotNull(response);
@@ -262,15 +269,17 @@ class StudentProfileControllerTest {
     @Test
     void testUpdateProfile_ServiceThrowsException() {
         // Given
+        com.ankurshala.backend.dto.student.UpdateStudentProfileRequest request = 
+            new com.ankurshala.backend.dto.student.UpdateStudentProfileRequest();
         when(resourceAuthorizationService.canAccessStudentProfile(1L)).thenReturn(true);
-        when(studentProfileService.updateStudentProfile(1L, mockProfile)).thenThrow(new RuntimeException("Service error"));
+        when(studentProfileService.updateProfile(1L, request)).thenThrow(new RuntimeException("Service error"));
 
         // When & Then
         assertThrows(RuntimeException.class, () -> {
-            studentProfileController.updateProfile(mockProfile, authentication);
+            studentProfileController.updateProfile(request, authentication);
         });
 
         verify(resourceAuthorizationService, times(1)).canAccessStudentProfile(1L);
-        verify(studentProfileService, times(1)).updateStudentProfile(1L, mockProfile);
+        verify(studentProfileService, times(1)).updateProfile(1L, request);
     }
 }

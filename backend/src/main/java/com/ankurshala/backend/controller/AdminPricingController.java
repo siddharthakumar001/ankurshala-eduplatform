@@ -89,15 +89,31 @@ public class AdminPricingController {
     @GetMapping("/resolve")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, Object>> resolvePricingRule(
-            @RequestParam(required = false) Long boardId,
-            @RequestParam(required = false) Long gradeId,
-            @RequestParam(required = false) Long subjectId,
-            @RequestParam(required = false) Long chapterId,
-            @RequestParam(required = false) Long topicId) {
+            @RequestParam(required = false) String board,
+            @RequestParam(required = false) String grade,
+            @RequestParam(required = false) String subject) {
         
-        PricingRuleDto rule = pricingService.resolvePricingRule(boardId, gradeId, subjectId, chapterId, topicId);
+        // If string parameters are provided, convert them to IDs
+        Long boardId = null;
+        Long gradeId = null;
+        Long subjectId = null;
+        
+        if (board != null && !board.isEmpty()) {
+            boardId = pricingService.getBoardIdByName(board);
+        }
+        
+        if (grade != null && !grade.isEmpty() && boardId != null) {
+            // Pass boardId to ensure we get the right grade for this board
+            gradeId = pricingService.getGradeIdByNameAndBoard(grade, boardId);
+        }
+        
+        if (subject != null && !subject.isEmpty() && gradeId != null) {
+            subjectId = pricingService.getSubjectIdByName(subject, gradeId);
+        }
+        
+        PricingRuleDto rule = pricingService.resolvePricingRule(boardId, gradeId, subjectId, null, null);
         return ResponseEntity.ok(Map.of(
-            "rule", rule,
+            "rule", rule != null ? rule : Map.of(),
             "message", rule != null ? "Pricing rule found" : "No matching pricing rule found"
         ));
     }

@@ -6,14 +6,12 @@ import com.ankurshala.backend.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.Optional;
+import java.util.List;
 
 @Repository
 public interface BookingBookmarkRepository extends JpaRepository<BookingBookmark, Long> {
+    List<BookingBookmark> findByBookingIdOrderByTsSecondsAsc(Long bookingId);
     
-    Optional<BookingBookmark> findByBookingAndStudent(Booking booking, User student);
-    
-    boolean existsByBookingAndStudent(Booking booking, User student);
-    
-    void deleteByBookingAndStudent(Booking booking, User student);
+    boolean existsByBookingIdAndStudentId(Long bookingId, Long studentId);
+    void deleteByBookingIdAndStudentId(Long bookingId, Long studentId);
 }

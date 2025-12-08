@@ -1,0 +1,84 @@
+-- V21__payment_system.sql
+-- Payment system tables for Razorpay, Stripe, PayU integration
+
+-- PAYMENT INTENTS
+CREATE TABLE payment_intents (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    booking_id BIGINT REFERENCES bookings(id) ON DELETE SET NULL,
+    amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+    currency VARCHAR(3) NOT NULL DEFAULT 'INR',
+    status VARCHAR(20) NOT NULL DEFAULT 'CREATED',
+    payment_method_id BIGINT REFERENCES payment_methods(id),
+    provider_payment_id VARCHAR(255),
+    provider_order_id VARCHAR(255),
+    provider_response JSONB,
+    failure_reason TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- PAYMENT METHODS
+CREATE TABLE payment_methods (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    method_type VARCHAR(20) NOT NULL,
+    provider VARCHAR(20) NOT NULL,
+    provider_id VARCHAR(255) NOT NULL,
+    masked_details VARCHAR(255) NOT NULL,
+    is_default BOOLEAN NOT NULL DEFAULT FALSE,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    expires_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- PAYMENT REFUNDS
+CREATE TABLE payment_refunds (
+    id BIGSERIAL PRIMARY KEY,
+    payment_intent_id BIGINT NOT NULL REFERENCES payment_intents(id) ON DELETE CASCADE,
+    amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+    reason TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    provider_refund_id VARCHAR(255),
+    provider_response JSONB,
+    failure_reason TEXT,
+    processed_by BIGINT REFERENCES users(id),
+    processed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes
+CREATE INDEX idx_payment_intents_user_id ON payment_intents(user_id);
+CREATE INDEX idx_payment_intents_booking_id ON payment_intents(booking_id);
+CREATE INDEX idx_payment_intents_status ON payment_intents(status);
+CREATE INDEX idx_payment_intents_provider_payment_id ON payment_intents(provider_payment_id);
+CREATE INDEX idx_payment_intents_provider_order_id ON payment_intents(provider_order_id);
+
+CREATE INDEX idx_payment_methods_user_id ON payment_methods(user_id);
+CREATE INDEX idx_payment_methods_provider_id ON payment_methods(provider_id);
+CREATE INDEX idx_payment_methods_is_default ON payment_methods(is_default);
+CREATE INDEX idx_payment_methods_is_active ON payment_methods(is_active);
+
+CREATE INDEX idx_payment_refunds_payment_intent_id ON payment_refunds(payment_intent_id);
+CREATE INDEX idx_payment_refunds_status ON payment_refunds(status);
+CREATE INDEX idx_payment_refunds_provider_refund_id ON payment_refunds(provider_refund_id);
+CREATE INDEX idx_payment_refunds_processed_by ON payment_refunds(processed_by);
+
+-- Constraints
+ALTER TABLE payment_intents ADD CONSTRAINT chk_payment_intents_status 
+    CHECK (status IN ('CREATED', 'PROCESSING', 'COMPLETED', 'FAILED', 'CANCELLED'));
+
+ALTER TABLE payment_methods ADD CONSTRAINT chk_payment_methods_method_type 
+    CHECK (method_type IN ('CARD', 'UPI', 'NET_BANKING', 'WALLET', 'EMI'));
+
+ALTER TABLE payment_methods ADD CONSTRAINT chk_payment_methods_provider 
+    CHECK (provider IN ('RAZORPAY', 'STRIPE', 'PAYU', 'PAYTM', 'PHONEPE', 'GOOGLE_PAY'));
+
+ALTER TABLE payment_refunds ADD CONSTRAINT chk_payment_refunds_status 
+    CHECK (status IN ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', 'CANCELLED'));
+
+-- Unique constraints
+ALTER TABLE payment_methods ADD CONSTRAINT uk_payment_methods_provider_id UNIQUE (provider_id);
+ALTER TABLE payment_refunds ADD CONSTRAINT uk_payment_refunds_provider_refund_id UNIQUE (provider_refund_id);

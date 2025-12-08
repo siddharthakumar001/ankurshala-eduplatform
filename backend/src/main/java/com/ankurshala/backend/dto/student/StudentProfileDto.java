@@ -61,6 +61,24 @@ public class StudentProfileDto {
     @Size(max = 500, message = "School ID card URL must not exceed 500 characters")
     private String schoolIdCardUrl;
     
+    // Onboarding fields
+    private Long boardId;
+    private String boardName;
+    
+    private Long gradeId;
+    private String gradeName;
+    
+    @Size(max = 50, message = "Language must not exceed 50 characters")
+    private String language;
+    
+    @Size(max = 1000, message = "Goals must not exceed 1000 characters")
+    private String goals;
+    
+    @Size(max = 500, message = "Avatar URL must not exceed 500 characters")
+    private String avatarUrl;
+    
+    private Boolean isComplete;
+    
     private List<StudentDocumentDto> documents;
 
     // Getters and Setters
@@ -214,5 +232,69 @@ public class StudentProfileDto {
 
     public void setDocuments(List<StudentDocumentDto> documents) {
         this.documents = documents;
+    }
+
+    public Long getBoardId() {
+        return boardId;
+    }
+
+    public void setBoardId(Long boardId) {
+        this.boardId = boardId;
+    }
+
+    public String getBoardName() {
+        return boardName;
+    }
+
+    public void setBoardName(String boardName) {
+        this.boardName = boardName;
+    }
+
+    public Long getGradeId() {
+        return gradeId;
+    }
+
+    public void setGradeId(Long gradeId) {
+        this.gradeId = gradeId;
+    }
+
+    public String getGradeName() {
+        return gradeName;
+    }
+
+    public void setGradeName(String gradeName) {
+        this.gradeName = gradeName;
+    }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public void setLanguage(String language) {
+        this.language = language;
+    }
+
+    public String getGoals() {
+        return goals;
+    }
+
+    public void setGoals(String goals) {
+        this.goals = goals;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
+    }
+
+    public Boolean getIsComplete() {
+        return isComplete;
+    }
+
+    public void setIsComplete(Boolean isComplete) {
+        this.isComplete = isComplete;
     }
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import AdminLayoutSimple from '@/components/admin-layout-simple'
+import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -384,7 +384,7 @@ export default function AdminContentImportPage() {
   }
 
   return (
-    <AdminLayoutSimple>
+    <DashboardLayout role="admin">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -1000,6 +1000,6 @@ export default function AdminContentImportPage() {
           </div>
         )}
       </div>
-    </AdminLayoutSimple>
+    </DashboardLayout>
   )
 }

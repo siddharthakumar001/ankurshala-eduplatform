@@ -76,6 +76,12 @@ public class TeacherProfileDto {
     @Min(value = 0, message = "Total reviews must be non-negative")
     private Integer totalReviews = 0;
 
+    @Size(max = 50, message = "Teacher category must not exceed 50 characters")
+    private String teacherCategory = "STANDARD";
+
+    @Size(max = 500, message = "Languages must not exceed 500 characters")
+    private String languages;
+
     // Constructors
     public TeacherProfileDto() {}
 
@@ -262,5 +268,21 @@ public class TeacherProfileDto {
 
     public void setTotalReviews(Integer totalReviews) {
         this.totalReviews = totalReviews;
+    }
+
+    public String getTeacherCategory() {
+        return teacherCategory;
+    }
+
+    public void setTeacherCategory(String teacherCategory) {
+        this.teacherCategory = teacherCategory;
+    }
+
+    public String getLanguages() {
+        return languages;
+    }
+
+    public void setLanguages(String languages) {
+        this.languages = languages;
     }
 }

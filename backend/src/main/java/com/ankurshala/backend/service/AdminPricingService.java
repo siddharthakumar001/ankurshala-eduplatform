@@ -159,15 +159,15 @@ public class AdminPricingService {
 
     public PricingRuleDto resolvePricingRule(Long boardId, Long gradeId, Long subjectId, 
                                             Long chapterId, Long topicId) {
-        List<PricingRule> rules = pricingRuleRepository.findBestMatchPricingRule(
+        Optional<PricingRule> ruleOpt = pricingRuleRepository.findBestMatchPricingRule(
                 boardId, gradeId, subjectId, chapterId, topicId);
         
-        if (rules.isEmpty()) {
+        if (ruleOpt.isEmpty()) {
             return null;
         }
         
-        // Return the most specific rule (first in the ordered list)
-        return convertToDto(rules.get(0));
+        // Return the most specific rule
+        return convertToDto(ruleOpt.get());
     }
 
     private PricingRuleDto convertToDto(PricingRule rule) {
@@ -188,5 +188,45 @@ public class AdminPricingService {
                 rule.getCreatedAt(),
                 rule.getUpdatedAt()
         );
+    }
+
+    // Helper methods to resolve names to IDs
+    public Long getBoardIdByName(String boardName) {
+        return boardRepository.findByName(boardName)
+                .map(Board::getId)
+                .orElse(null);
+    }
+
+    public Long getGradeIdByName(String gradeName) {
+        // Get all grades with this name (there can be multiple across different boards)
+        // This is a simplified version - in production, you'd want to filter by board
+        Optional<Grade> grade = gradeRepository.findByName(gradeName);
+        if (grade.isPresent()) {
+            return grade.get().getId();
+        }
+        // If not found by exact name, try finding in any board (fallback)
+        return null;
+    }
+
+    public Long getGradeIdByNameAndBoard(String gradeName, Long boardId) {
+        // Get grades for this board
+        List<Grade> grades = gradeRepository.findByBoardIdAndSoftDeletedFalse(boardId);
+        // Find the grade with matching name
+        return grades.stream()
+                .filter(g -> gradeName.equals(g.getName()))
+                .findFirst()
+                .map(Grade::getId)
+                .orElse(null);
+    }
+
+    public Long getSubjectIdByName(String subjectName, Long gradeId) {
+        if (gradeId == null) {
+            return subjectRepository.findByName(subjectName)
+                    .map(Subject::getId)
+                    .orElse(null);
+        }
+        return subjectRepository.findByGradeIdAndName(gradeId, subjectName)
+                .map(Subject::getId)
+                .orElse(null);
     }
 }

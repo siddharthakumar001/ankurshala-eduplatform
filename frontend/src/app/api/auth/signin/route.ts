@@ -37,7 +37,6 @@ export async function POST(request: NextRequest) {
       sameSite: 'lax',
       maxAge: 15 * 60, // 15 minutes
       path: '/',
-      domain: process.env.NODE_ENV === 'production' ? '.ankurshala.com' : undefined,
     })
 
     // Refresh token - 7 days
@@ -47,7 +46,6 @@ export async function POST(request: NextRequest) {
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60, // 7 days
       path: '/',
-      domain: process.env.NODE_ENV === 'production' ? '.ankurshala.com' : undefined,
     })
 
     // Return user data without tokens

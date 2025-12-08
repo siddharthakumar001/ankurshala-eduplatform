@@ -1,10 +1,16 @@
 package com.ankurshala.backend.service;
 
+import com.ankurshala.backend.dto.student.CompleteOnboardingRequest;
 import com.ankurshala.backend.dto.student.StudentDocumentDto;
 import com.ankurshala.backend.dto.student.StudentProfileDto;
+import com.ankurshala.backend.dto.student.UpdateStudentProfileRequest;
+import com.ankurshala.backend.entity.Board;
+import com.ankurshala.backend.entity.Grade;
 import com.ankurshala.backend.entity.StudentDocument;
 import com.ankurshala.backend.entity.StudentProfile;
 import com.ankurshala.backend.entity.User;
+import com.ankurshala.backend.repository.BoardRepository;
+import com.ankurshala.backend.repository.GradeRepository;
 import com.ankurshala.backend.repository.StudentProfileRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -19,6 +25,12 @@ public class StudentProfileService {
 
     @Autowired
     private StudentProfileRepository studentProfileRepository;
+    
+    @Autowired
+    private BoardRepository boardRepository;
+    
+    @Autowired
+    private GradeRepository gradeRepository;
 
     public StudentProfile createStudentProfile(User user, String name) {
         StudentProfile profile = new StudentProfile();
@@ -99,6 +111,109 @@ public class StudentProfileService {
         studentProfileRepository.save(profile);
     }
 
+    /**
+     * Complete onboarding for a student by setting board, grade, language, and goals
+     */
+    public StudentProfileDto completeOnboarding(Long userId, CompleteOnboardingRequest request) {
+        StudentProfile profile = studentProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("Student profile not found"));
+
+        // Validate board exists
+        Board board = boardRepository.findById(request.getBoardId())
+                .orElseThrow(() -> new RuntimeException("Board not found"));
+
+        // Validate grade exists
+        Grade grade = gradeRepository.findById(request.getGradeId())
+                .orElseThrow(() -> new RuntimeException("Grade not found"));
+
+        // Update onboarding fields
+        profile.setBoardId(request.getBoardId());
+        profile.setGradeId(request.getGradeId());
+        profile.setLanguage(request.getLanguage());
+        profile.setGoals(request.getGoals());
+        profile.setAvatarUrl(request.getAvatarUrl());
+        profile.setIsComplete(true);
+
+        StudentProfile savedProfile = studentProfileRepository.save(profile);
+        return convertToDto(savedProfile);
+    }
+
+    /**
+     * Update student profile with new information
+     */
+    public StudentProfileDto updateProfile(Long userId, UpdateStudentProfileRequest request) {
+        StudentProfile profile = studentProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("Student profile not found"));
+
+        // Update basic fields
+        if (request.getFirstName() != null) {
+            profile.setFirstName(request.getFirstName());
+        }
+        if (request.getMiddleName() != null) {
+            profile.setMiddleName(request.getMiddleName());
+        }
+        if (request.getLastName() != null) {
+            profile.setLastName(request.getLastName());
+        }
+        if (request.getMotherName() != null) {
+            profile.setMotherName(request.getMotherName());
+        }
+        if (request.getFatherName() != null) {
+            profile.setFatherName(request.getFatherName());
+        }
+        if (request.getGuardianName() != null) {
+            profile.setGuardianName(request.getGuardianName());
+        }
+        if (request.getParentName() != null) {
+            profile.setParentName(request.getParentName());
+        }
+        if (request.getMobileNumber() != null) {
+            profile.setMobileNumber(request.getMobileNumber());
+        }
+        if (request.getAlternateMobileNumber() != null) {
+            profile.setAlternateMobileNumber(request.getAlternateMobileNumber());
+        }
+        if (request.getDateOfBirth() != null) {
+            profile.setDateOfBirth(request.getDateOfBirth());
+        }
+        if (request.getSchoolName() != null) {
+            profile.setSchoolName(request.getSchoolName());
+        }
+        if (request.getEmergencyContact() != null) {
+            profile.setEmergencyContact(request.getEmergencyContact());
+        }
+        if (request.getStudentPhotoUrl() != null) {
+            profile.setStudentPhotoUrl(request.getStudentPhotoUrl());
+        }
+        if (request.getSchoolIdCardUrl() != null) {
+            profile.setSchoolIdCardUrl(request.getSchoolIdCardUrl());
+        }
+
+        // Update onboarding fields
+        if (request.getBoardId() != null) {
+            Board board = boardRepository.findById(request.getBoardId())
+                    .orElseThrow(() -> new RuntimeException("Board not found"));
+            profile.setBoardId(request.getBoardId());
+        }
+        if (request.getGradeId() != null) {
+            Grade grade = gradeRepository.findById(request.getGradeId())
+                    .orElseThrow(() -> new RuntimeException("Grade not found"));
+            profile.setGradeId(request.getGradeId());
+        }
+        if (request.getLanguage() != null) {
+            profile.setLanguage(request.getLanguage());
+        }
+        if (request.getGoals() != null) {
+            profile.setGoals(request.getGoals());
+        }
+        if (request.getAvatarUrl() != null) {
+            profile.setAvatarUrl(request.getAvatarUrl());
+        }
+
+        StudentProfile savedProfile = studentProfileRepository.save(profile);
+        return convertToDto(savedProfile);
+    }
+
     private StudentProfileDto convertToDto(StudentProfile profile) {
         StudentProfileDto dto = new StudentProfileDto();
         dto.setId(profile.getId());
@@ -119,6 +234,22 @@ public class StudentProfileService {
         dto.setEmergencyContact(profile.getEmergencyContact());
         dto.setStudentPhotoUrl(profile.getStudentPhotoUrl());
         dto.setSchoolIdCardUrl(profile.getSchoolIdCardUrl());
+        
+        // New onboarding fields
+        dto.setBoardId(profile.getBoardId());
+        if (profile.getBoardId() != null) {
+            boardRepository.findById(profile.getBoardId())
+                    .ifPresent(board -> dto.setBoardName(board.getName()));
+        }
+        dto.setGradeId(profile.getGradeId());
+        if (profile.getGradeId() != null) {
+            gradeRepository.findById(profile.getGradeId())
+                    .ifPresent(grade -> dto.setGradeName(grade.getName()));
+        }
+        dto.setLanguage(profile.getLanguage());
+        dto.setGoals(profile.getGoals());
+        dto.setAvatarUrl(profile.getAvatarUrl());
+        dto.setIsComplete(profile.getIsComplete());
         
         dto.setDocuments(profile.getDocuments().stream()
                 .map(this::convertDocumentToDto)

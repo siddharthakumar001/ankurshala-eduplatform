@@ -20,13 +20,16 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
+ * DEPRECATED: Use EnhancedAuthController instead
+ * This controller is disabled to avoid duplicate mapping conflicts with EnhancedAuthController
+ * Both controllers mapped to /auth with identical endpoints
  * Enhanced Authentication Controller
  * Handles user authentication, registration, and token management
  * Implements proper design patterns with comprehensive logging and error handling
  */
 @Slf4j
 @CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "https://ankurshala.com", "https://www.ankurshala.com"}, maxAge = 3600)
-@RestController
+// @RestController  // DISABLED - duplicate of EnhancedAuthController
 @RequestMapping("/auth")
 public class AuthController {
 

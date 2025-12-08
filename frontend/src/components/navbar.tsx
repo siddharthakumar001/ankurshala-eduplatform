@@ -41,11 +41,11 @@ export default function Navbar() {
           <div className="flex items-center">
             <Link href="/" className="flex items-center space-x-3">
               <Image
-                src="/ankurshala.svg"
+                src="/ankurshala-logo-small.png"
                 alt="Ankurshala Logo"
                 width={32}
                 height={32}
-                className="rounded"
+                className="rounded-lg"
               />
               <span className="text-xl font-bold text-gray-900 dark:text-white">AnkurShala</span>
             </Link>

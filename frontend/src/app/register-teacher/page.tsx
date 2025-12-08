@@ -1,398 +1,825 @@
-'use client'
+'use client';
 
-import { useState, useEffect, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { api } from '@/utils/api'
-import { useAuth } from '@/hooks/useAuth'
-import Image from 'next/image'
-import { Eye, EyeOff, Lock, Mail, AlertCircle, User, BookOpen, Users } from 'lucide-react'
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import Image from 'next/image';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useAuthStore } from '@/store/auth';
+import {
+  Loader2,
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Users,
+  BookOpen,
+  Clock,
+  DollarSign,
+  Star,
+  Shield,
+  Plus,
+  X,
+  Briefcase,
+  Calendar,
+} from 'lucide-react';
 
-interface SignupFormData {
-  name: string
-  email: string
-  password: string
-  confirmPassword: string
-  agreeToTerms: boolean
-}
+const languages = ['English', 'Hindi', 'Bengali', 'Tamil', 'Telugu', 'Marathi', 'Gujarati', 'Kannada', 'Malayalam'];
+const categories = ['School Tutoring', 'Competitive Exams', 'Languages', 'Arts & Music', 'Technology', 'Other'];
+const boards = ['CBSE', 'ICSE', 'IB', 'Cambridge', 'State Board', 'NIOS'];
+const grades = ['Class 1-5', 'Class 6-8', 'Class 9-10', 'Class 11-12'];
+const subjects = [
+  { id: 1, name: 'Mathematics' },
+  { id: 2, name: 'Physics' },
+  { id: 3, name: 'Chemistry' },
+  { id: 4, name: 'Biology' },
+  { id: 5, name: 'English' },
+  { id: 6, name: 'Hindi' },
+  { id: 7, name: 'Computer Science' },
+  { id: 8, name: 'Economics' },
+  { id: 9, name: 'Accountancy' },
+  { id: 10, name: 'Social Science' },
+];
 
-const USER_DASHBOARD_ROUTES = {
-  ADMIN: '/admin/dashboard',
-  TEACHER: '/teacher/profile',
-  STUDENT: '/student/profile'
-} as const
+const weekdays = [
+  { value: 1, label: 'Monday' },
+  { value: 2, label: 'Tuesday' },
+  { value: 3, label: 'Wednesday' },
+  { value: 4, label: 'Thursday' },
+  { value: 5, label: 'Friday' },
+  { value: 6, label: 'Saturday' },
+  { value: 7, label: 'Sunday' },
+];
 
-function TeacherSignupForm() {
-  const [formData, setFormData] = useState<SignupFormData>({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    agreeToTerms: false
-  })
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const { login, isAuthenticated } = useAuth()
+const steps = [
+  { id: 1, title: 'Profile', description: 'Basic info' },
+  { id: 2, title: 'Subjects', description: 'Expertise' },
+  { id: 3, title: 'Availability', description: 'Schedule' },
+  { id: 4, title: 'Review', description: 'Confirm' },
+];
 
-  useEffect(() => {
-    // Redirect if already authenticated
-    if (isAuthenticated) {
-      const redirectTo = searchParams.get('redirect') || '/'
-      router.push(redirectTo)
-      return
+const teacherSignupSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  confirmPassword: z.string().min(6, 'Password must be at least 6 characters'),
+  bio: z.string().min(50, 'Bio must be at least 50 characters'),
+  yearsExperience: z.number().min(0, 'Years of experience must be a positive number'),
+  languages: z.array(z.string()).min(1, 'Please select at least one language'),
+  categories: z.array(z.string()).min(1, 'Please select at least one category'),
+  hourlyRate: z.number().min(100, 'Hourly rate must be at least ₹100'),
+  subjectExpertise: z.array(z.object({
+    board: z.string(),
+    grade: z.string(),
+    subjectId: z.number(),
+    language: z.string(),
+  })).min(1, 'Please add at least one subject expertise'),
+  availability: z.array(z.object({
+    weekday: z.number(),
+    startTime: z.string(),
+    endTime: z.string(),
+    timezone: z.string(),
+  })).min(1, 'Please add at least one availability slot'),
+  acceptTerms: z.boolean().refine(val => val === true, { message: 'You must accept the terms' }),
+});
+
+type TeacherSignupForm = z.infer<typeof teacherSignupSchema>;
+
+export default function RegisterTeacherPage() {
+  const [currentStep, setCurrentStep] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const { signup } = useAuthStore();
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    setValue,
+    watch,
+    trigger,
+  } = useForm<TeacherSignupForm>({
+    resolver: zodResolver(teacherSignupSchema),
+    mode: 'onChange',
+    defaultValues: {
+      subjectExpertise: [{ board: '', grade: '', subjectId: 0, language: '' }],
+      availability: [{ weekday: 1, startTime: '', endTime: '', timezone: 'Asia/Kolkata' }],
+    },
+  });
+
+  const watchedLanguages = watch('languages') || [];
+  const watchedCategories = watch('categories') || [];
+  const watchedSubjectExpertise = watch('subjectExpertise') || [];
+  const watchedAvailability = watch('availability') || [];
+  const watchedAcceptTerms = watch('acceptTerms');
+
+  const handleLanguageChange = (language: string, checked: boolean) => {
+    const currentLanguages = watchedLanguages;
+    if (checked) {
+      setValue('languages', [...currentLanguages, language]);
+    } else {
+      setValue('languages', currentLanguages.filter(l => l !== language));
     }
-  }, [isAuthenticated, router, searchParams])
+  };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target
+  const handleCategoryChange = (category: string, checked: boolean) => {
+    const currentCategories = watchedCategories;
+    if (checked) {
+      setValue('categories', [...currentCategories, category]);
+    } else {
+      setValue('categories', currentCategories.filter(c => c !== category));
+    }
+  };
+
+  const addSubjectExpertise = () => {
+    setValue('subjectExpertise', [
+      ...watchedSubjectExpertise,
+      { board: '', grade: '', subjectId: 0, language: '' }
+    ]);
+  };
+
+  const removeSubjectExpertise = (index: number) => {
+    const updated = watchedSubjectExpertise.filter((_, i) => i !== index);
+    setValue('subjectExpertise', updated);
+  };
+
+  const updateSubjectExpertise = (index: number, field: string, value: any) => {
+    const updated = watchedSubjectExpertise.map((item, i) => 
+      i === index ? { ...item, [field]: value } : item
+    );
+    setValue('subjectExpertise', updated);
+  };
+
+  const addAvailability = () => {
+    setValue('availability', [
+      ...watchedAvailability,
+      { weekday: 1, startTime: '', endTime: '', timezone: 'Asia/Kolkata' }
+    ]);
+  };
+
+  const removeAvailability = (index: number) => {
+    const updated = watchedAvailability.filter((_, i) => i !== index);
+    setValue('availability', updated);
+  };
+
+  const updateAvailability = (index: number, field: string, value: any) => {
+    const updated = watchedAvailability.map((item, i) => 
+      i === index ? { ...item, [field]: value } : item
+    );
+    setValue('availability', updated);
+  };
+
+  const nextStep = async () => {
+    const fieldsToValidate = getFieldsForStep(currentStep);
+    const isValid = await trigger(fieldsToValidate);
     
-    // Sanitize input
-    const sanitizedValue = value
-      .replace(/[<>]/g, '')
-      .replace(/javascript:/gi, '')
-      .replace(/on\w+=/gi, '')
-      .trim()
-
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : sanitizedValue
-    }))
-    
-    // Clear error when user starts typing
-    if (error) {
-      setError('')
+    if (isValid) {
+      setCurrentStep(prev => Math.min(prev + 1, steps.length));
+      setError(null);
     }
-  }
+  };
 
-  const validateForm = (): boolean => {
-    if (!formData.name.trim()) {
-      setError('Full name is required')
-      return false
+  const prevStep = () => {
+    setCurrentStep(prev => Math.max(prev - 1, 1));
+    setError(null);
+  };
+
+  const getFieldsForStep = (step: number): (keyof TeacherSignupForm)[] => {
+    switch (step) {
+      case 1:
+        return ['name', 'email', 'password', 'confirmPassword', 'bio', 'yearsExperience', 'languages', 'categories', 'hourlyRate'];
+      case 2:
+        return ['subjectExpertise'];
+      case 3:
+        return ['availability'];
+      case 4:
+        return ['acceptTerms'];
+      default:
+        return [];
     }
+  };
 
-    if (!formData.email.trim()) {
-      setError('Email is required')
-      return false
-    }
-
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(formData.email)) {
-      setError('Please enter a valid email address')
-      return false
+  const onSubmit = async (data: TeacherSignupForm) => {
+    if (data.password !== data.confirmPassword) {
+      setError('Passwords do not match');
+      return;
     }
 
-    // Password strength validation
-    if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters long')
-      return false
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match')
-      return false
-    }
-
-    if (!formData.agreeToTerms) {
-      setError('You must agree to the terms and conditions')
-      return false
-    }
-
-    return true
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!validateForm()) {
-      return
-    }
-
-    setIsLoading(true)
-    setError('')
+    setIsLoading(true);
+    setError(null);
 
     try {
-      console.log('🔐 Starting teacher signup...')
-      const response = await api.post('/auth/signup/teacher', {
-        name: formData.name,
-        email: formData.email,
-        password: formData.password
-      }, { requireAuth: false })
+      await signup('teacher', {
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        bio: data.bio,
+        yearsExperience: data.yearsExperience,
+        languages: data.languages,
+        categories: data.categories,
+        hourlyRate: data.hourlyRate,
+        subjectExpertise: data.subjectExpertise,
+        availability: data.availability,
+      });
 
-      console.log('📥 Raw response:', response)
-      console.log('📦 Response data:', response.data)
-
-      // The API client already extracts the data from the API response
-      // So response.data contains the user data directly
-      const userData = response.data as any
-      
-      console.log('✅ User data received:', userData)
-      
-      if (userData && userData.userId && userData.role) {
-        const processedUserData = {
-          id: userData.userId?.toString() || '',
-          email: userData.email || formData.email,
-          name: userData.name || formData.name,
-          role: userData.role || 'TEACHER'
-        }
-
-        console.log('✨ Processed user data:', processedUserData)
-
-        if (!processedUserData.id || !processedUserData.role) {
-          console.error('❌ Invalid user data - missing id or role')
-          setError('Invalid response from server. Please try again.')
-          setIsLoading(false)
-          return
-        }
-
-        // Update authentication state
-        console.log('🔑 Setting authentication state...')
-        login(processedUserData)
-
-        // Redirect to teacher dashboard
-        const redirectTo = searchParams.get('redirect') || USER_DASHBOARD_ROUTES.TEACHER
-        
-        console.log('🚀 Redirecting to:', redirectTo)
-        
-        // Use window.location for immediate redirect to ensure it works
-        window.location.href = redirectTo
-        
-      } else {
-        console.error('❌ Signup failed - invalid user data')
-        console.error('User data:', userData)
-        setError('Signup failed. Please try again.')
-        setIsLoading(false)
-      }
-    } catch (err: any) {
-      console.error('Signup error:', err)
-      
-      // Handle specific error cases
-      if (err.response?.status === 409) {
-        setError('An account with this email already exists. Please try logging in instead.')
-      } else if (err.response?.status >= 500) {
-        setError('Server error. Please try again later.')
-      } else {
-        setError('Signup failed. Please try again.')
-      }
-      setIsLoading(false)
+      router.push('/teacher/dashboard');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Signup failed. Please try again.';
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
-  }
+  };
+
+  const features = [
+    { icon: Users, text: 'Connect with 5,000+ students' },
+    { icon: DollarSign, text: 'Set your own hourly rates' },
+    { icon: Clock, text: 'Flexible scheduling' },
+    { icon: Star, text: 'Build your reputation' },
+  ];
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        {/* Header with Logo */}
-        <div className="text-center">
-          <div className="mx-auto h-24 w-24 mb-6">
-            <Image
-              src="/Ankurshala Logo - Watermark (Small) - 300x300.png"
-              alt="Ankurshala"
-              width={96}
-              height={96}
-              className="mx-auto rounded-xl shadow-lg"
-              priority
-            />
-          </div>
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Join as Teacher
-          </h2>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Create your teacher account to start teaching
+    <div className="min-h-screen flex">
+      {/* Left Brand Section */}
+      <div className="hidden lg:flex lg:w-5/12 bg-gradient-to-br from-ankur-secondary via-[#1a3a5f] to-ankur-primary/80 p-12 flex-col justify-between relative overflow-hidden">
+        {/* Decorative elements */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-ankur-primary/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-ankur-accent/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+        
+        <div className="relative z-10">
+          <Link href="/" className="flex items-center gap-3 mb-12">
+            <Image src="/ankurshala-logo-small.png" width={56} height={56} alt="Ankurshala" className="rounded-lg" />
+            <span className="text-2xl font-bold text-white">Ankurshala</span>
+          </Link>
+          
+          <h1 className="text-4xl font-bold text-white mb-4">
+            Share Your Knowledge
+          </h1>
+          <p className="text-white/80 text-lg mb-12">
+            Join our community of expert educators and help students achieve their academic goals while earning on your own terms.
           </p>
+          
+          <div className="space-y-6">
+            {features.map((feature, index) => (
+              <div key={index} className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur flex items-center justify-center">
+                  <feature.icon className="h-6 w-6 text-ankur-accent" />
+                </div>
+                <span className="text-white/90 text-lg">{feature.text}</span>
+              </div>
+            ))}
+          </div>
         </div>
+        
+        <div className="relative z-10 flex items-center gap-3 bg-white/10 backdrop-blur rounded-2xl p-4">
+          <Shield className="h-10 w-10 text-ankur-accent" />
+          <div>
+            <p className="text-white font-semibold">Trusted Platform</p>
+            <p className="text-white/70 text-sm">Join 500+ verified teachers already on Ankurshala</p>
+          </div>
+        </div>
+      </div>
 
-        {/* Signup Form */}
-        <div className="bg-white dark:bg-gray-800 py-8 px-6 shadow-xl rounded-xl border-0">
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            {/* Name Field */}
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                <User className="inline h-4 w-4 mr-2" />
-                Full Name
-              </label>
-              <input
-                id="name"
-                name="name"
-                type="text"
-                autoComplete="name"
-                required
-                value={formData.name}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-all duration-200"
-                placeholder="Enter your full name"
-              />
-            </div>
+      {/* Right Form Section */}
+      <div className="flex-1 flex items-center justify-center p-6 lg:p-12 bg-gray-50 overflow-y-auto">
+        <div className="w-full max-w-2xl">
+          {/* Mobile header */}
+          <div className="lg:hidden mb-8 text-center">
+            <Link href="/" className="inline-flex items-center gap-2 mb-4">
+              <Image src="/ankurshala-logo-small.png" width={40} height={40} alt="Ankurshala" className="rounded-lg" />
+              <span className="text-xl font-bold text-ankur-secondary">Ankurshala</span>
+            </Link>
+          </div>
 
-            {/* Email Field */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                <Mail className="inline h-4 w-4 mr-2" />
-                Email Address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={formData.email}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-all duration-200"
-                placeholder="Enter your email"
-              />
-            </div>
-
-            {/* Password Field */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                <Lock className="inline h-4 w-4 mr-2" />
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="new-password"
-                  required
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 pr-12 border-2 border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-all duration-200"
-                  placeholder="Create a password"
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
+          <Card className="border-0 shadow-xl bg-white">
+            <CardContent className="p-8">
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-ankur-secondary/10 mb-4">
+                  <Briefcase className="h-7 w-7 text-ankur-secondary" />
+                </div>
+                <h2 className="text-2xl font-bold text-ankur-secondary">Teacher Registration</h2>
+                <p className="text-gray-600 mt-1">Create your teaching profile in 4 steps</p>
               </div>
-            </div>
 
-            {/* Confirm Password Field */}
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                <Lock className="inline h-4 w-4 mr-2" />
-                Confirm Password
-              </label>
-              <div className="relative">
-                <input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  autoComplete="new-password"
-                  required
-                  value={formData.confirmPassword}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 pr-12 border-2 border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-all duration-200"
-                  placeholder="Confirm your password"
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                >
-                  {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
-              </div>
-            </div>
-
-            {/* Terms Agreement */}
-            <div className="flex items-center">
-              <input
-                id="agreeToTerms"
-                name="agreeToTerms"
-                type="checkbox"
-                checked={formData.agreeToTerms}
-                onChange={handleInputChange}
-                className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-              />
-              <label htmlFor="agreeToTerms" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
-                I agree to the{' '}
-                <button
-                  type="button"
-                  className="text-green-600 hover:text-green-500 dark:text-green-400 dark:hover:text-green-300"
-                >
-                  Terms and Conditions
-                </button>
-                {' '}and{' '}
-                <button
-                  type="button"
-                  className="text-green-600 hover:text-green-500 dark:text-green-400 dark:hover:text-green-300"
-                >
-                  Privacy Policy
-                </button>
-              </label>
-            </div>
-
-            {/* Error Message */}
-            {error && (
-              <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-lg p-4">
-                <div className="flex">
-                  <AlertCircle className="h-5 w-5 text-red-400 mr-3 mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+              {/* Progress Steps */}
+              <div className="mb-8">
+                <div className="flex items-center justify-between">
+                  {steps.map((step, index) => (
+                    <div key={step.id} className="flex items-center flex-1">
+                      <div className="flex flex-col items-center flex-1">
+                        <div className={`flex items-center justify-center w-10 h-10 rounded-full transition-all ${
+                          currentStep >= step.id 
+                            ? 'bg-ankur-secondary text-white' 
+                            : 'bg-gray-100 text-gray-400'
+                        }`}>
+                          {currentStep > step.id ? (
+                            <Check className="h-5 w-5" />
+                          ) : (
+                            <span className="text-sm font-semibold">{step.id}</span>
+                          )}
+                        </div>
+                        <div className="mt-2 text-center hidden sm:block">
+                          <p className={`text-xs font-medium ${
+                            currentStep >= step.id ? 'text-ankur-secondary' : 'text-gray-400'
+                          }`}>
+                            {step.title}
+                          </p>
+                        </div>
+                      </div>
+                      {index < steps.length - 1 && (
+                        <div className={`h-1 flex-1 mx-2 rounded ${
+                          currentStep > step.id ? 'bg-ankur-secondary' : 'bg-gray-100'
+                        }`} />
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
-            )}
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none transition-all duration-200 transform hover:scale-[1.02]"
-            >
-              {isLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Creating Account...
-                </>
-              ) : (
-                <>
-                  <BookOpen className="h-4 w-4 mr-2" />
-                  Create Teacher Account
-                </>
+              {error && (
+                <Alert className="mb-6 bg-red-50 border-red-200" variant="destructive">
+                  <AlertDescription className="text-red-700">{error}</AlertDescription>
+                </Alert>
               )}
-            </button>
-          </form>
 
-          {/* Login Link */}
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Already have an account?{' '}
-              <button
-                onClick={() => router.push('/login')}
-                className="text-green-600 hover:text-green-500 dark:text-green-400 dark:hover:text-green-300 font-medium"
-              >
-                Sign in
-              </button>
-            </p>
-          </div>
-        </div>
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+                {/* Step 1: Profile */}
+                {currentStep === 1 && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="name" className="text-gray-700">Full Name</Label>
+                        <Input
+                          id="name"
+                          {...register('name')}
+                          placeholder="Enter your full name"
+                          className={`mt-1.5 h-11 ${errors.name ? 'border-red-500' : 'border-gray-200'}`}
+                        />
+                        {errors.name && (
+                          <p className="text-sm text-red-500 mt-1">{errors.name.message}</p>
+                        )}
+                      </div>
 
-        {/* Security Notice */}
-        <div className="text-center">
-          <div className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
-            <p>🔒 Your connection is secured with enterprise-grade encryption</p>
-            <p>👨‍🏫 Start your teaching journey with Ankurshala</p>
-          </div>
+                      <div>
+                        <Label htmlFor="email" className="text-gray-700">Email Address</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          {...register('email')}
+                          placeholder="Enter your email"
+                          className={`mt-1.5 h-11 ${errors.email ? 'border-red-500' : 'border-gray-200'}`}
+                        />
+                        {errors.email && (
+                          <p className="text-sm text-red-500 mt-1">{errors.email.message}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="password" className="text-gray-700">Password</Label>
+                        <Input
+                          id="password"
+                          type="password"
+                          {...register('password')}
+                          placeholder="Create password"
+                          className={`mt-1.5 h-11 ${errors.password ? 'border-red-500' : 'border-gray-200'}`}
+                        />
+                        {errors.password && (
+                          <p className="text-sm text-red-500 mt-1">{errors.password.message}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <Label htmlFor="confirmPassword" className="text-gray-700">Confirm Password</Label>
+                        <Input
+                          id="confirmPassword"
+                          type="password"
+                          {...register('confirmPassword')}
+                          placeholder="Confirm password"
+                          className={`mt-1.5 h-11 ${errors.confirmPassword ? 'border-red-500' : 'border-gray-200'}`}
+                        />
+                        {errors.confirmPassword && (
+                          <p className="text-sm text-red-500 mt-1">{errors.confirmPassword.message}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="bio" className="text-gray-700">Bio / About You</Label>
+                      <Textarea
+                        id="bio"
+                        {...register('bio')}
+                        placeholder="Tell us about your teaching experience, qualifications, and teaching philosophy (minimum 50 characters)"
+                        className={`mt-1.5 min-h-[100px] ${errors.bio ? 'border-red-500' : 'border-gray-200'}`}
+                      />
+                      {errors.bio && (
+                        <p className="text-sm text-red-500 mt-1">{errors.bio.message}</p>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="yearsExperience" className="text-gray-700">Years of Experience</Label>
+                        <Input
+                          id="yearsExperience"
+                          type="number"
+                          {...register('yearsExperience', { valueAsNumber: true })}
+                          placeholder="e.g., 5"
+                          className={`mt-1.5 h-11 ${errors.yearsExperience ? 'border-red-500' : 'border-gray-200'}`}
+                        />
+                        {errors.yearsExperience && (
+                          <p className="text-sm text-red-500 mt-1">{errors.yearsExperience.message}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <Label htmlFor="hourlyRate" className="text-gray-700">Hourly Rate (₹)</Label>
+                        <Input
+                          id="hourlyRate"
+                          type="number"
+                          {...register('hourlyRate', { valueAsNumber: true })}
+                          placeholder="e.g., 500"
+                          className={`mt-1.5 h-11 ${errors.hourlyRate ? 'border-red-500' : 'border-gray-200'}`}
+                        />
+                        {errors.hourlyRate && (
+                          <p className="text-sm text-red-500 mt-1">{errors.hourlyRate.message}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-gray-700 mb-2 block">Languages You Can Teach In</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {languages.map((language) => (
+                          <div 
+                            key={language}
+                            onClick={() => handleLanguageChange(language, !watchedLanguages.includes(language))}
+                            className={`px-4 py-2 rounded-full text-sm cursor-pointer transition-all border ${
+                              watchedLanguages.includes(language)
+                                ? 'bg-ankur-secondary text-white border-ankur-secondary'
+                                : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-ankur-secondary'
+                            }`}
+                          >
+                            {language}
+                          </div>
+                        ))}
+                      </div>
+                      {errors.languages && (
+                        <p className="text-sm text-red-500 mt-1">{errors.languages.message}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <Label className="text-gray-700 mb-2 block">Teaching Categories</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {categories.map((category) => (
+                          <div 
+                            key={category}
+                            onClick={() => handleCategoryChange(category, !watchedCategories.includes(category))}
+                            className={`px-4 py-2 rounded-full text-sm cursor-pointer transition-all border ${
+                              watchedCategories.includes(category)
+                                ? 'bg-ankur-primary text-white border-ankur-primary'
+                                : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-ankur-primary'
+                            }`}
+                          >
+                            {category}
+                          </div>
+                        ))}
+                      </div>
+                      {errors.categories && (
+                        <p className="text-sm text-red-500 mt-1">{errors.categories.message}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 2: Subjects */}
+                {currentStep === 2 && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <BookOpen className="h-5 w-5 text-ankur-secondary" />
+                        <span className="font-medium text-ankur-secondary">Subject Expertise</span>
+                      </div>
+                      <Button type="button" variant="outline" size="sm" onClick={addSubjectExpertise} className="border-ankur-secondary text-ankur-secondary hover:bg-ankur-secondary/5">
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add Subject
+                      </Button>
+                    </div>
+
+                    {watchedSubjectExpertise.map((expertise, index) => (
+                      <div key={index} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                        <div className="flex items-center justify-between mb-4">
+                          <span className="font-medium text-gray-700">Subject {index + 1}</span>
+                          {watchedSubjectExpertise.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeSubjectExpertise(index)}
+                              className="text-gray-400 hover:text-red-500"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-gray-600 text-sm">Board</Label>
+                            <Select onValueChange={(value) => updateSubjectExpertise(index, 'board', value)}>
+                              <SelectTrigger className="mt-1 h-10 border-gray-200">
+                                <SelectValue placeholder="Select board" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {boards.map((board) => (
+                                  <SelectItem key={board} value={board}>{board}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
+                            <Label className="text-gray-600 text-sm">Grade</Label>
+                            <Select onValueChange={(value) => updateSubjectExpertise(index, 'grade', value)}>
+                              <SelectTrigger className="mt-1 h-10 border-gray-200">
+                                <SelectValue placeholder="Select grade" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {grades.map((grade) => (
+                                  <SelectItem key={grade} value={grade}>{grade}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
+                            <Label className="text-gray-600 text-sm">Subject</Label>
+                            <Select onValueChange={(value) => updateSubjectExpertise(index, 'subjectId', parseInt(value))}>
+                              <SelectTrigger className="mt-1 h-10 border-gray-200">
+                                <SelectValue placeholder="Select subject" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {subjects.map((subject) => (
+                                  <SelectItem key={subject.id} value={subject.id.toString()}>{subject.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
+                            <Label className="text-gray-600 text-sm">Language</Label>
+                            <Select onValueChange={(value) => updateSubjectExpertise(index, 'language', value)}>
+                              <SelectTrigger className="mt-1 h-10 border-gray-200">
+                                <SelectValue placeholder="Select language" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {languages.map((language) => (
+                                  <SelectItem key={language} value={language}>{language}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {errors.subjectExpertise && (
+                      <p className="text-sm text-red-500">{errors.subjectExpertise.message}</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Step 3: Availability */}
+                {currentStep === 3 && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <Calendar className="h-5 w-5 text-ankur-secondary" />
+                        <span className="font-medium text-ankur-secondary">Your Availability</span>
+                      </div>
+                      <Button type="button" variant="outline" size="sm" onClick={addAvailability} className="border-ankur-secondary text-ankur-secondary hover:bg-ankur-secondary/5">
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add Slot
+                      </Button>
+                    </div>
+
+                    {watchedAvailability.map((slot, index) => (
+                      <div key={index} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                        <div className="flex items-center justify-between mb-4">
+                          <span className="font-medium text-gray-700">Time Slot {index + 1}</span>
+                          {watchedAvailability.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeAvailability(index)}
+                              className="text-gray-400 hover:text-red-500"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          <div>
+                            <Label className="text-gray-600 text-sm">Day</Label>
+                            <Select onValueChange={(value) => updateAvailability(index, 'weekday', parseInt(value))}>
+                              <SelectTrigger className="mt-1 h-10 border-gray-200">
+                                <SelectValue placeholder="Select day" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {weekdays.map((day) => (
+                                  <SelectItem key={day.value} value={day.value.toString()}>{day.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
+                            <Label className="text-gray-600 text-sm">Start Time</Label>
+                            <Input
+                              type="time"
+                              value={slot.startTime}
+                              onChange={(e) => updateAvailability(index, 'startTime', e.target.value)}
+                              className="mt-1 h-10 border-gray-200"
+                            />
+                          </div>
+
+                          <div>
+                            <Label className="text-gray-600 text-sm">End Time</Label>
+                            <Input
+                              type="time"
+                              value={slot.endTime}
+                              onChange={(e) => updateAvailability(index, 'endTime', e.target.value)}
+                              className="mt-1 h-10 border-gray-200"
+                            />
+                          </div>
+
+                          <div>
+                            <Label className="text-gray-600 text-sm">Timezone</Label>
+                            <Select onValueChange={(value) => updateAvailability(index, 'timezone', value)}>
+                              <SelectTrigger className="mt-1 h-10 border-gray-200">
+                                <SelectValue placeholder="Select timezone" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Asia/Kolkata">Asia/Kolkata</SelectItem>
+                                <SelectItem value="Asia/Dubai">Asia/Dubai</SelectItem>
+                                <SelectItem value="America/New_York">America/New_York</SelectItem>
+                                <SelectItem value="Europe/London">Europe/London</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {errors.availability && (
+                      <p className="text-sm text-red-500">{errors.availability.message}</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Step 4: Review */}
+                {currentStep === 4 && (
+                  <div className="space-y-4">
+                    <div className="bg-ankur-secondary/5 rounded-xl p-6 space-y-4">
+                      <h4 className="font-semibold text-ankur-secondary text-lg">Profile Summary</h4>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-500">Name:</span>
+                          <p className="font-medium text-gray-700">{watch('name')}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Email:</span>
+                          <p className="font-medium text-gray-700">{watch('email')}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Experience:</span>
+                          <p className="font-medium text-gray-700">{watch('yearsExperience')} years</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Hourly Rate:</span>
+                          <p className="font-medium text-gray-700">₹{watch('hourlyRate')}</p>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-gray-500">Languages:</span>
+                          <p className="font-medium text-gray-700">{watchedLanguages.join(', ') || 'None selected'}</p>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-gray-500">Categories:</span>
+                          <p className="font-medium text-gray-700">{watchedCategories.join(', ') || 'None selected'}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Subjects:</span>
+                          <p className="font-medium text-gray-700">{watchedSubjectExpertise.length} subject(s)</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Availability:</span>
+                          <p className="font-medium text-gray-700">{watchedAvailability.length} time slot(s)</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={`flex items-start gap-3 p-4 rounded-xl border-2 ${
+                      watchedAcceptTerms ? 'border-ankur-secondary bg-ankur-secondary/5' : 'border-gray-100'
+                    }`}>
+                      <Checkbox
+                        id="acceptTerms"
+                        checked={Boolean(watchedAcceptTerms)}
+                        onCheckedChange={(checked) => setValue('acceptTerms', checked as boolean)}
+                        className="mt-0.5"
+                      />
+                      <Label htmlFor="acceptTerms" className="text-sm text-gray-600 cursor-pointer">
+                        I agree to the{' '}
+                        <a href="#" className="text-ankur-secondary hover:underline font-medium">Terms and Conditions</a>
+                        {' '}and{' '}
+                        <a href="#" className="text-ankur-secondary hover:underline font-medium">Privacy Policy</a>
+                      </Label>
+                    </div>
+                    {errors.acceptTerms && (
+                      <p className="text-sm text-red-500">{errors.acceptTerms.message}</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Navigation */}
+                <div className="flex justify-between pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={prevStep}
+                    disabled={currentStep === 1}
+                    className="border-gray-200 text-gray-600 hover:bg-gray-50"
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back
+                  </Button>
+
+                  {currentStep < steps.length ? (
+                    <Button 
+                      type="button" 
+                      onClick={nextStep}
+                      className="bg-ankur-secondary hover:bg-ankur-secondary/90 text-white"
+                    >
+                      Continue
+                      <ArrowRight className="h-4 w-4 ml-2" />
+                    </Button>
+                  ) : (
+                    <Button 
+                      type="submit" 
+                      disabled={isLoading}
+                      className="bg-ankur-secondary hover:bg-ankur-secondary/90 text-white"
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Creating...
+                        </>
+                      ) : (
+                        'Create Account'
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </form>
+
+              <div className="mt-8 pt-6 border-t border-gray-100 text-center">
+                <p className="text-gray-600">
+                  Already have an account?{' '}
+                  <Link href="/login" className="text-ankur-secondary font-semibold hover:underline">
+                    Sign in
+                  </Link>
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <p className="text-center text-gray-500 text-sm mt-6">
+            Looking to learn?{' '}
+            <Link href="/register-student" className="text-ankur-primary hover:underline">
+              Register as a student
+            </Link>
+          </p>
         </div>
       </div>
     </div>
-  )
-}
-
-export default function TeacherSignupPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-      </div>
-    }>
-      <TeacherSignupForm />
-    </Suspense>
-  )
+  );
 }

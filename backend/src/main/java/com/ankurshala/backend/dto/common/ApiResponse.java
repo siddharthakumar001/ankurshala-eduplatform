@@ -187,4 +187,15 @@ public class ApiResponse<T> {
                 .version("1.0")
                 .build();
     }
+    
+    // Setter methods for traceId and requestId
+    public ApiResponse<T> setTraceId(String traceId) {
+        this.traceId = traceId;
+        return this;
+    }
+    
+    public ApiResponse<T> setRequestId(String requestId) {
+        this.requestId = requestId;
+        return this;
+    }
 }

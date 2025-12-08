@@ -72,6 +72,8 @@ public class AdminTeacherService {
         teacherProfile.setVerified(teacherDetailDto.getVerified());
         teacherProfile.setRating(teacherDetailDto.getRating());
         teacherProfile.setTotalReviews(teacherDetailDto.getTotalReviews());
+        teacherProfile.setTeacherCategory(teacherDetailDto.getTeacherCategory());
+        teacherProfile.setLanguages(teacherDetailDto.getLanguages());
 
         // Update teacher status
         if (teacherDetailDto.getStatus() != null && teacherProfile.getTeacher() != null) {
@@ -160,6 +162,8 @@ public class AdminTeacherService {
         dto.setVerified(teacherProfile.getVerified());
         dto.setRating(teacherProfile.getRating());
         dto.setTotalReviews(teacherProfile.getTotalReviews());
+        dto.setTeacherCategory(teacherProfile.getTeacherCategory());
+        dto.setLanguages(teacherProfile.getLanguages());
         dto.setCreatedAt(teacherProfile.getCreatedAt());
         dto.setUpdatedAt(teacherProfile.getUpdatedAt());
         dto.setLastLoginAt(null); // lastLoginAt - would need to be tracked separately

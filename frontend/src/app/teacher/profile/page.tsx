@@ -345,8 +345,26 @@ function TeacherProfileContent() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="bg-white rounded-lg shadow-md">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h1 className="text-2xl font-bold text-gray-900">Teacher Profile</h1>
-            <p className="text-gray-600 mt-1">Manage your teaching profile and information</p>
+            <div className="flex justify-between items-center">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Teacher Profile</h1>
+                <p className="text-gray-600 mt-1">Manage your teaching profile and information</p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => router.push('/teacher/dashboard')}>
+                  Dashboard
+                </Button>
+                <Button variant="outline" onClick={() => router.push('/teacher/availability')}>
+                  Availability
+                </Button>
+                <Button variant="outline" onClick={() => router.push('/teacher/bookings')}>
+                  Bookings
+                </Button>
+                <Button variant="outline" onClick={() => router.push('/teacher/sessions')}>
+                  Sessions
+                </Button>
+              </div>
+            </div>
           </div>
 
           {message && (

@@ -3,11 +3,14 @@ package com.ankurshala.backend.service;
 import com.ankurshala.backend.dto.student.*;
 import com.ankurshala.backend.dto.admin.PricingRuleDto;
 import com.ankurshala.backend.entity.*;
+import com.ankurshala.backend.entity.BookingStatus;
 import com.ankurshala.backend.repository.*;
 import com.ankurshala.backend.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -61,14 +64,14 @@ public class StudentBookingService {
         User student = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Student not found"));
         
-        List<Booking.BookingStatus> conflictingStatuses = Arrays.asList(
-                Booking.BookingStatus.REQUESTED,
-                Booking.BookingStatus.ACCEPTED,
-                Booking.BookingStatus.RESCHEDULED
+        List<BookingStatus> conflictingStatuses = Arrays.asList(
+                BookingStatus.PENDING,
+                BookingStatus.ACCEPTED,
+                BookingStatus.CONFIRMED
         );
         
         List<Booking> conflictingBookings = bookingRepository.findConflictingBookings(
-                student, conflictingStatuses, startTime, endTime);
+                startTime.atZone(ZoneId.systemDefault()), endTime.atZone(ZoneId.systemDefault()));
         
         boolean bufferOk = conflictingBookings.isEmpty();
         
@@ -121,14 +124,14 @@ public class StudentBookingService {
         User student = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Student not found"));
         
-        List<Booking.BookingStatus> conflictingStatuses = Arrays.asList(
-                Booking.BookingStatus.REQUESTED,
-                Booking.BookingStatus.ACCEPTED,
-                Booking.BookingStatus.RESCHEDULED
+        List<BookingStatus> conflictingStatuses = Arrays.asList(
+                BookingStatus.PENDING,
+                BookingStatus.ACCEPTED,
+                BookingStatus.CONFIRMED
         );
         
         List<Booking> conflictingBookings = bookingRepository.findConflictingBookings(
-                student, conflictingStatuses, startTime, endTime);
+                startTime.atZone(ZoneId.systemDefault()), endTime.atZone(ZoneId.systemDefault()));
         
         if (!conflictingBookings.isEmpty()) {
             throw new IllegalArgumentException("Time slot conflicts with existing booking");
@@ -153,7 +156,10 @@ public class StudentBookingService {
         }
         
         // Create booking
-        Booking booking = new Booking(student, topic, startTime, endTime, request.getDurationMinutes(), priceMin, priceMax);
+        Booking booking = new Booking(student, topic, 
+                startTime.atZone(ZoneId.systemDefault()), 
+                endTime.atZone(ZoneId.systemDefault()), 
+                request.getDurationMinutes(), priceMin, priceMax);
         booking.setPricingRule(pricingRuleEntity);
         booking.setStudentNotes(request.getStudentNotes());
         booking.setAcceptanceToken(UUID.randomUUID().toString());
@@ -194,7 +200,7 @@ public class StudentBookingService {
         }
         
         // Validate status
-        if (booking.getStatus() != Booking.BookingStatus.ACCEPTED) {
+        if (booking.getStatus() != BookingStatus.ACCEPTED) {
             throw new IllegalArgumentException("Only accepted bookings can be rescheduled");
         }
         
@@ -204,14 +210,14 @@ public class StudentBookingService {
         
         // Check for conflicts
         User student = booking.getStudent();
-        List<Booking.BookingStatus> conflictingStatuses = Arrays.asList(
-                Booking.BookingStatus.REQUESTED,
-                Booking.BookingStatus.ACCEPTED,
-                Booking.BookingStatus.RESCHEDULED
+        List<BookingStatus> conflictingStatuses = Arrays.asList(
+                BookingStatus.PENDING,
+                BookingStatus.ACCEPTED,
+                BookingStatus.CONFIRMED
         );
         
         List<Booking> conflictingBookings = bookingRepository.findConflictingBookings(
-                student, conflictingStatuses, newStartTime, newEndTime);
+                newStartTime.atZone(ZoneId.systemDefault()), newEndTime.atZone(ZoneId.systemDefault()));
         
         // Remove current booking from conflicts
         conflictingBookings.removeIf(b -> b.getId().equals(bookingId));
@@ -221,10 +227,10 @@ public class StudentBookingService {
         }
         
         // Update booking
-        booking.setStartTime(newStartTime);
-        booking.setEndTime(newEndTime);
+        booking.setStartTs(newStartTime.atZone(ZoneId.systemDefault()));
+        booking.setEndTs(newEndTime.atZone(ZoneId.systemDefault()));
         booking.setDurationMinutes(request.getNewDurationMinutes());
-        booking.setStatus(Booking.BookingStatus.RESCHEDULED);
+        booking.setStatus(BookingStatus.CANCELLED);
         
         Booking savedBooking = bookingRepository.save(booking);
         
@@ -245,17 +251,17 @@ public class StudentBookingService {
         }
         
         // Validate status
-        if (booking.getStatus() == Booking.BookingStatus.CANCELLED) {
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
             throw new IllegalArgumentException("Booking is already cancelled");
         }
         
-        if (booking.getStatus() == Booking.BookingStatus.COMPLETED) {
+        if (booking.getStatus() == BookingStatus.COMPLETED) {
             throw new IllegalArgumentException("Cannot cancel completed booking");
         }
         
         // Update booking
-        booking.setStatus(Booking.BookingStatus.CANCELLED);
-        booking.setCancelledAt(LocalDateTime.now());
+        booking.setStatus(BookingStatus.CANCELLED);
+        booking.setCancelledAt(ZonedDateTime.now());
         booking.setCancellationReason(request.getReason());
         
         Booking savedBooking = bookingRepository.save(booking);
@@ -269,22 +275,20 @@ public class StudentBookingService {
         User student = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Student not found"));
         
-        List<Booking> bookings = bookingRepository.findUpcomingByStudent(student, LocalDateTime.now());
+        List<Booking> bookings = bookingRepository.findUpcomingByStudent(student, ZonedDateTime.now());
         
         return bookings.stream()
                 .map(this::convertToBookingResponse)
                 .collect(Collectors.toList());
     }
 
-    public List<BookingResponse> getBookingHistory(UserPrincipal userPrincipal) {
+    public Page<BookingResponse> getBookingHistory(UserPrincipal userPrincipal, Pageable pageable) {
         User student = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Student not found"));
         
-        List<Booking> bookings = bookingRepository.findHistoryByStudent(student, LocalDateTime.now());
+        Page<Booking> bookings = bookingRepository.findHistoryByStudent(student, ZonedDateTime.now(), pageable);
         
-        return bookings.stream()
-                .map(this::convertToBookingResponse)
-                .collect(Collectors.toList());
+        return bookings.map(this::convertToBookingResponse);
     }
 
     public BookingResponse getBookingById(Long bookingId, UserPrincipal userPrincipal) {
@@ -320,12 +324,12 @@ public class StudentBookingService {
             reason = "Reschedule fee";
         }
         
-        // Check for fee waivers
-        if (booking.getFeeWaiver() != null) {
-            fee = BigDecimal.ZERO;
-            waived = true;
-            reason = "Fee waived: " + booking.getFeeWaiver().getReason();
-        }
+        // Check for fee waivers (not implemented yet)
+        // if (booking.getFeeWaiver() != null) {
+        //     fee = BigDecimal.ZERO;
+        //     waived = true;
+        //     reason = "Fee waived: " + booking.getFeeWaiver().getReason();
+        // }
         
         return new FeePreviewResponse(fee, "INR", reason, waived);
     }
@@ -342,9 +346,14 @@ public class StudentBookingService {
         User author = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         
-        BookingNote.NoteType noteType = BookingNote.NoteType.valueOf(request.getNoteType());
+        String noteType = request.getNoteType();
         
-        BookingNote note = new BookingNote(booking, author, request.getContent(), noteType);
+        BookingNote note = new BookingNote();
+        note.setBookingId(booking.getId());
+        note.setAuthorId(author.getId());
+        note.setContent(request.getContent());
+        note.setNoteType(noteType);
+        note.setAuthorRole(author.getRole());
         BookingNote savedNote = bookingNoteRepository.save(note);
         
         return convertToBookingNoteResponse(savedNote);
@@ -362,7 +371,7 @@ public class StudentBookingService {
         User student = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Student not found"));
         
-        if (!bookingBookmarkRepository.existsByBookingAndStudent(booking, student)) {
+        if (!bookingBookmarkRepository.existsByBookingIdAndStudentId(booking.getId(), student.getId())) {
             BookingBookmark bookmark = new BookingBookmark(booking, student);
             bookingBookmarkRepository.save(bookmark);
         }
@@ -380,7 +389,7 @@ public class StudentBookingService {
         User student = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Student not found"));
         
-        bookingBookmarkRepository.deleteByBookingAndStudent(booking, student);
+        bookingBookmarkRepository.deleteByBookingIdAndStudentId(booking.getId(), student.getId());
     }
 
     public BookingResponse addBookingFeedback(Long bookingId, BookingFeedbackRequest request, UserPrincipal userPrincipal) {
@@ -393,7 +402,7 @@ public class StudentBookingService {
         }
         
         // Validate status
-        if (booking.getStatus() != Booking.BookingStatus.COMPLETED) {
+        if (booking.getStatus() != BookingStatus.COMPLETED) {
             throw new IllegalArgumentException("Feedback can only be added for completed bookings");
         }
         
@@ -438,12 +447,12 @@ public class StudentBookingService {
         response.setTopicId(booking.getTopic().getId());
         response.setTopicTitle(booking.getTopic().getTitle());
         response.setTeacherName(booking.getTeacher() != null ? booking.getTeacher().getName() : null);
-        response.setStartTime(booking.getStartTime());
-        response.setEndTime(booking.getEndTime());
+        // response.setStartTime(booking.getStartTs());
+        // response.setEndTime(booking.getEndTs());
         response.setDurationMinutes(booking.getDurationMinutes());
         response.setStatus(booking.getStatus().toString());
-        response.setAcceptedAt(booking.getAcceptedAt());
-        response.setCancelledAt(booking.getCancelledAt());
+        // response.setAcceptedAt(booking.getAcceptedAt());
+        // response.setCancelledAt(booking.getCancelledAt());
         response.setCancellationReason(booking.getCancellationReason());
         response.setPriceMin(booking.getPriceMin());
         response.setPriceMax(booking.getPriceMax());
@@ -455,17 +464,17 @@ public class StudentBookingService {
         response.setStudentFeedback(booking.getStudentFeedback());
         response.setTeacherFeedback(booking.getTeacherFeedback());
         response.setRating(booking.getRating());
-        response.setCreatedAt(booking.getCreatedAt());
-        response.setUpdatedAt(booking.getUpdatedAt());
+        // response.setCreatedAt(booking.getCreatedAt());
+        // response.setUpdatedAt(booking.getUpdatedAt());
         
-        // Convert notes
-        List<BookingNoteResponse> noteResponses = booking.getNotes().stream()
-                .map(this::convertToBookingNoteResponse)
-                .collect(Collectors.toList());
-        response.setNotes(noteResponses);
+        // Convert notes (not implemented yet)
+        // List<BookingNoteResponse> noteResponses = booking.getNotes().stream()
+        //         .map(this::convertToBookingNoteResponse)
+        //         .collect(Collectors.toList());
+        // response.setNotes(noteResponses);
         
         // Check if bookmarked
-        boolean bookmarked = bookingBookmarkRepository.existsByBookingAndStudent(booking, booking.getStudent());
+        boolean bookmarked = bookingBookmarkRepository.existsByBookingIdAndStudentId(booking.getId(), booking.getStudent().getId());
         response.setBookmarked(bookmarked);
         
         return response;
@@ -474,10 +483,10 @@ public class StudentBookingService {
     private BookingNoteResponse convertToBookingNoteResponse(BookingNote note) {
         BookingNoteResponse response = new BookingNoteResponse();
         response.setId(note.getId());
-        response.setAuthorId(note.getAuthor().getId());
-        response.setAuthorName(note.getAuthor().getName());
+        // response.setAuthorId(note.getAuthor().getId());
+        // response.setAuthorName(note.getAuthor().getName());
         response.setContent(note.getContent());
-        response.setNoteType(note.getNoteType().toString());
+        response.setNoteType(note.getNoteType());
         response.setCreatedAt(note.getCreatedAt());
         response.setUpdatedAt(note.getUpdatedAt());
         return response;
@@ -487,21 +496,21 @@ public class StudentBookingService {
         CalendarEventResponse response = new CalendarEventResponse();
         response.setId(booking.getId());
         response.setTitle(booking.getTopic().getTitle());
-        response.setStart(booking.getStartTime());
-        response.setEnd(booking.getEndTime());
+        response.setStart(booking.getStartTs().toLocalDateTime());
+        response.setEnd(booking.getEndTs().toLocalDateTime());
         response.setStatus(booking.getStatus().toString());
         response.setTeacherName(booking.getTeacher() != null ? booking.getTeacher().getName() : "TBD");
         response.setTopicTitle(booking.getTopic().getTitle());
         
         // Set color based on status
         switch (booking.getStatus()) {
-            case REQUESTED:
+            case PENDING:
                 response.setColor("#FACC15"); // Gold
                 break;
             case ACCEPTED:
                 response.setColor("#10B981"); // Emerald
                 break;
-            case RESCHEDULED:
+            case CONFIRMED:
                 response.setColor("#F59E0B"); // Amber
                 break;
             case CANCELLED:
@@ -515,12 +524,12 @@ public class StudentBookingService {
         }
         
         // Set action flags
-        LocalDateTime now = LocalDateTime.now();
-        response.setCanReschedule(booking.getStatus() == Booking.BookingStatus.ACCEPTED && booking.getStartTime().isAfter(now.plusHours(2)));
-        response.setCanCancel(booking.getStatus() != Booking.BookingStatus.CANCELLED && booking.getStatus() != Booking.BookingStatus.COMPLETED);
-        response.setCanJoin(booking.getStatus() == Booking.BookingStatus.ACCEPTED && 
-                           booking.getStartTime().isBefore(now.plusMinutes(5)) && 
-                           booking.getStartTime().isAfter(now.minusMinutes(30)));
+        ZonedDateTime now = ZonedDateTime.now();
+        response.setCanReschedule(booking.getStatus() == BookingStatus.ACCEPTED && booking.getStartTs().isAfter(now.plusHours(2)));
+        response.setCanCancel(booking.getStatus() != BookingStatus.CANCELLED && booking.getStatus() != BookingStatus.COMPLETED);
+        response.setCanJoin(booking.getStatus() == BookingStatus.ACCEPTED && 
+                           booking.getStartTs().isBefore(now.plusMinutes(5)) && 
+                           booking.getStartTs().isAfter(now.minusMinutes(30)));
         
         return response;
     }

@@ -108,4 +108,102 @@ public class WebSocketNotificationService {
         
         log.info("Broadcasted booking request to {}", destination);
     }
+
+    /**
+     * Notify student that their booking was accepted by a teacher
+     * Used by BookingConcurrencyService
+     */
+    public void notifyStudentBookingAccepted(Long studentId, Long bookingId, String teacherName) {
+        log.info("Notifying student {} that booking {} was accepted by {}", studentId, bookingId, teacherName);
+        
+        Map<String, Object> notification = new HashMap<>();
+        notification.put("type", "booking.accepted");
+        notification.put("bookingId", bookingId);
+        notification.put("teacherName", teacherName);
+        notification.put("message", "Your booking request has been accepted by " + teacherName);
+        
+        String destination = "/topic/student/" + studentId;
+        messagingTemplate.convertAndSend(destination, notification);
+        
+        log.info("Sent booking accepted notification to student {}", studentId);
+    }
+
+    /**
+     * Notify teachers that a booking is no longer available
+     * Used when one teacher accepts, others need to know it's taken
+     */
+    public void notifyBookingNoLongerAvailable(Long bookingId) {
+        log.info("Notifying teachers that booking {} is no longer available", bookingId);
+        
+        Map<String, Object> notification = new HashMap<>();
+        notification.put("type", "booking.taken");
+        notification.put("bookingId", bookingId);
+        notification.put("message", "This booking has been accepted by another teacher");
+        
+        String destination = "/topic/teachers";
+        messagingTemplate.convertAndSend(destination, notification);
+        
+        log.info("Broadcasted booking taken notification");
+    }
+
+    /**
+     * Send notification to a specific user
+     * Generic method for any type of notification
+     */
+    public void sendToUser(Long userId, Map<String, Object> notification) {
+        log.info("Sending notification to user {}: {}", userId, notification.get("type"));
+        
+        String destination = "/topic/user/" + userId;
+        messagingTemplate.convertAndSend(destination, notification);
+        
+        log.info("Sent notification to user {}", userId);
+    }
+
+    /**
+     * Send notification to a specific student
+     */
+    public void sendToStudent(Long studentId, Map<String, Object> notification) {
+        log.info("Sending notification to student {}: {}", studentId, notification.get("type"));
+        
+        String destination = "/topic/student/" + studentId;
+        messagingTemplate.convertAndSend(destination, notification);
+        
+        log.info("Sent notification to student {}", studentId);
+    }
+
+    /**
+     * Send notification to a specific teacher
+     */
+    public void sendToTeacher(Long teacherId, Map<String, Object> notification) {
+        log.info("Sending notification to teacher {}: {}", teacherId, notification.get("type"));
+        
+        String destination = "/topic/teacher/" + teacherId;
+        messagingTemplate.convertAndSend(destination, notification);
+        
+        log.info("Sent notification to teacher {}", teacherId);
+    }
+
+    /**
+     * Broadcast to all teachers
+     */
+    public void broadcastToTeachers(Map<String, Object> notification) {
+        log.info("Broadcasting to all teachers: {}", notification.get("type"));
+        
+        String destination = "/topic/teachers";
+        messagingTemplate.convertAndSend(destination, notification);
+        
+        log.info("Broadcasted to all teachers");
+    }
+
+    /**
+     * Broadcast to all students
+     */
+    public void broadcastToStudents(Map<String, Object> notification) {
+        log.info("Broadcasting to all students: {}", notification.get("type"));
+        
+        String destination = "/topic/students";
+        messagingTemplate.convertAndSend(destination, notification);
+        
+        log.info("Broadcasted to all students");
+    }
 }

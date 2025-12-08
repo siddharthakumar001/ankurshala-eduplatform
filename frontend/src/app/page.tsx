@@ -5,14 +5,27 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Sparkles, CalendarDays, ShieldCheck, Brain } from 'lucide-react'
+import { 
+  CalendarDays, 
+  ShieldCheck, 
+  Brain, 
+  GraduationCap, 
+  Users, 
+  Clock,
+  Star,
+  ArrowRight,
+  BookOpen,
+  Trophy,
+  Target,
+  Sparkles
+} from 'lucide-react'
 import { authManager } from '@/utils/auth'
 import { api } from '@/utils/api'
 
 const USER_DASHBOARD_ROUTES = {
   ADMIN: '/admin/dashboard',
   TEACHER: '/teacher/profile',
-  STUDENT: '/student/profile'
+  STUDENT: '/student/dashboard'
 } as const
 
 export default function Home() {
@@ -46,138 +59,321 @@ export default function Home() {
 
     checkAuthAndRedirect()
   }, [router])
+
+  const stats = [
+    { label: 'Active Students', value: '5,000+', icon: GraduationCap },
+    { label: 'Expert Teachers', value: '500+', icon: Users },
+    { label: 'Sessions Completed', value: '25,000+', icon: Clock },
+    { label: 'Average Rating', value: '4.9/5', icon: Star },
+  ]
+
+  const features = [
+    {
+      icon: CalendarDays,
+      title: 'Book by Topic & Time',
+      description: 'Pick a subject, choose a topic, select your slot. Teachers accept in real time—Uber-style.',
+      color: 'bg-ankur-primary/10 text-ankur-primary'
+    },
+    {
+      icon: ShieldCheck,
+      title: 'Verified Teachers',
+      description: 'Background-checked experts across CBSE, ICSE, IB and Cambridge. Quality you can trust.',
+      color: 'bg-ankur-secondary/10 text-ankur-secondary'
+    },
+    {
+      icon: Brain,
+      title: 'AI-Enabled Learning',
+      description: 'Personalized prep lists, weak-area insights, and after-class summaries—powered by AI.',
+      color: 'bg-ankur-accent/10 text-ankur-accent'
+    },
+    {
+      icon: Target,
+      title: 'Goal-Oriented',
+      description: 'Track progress with personalized learning paths designed to meet your academic goals.',
+      color: 'bg-purple-100 text-purple-600'
+    },
+    {
+      icon: Trophy,
+      title: 'Proven Results',
+      description: 'Students improve their grades by 25% on average within the first month.',
+      color: 'bg-orange-100 text-orange-600'
+    },
+    {
+      icon: Sparkles,
+      title: 'Interactive Sessions',
+      description: 'Engage with live whiteboard, screen sharing, and real-time problem solving.',
+      color: 'bg-pink-100 text-pink-600'
+    }
+  ]
+
+  const subjects = [
+    { name: 'Mathematics', icon: '📐' },
+    { name: 'Physics', icon: '⚛️' },
+    { name: 'Chemistry', icon: '🧪' },
+    { name: 'Biology', icon: '🧬' },
+    { name: 'English', icon: '📚' },
+    { name: 'Computer Science', icon: '💻' },
+    { name: 'Economics', icon: '📊' },
+    { name: 'Social Science', icon: '🌍' },
+  ]
+
+  const boards = ['CBSE', 'ICSE', 'IB', 'Cambridge', 'State Boards']
+
   return (
-    <main className="min-h-screen bg-gradient-to-b from-[#0B1220] via-[#0E1730] to-[#0B1220] text-white">
-      {/* HERO */}
-      <section className="relative container mx-auto px-6 pt-16 pb-10 md:pt-24 md:pb-16">
-        {/* Soft glow */}
-        <div className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 h-72 w-72 rounded-full blur-3xl opacity-40"
-             style={{ background: 'radial-gradient(60% 60% at 50% 50%, #10B98155, #1E3A8A00)' }} />
-        <div className="flex flex-col items-center text-center">
-          <Image
-            src="/ankurshala.svg"
-            alt="Ankurshala Logo"
-            width={200}
-            height={200}
-            priority
-            className="drop-shadow-[0_10px_20px_rgba(16,185,129,0.35)]"
-          />
-          <h1 className="mt-8 text-4xl md:text-6xl font-extrabold tracking-tight">
-            Welcome to Ankurshala
-          </h1>
-          <p className="mt-4 max-w-2xl text-lg md:text-xl text-slate-300">
-            Book 1:1 sessions by topic. Get matched with verified teachers in minutes.
-            AI guides your prep with personalized recommendations and summaries.
-          </p>
-
-          {/* Primary CTAs (no top nav) */}
-          <div className="mt-8 flex flex-col sm:flex-row gap-3">
-            <Button size="lg" className="bg-emerald-500 hover:bg-emerald-600 text-white" asChild>
-              <Link href="/login">
-                <Sparkles className="mr-2 h-5 w-5" /> Login
-              </Link>
+    <main className="min-h-screen bg-white">
+      {/* TOP NAV */}
+      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+        <div className="container mx-auto flex items-center justify-between px-6 py-4">
+          <Link href="/" className="flex items-center gap-3">
+            <Image src="/ankurshala-logo-small.png" width={48} height={48} alt="Ankurshala" priority className="rounded-lg" />
+            <span className="text-2xl font-bold text-ankur-secondary">Ankurshala</span>
+          </Link>
+          <nav className="hidden md:flex items-center gap-8">
+            <Link href="#features" className="text-gray-600 hover:text-ankur-primary transition-colors">Features</Link>
+            <Link href="#subjects" className="text-gray-600 hover:text-ankur-primary transition-colors">Subjects</Link>
+            <Link href="#boards" className="text-gray-600 hover:text-ankur-primary transition-colors">Boards</Link>
+          </nav>
+          <div className="hidden md:flex items-center gap-3">
+            <Button variant="ghost" asChild className="text-gray-600 hover:text-ankur-primary">
+              <Link href="/login">Login</Link>
             </Button>
-            <Button size="lg" variant="outline" className="border-emerald-400 text-emerald-300 hover:bg-emerald-500/10" asChild>
-              <Link href="/register-student">Register as Student</Link>
-            </Button>
-            <Button size="lg" variant="outline" className="border-blue-400 text-blue-300 hover:bg-blue-500/10" asChild>
-              <Link href="/register-teacher">Register as Teacher</Link>
+            <Button className="btn-primary" asChild>
+              <Link href="/register-student">Get Started</Link>
             </Button>
           </div>
+          {/* Mobile menu button */}
+          <Button variant="ghost" className="md:hidden" size="icon">
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </Button>
+        </div>
+      </header>
 
-          {/* Quick dock (replaces navbar) */}
-          <div className="mt-10 flex flex-wrap justify-center gap-3">
-            {[
-              { href: '/how-it-works', label: 'How it works' },
-              { href: '/subjects', label: 'Subjects & Boards' },
-              { href: '/safety', label: 'Safety & Quality' },
-            ].map((item) => (
-              <Link key={item.href} href={item.href}
-                className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 hover:bg-white/10">
-                {item.label}
-              </Link>
+      {/* HERO SECTION */}
+      <section className="relative overflow-hidden">
+        {/* Background gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-ankur-secondary via-ankur-secondary/90 to-ankur-primary/80" />
+        <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
+        
+        <div className="relative container mx-auto px-6 py-20 md:py-28">
+          <div className="flex flex-col lg:flex-row items-center gap-12">
+            {/* Left content */}
+            <div className="lg:w-1/2 text-center lg:text-left">
+              <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur px-4 py-2 rounded-full text-white/90 text-sm mb-6">
+                <Sparkles className="h-4 w-4 text-ankur-accent" />
+                <span>India's Most Trusted Learning Platform</span>
+              </div>
+              
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6">
+                On Demand Learning
+                <br />
+                <span className="bg-gradient-to-r from-ankur-primary to-ankur-accent bg-clip-text text-transparent">
+                  for Real Results
+                </span>
+              </h1>
+              
+              <p className="text-lg md:text-xl text-white/80 max-w-lg mb-8">
+                Connect with verified tutors for live, 1-on-1 sessions, powered by AI-driven insights and scheduled around your calendar.
+              </p>
+              
+              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-12">
+                <Button size="lg" className="btn-primary text-base px-8" asChild>
+                  <Link href="/register-student">
+                    Start Learning
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Link>
+                </Button>
+                <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10 text-base px-8" asChild>
+                  <Link href="/register-teacher">Become a Teacher</Link>
+                </Button>
+              </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {stats.map((stat) => (
+                  <div key={stat.label} className="bg-white/10 backdrop-blur rounded-xl p-4 text-center">
+                    <stat.icon className="h-6 w-6 text-ankur-accent mx-auto mb-2" />
+                    <div className="text-2xl font-bold text-white">{stat.value}</div>
+                    <div className="text-xs text-white/70">{stat.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* Right content - Brand image */}
+            <div className="lg:w-1/2 flex justify-center">
+              <div className="relative">
+                {/* Decorative circles */}
+                <div className="absolute -top-8 -left-8 w-72 h-72 bg-ankur-primary/20 rounded-full blur-3xl" />
+                <div className="absolute -bottom-8 -right-8 w-72 h-72 bg-ankur-accent/20 rounded-full blur-3xl" />
+                
+                {/* Main brand card */}
+                <div className="relative bg-white/10 backdrop-blur-md rounded-3xl p-8 border border-white/20">
+                  <div className="w-64 h-64 md:w-80 md:h-80 rounded-2xl bg-gradient-to-br from-white/20 to-white/5 flex items-center justify-center">
+                    <Image 
+                      src="/ankurshala-logo-large.png" 
+                      width={200} 
+                      height={200} 
+                      alt="Ankurshala Brand" 
+                      className="drop-shadow-2xl rounded-2xl"
+                    />
+                  </div>
+                  <div className="mt-6 text-center">
+                    <h3 className="text-2xl font-bold text-white">Ankurshala</h3>
+                    <p className="text-white/70">On Demand Learning</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Wave divider */}
+        <div className="absolute bottom-0 left-0 right-0">
+          <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M0 120L60 105C120 90 240 60 360 45C480 30 600 30 720 37.5C840 45 960 60 1080 67.5C1200 75 1320 75 1380 75L1440 75V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0Z" fill="white"/>
+          </svg>
+        </div>
+      </section>
+
+      {/* FEATURES SECTION */}
+      <section id="features" className="py-20 bg-white">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-ankur-secondary mb-4">
+              Why Choose Ankurshala?
+            </h2>
+            <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+              Experience personalized learning with cutting-edge technology and expert educators
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {features.map((feature) => (
+              <div 
+                key={feature.title}
+                className="group p-6 rounded-2xl border border-gray-100 hover:border-ankur-primary/20 hover:shadow-lg transition-all duration-300 bg-white"
+              >
+                <div className={`w-14 h-14 rounded-xl ${feature.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+                  <feature.icon className="h-7 w-7" />
+                </div>
+                <h3 className="text-xl font-semibold text-ankur-secondary mb-2">{feature.title}</h3>
+                <p className="text-gray-600">{feature.description}</p>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* BENEFITS */}
-      <section className="container mx-auto px-6 py-12 md:py-16">
-        <div className="grid gap-6 md:grid-cols-3">
-          <div className="rounded-xl border border-white/10 bg-white/5 p-6">
-            <CalendarDays className="h-6 w-6 text-emerald-400" />
-            <h3 className="mt-3 text-xl font-semibold">Book by Topic & Time</h3>
-            <p className="mt-2 text-slate-300">
-              Pick a subject, choose a topic, select your slot. Teachers accept in real time—Uber-style.
+      {/* SUBJECTS SECTION */}
+      <section id="subjects" className="py-20 bg-gray-50">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-ankur-secondary mb-4">
+              Popular Subjects
+            </h2>
+            <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+              Master any subject with expert guidance from our verified teachers
             </p>
           </div>
-          <div className="rounded-xl border border-white/10 bg-white/5 p-6">
-            <ShieldCheck className="h-6 w-6 text-blue-400" />
-            <h3 className="mt-3 text-xl font-semibold">Verified Teachers</h3>
-            <p className="mt-2 text-slate-300">
-              Background-checked experts across CBSE, ICSE, IB and Cambridge. Quality you can trust.
-            </p>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-white/5 p-6">
-            <Brain className="h-6 w-6 text-yellow-300" />
-            <h3 className="mt-3 text-xl font-semibold">AI-Enabled Learning</h3>
-            <p className="mt-2 text-slate-300">
-              Personalized prep lists, weak-area insights, and after-class summaries—powered by AI.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* SUBJECTS */}
-      <section className="container mx-auto px-6 pb-12 md:pb-16">
-        <h2 className="text-2xl md:text-3xl font-bold mb-6">Popular Subjects</h2>
-        <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
-          {['Mathematics','Physics','Chemistry','Biology','English','Computer Science','Economics','Social Science']
-            .map((s) => (
-              <span key={s}
-                className="rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-center text-slate-200 hover:bg-white/10">
-                {s}
-              </span>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {subjects.map((subject) => (
+              <div 
+                key={subject.name}
+                className="group bg-white rounded-xl p-6 text-center hover:shadow-lg hover:border-ankur-primary/20 border border-gray-100 transition-all duration-300 cursor-pointer"
+              >
+                <span className="text-4xl mb-3 block group-hover:scale-110 transition-transform">{subject.icon}</span>
+                <span className="font-medium text-ankur-secondary">{subject.name}</span>
+              </div>
             ))}
+          </div>
         </div>
       </section>
 
-      {/* CTA STRIP */}
-      <section className="border-t border-white/10 bg-gradient-to-r from-emerald-600/20 to-blue-600/20">
-        <div className="container mx-auto px-6 py-10 text-center">
-          <h3 className="text-2xl md:text-3xl font-semibold">
-            Ready to start? Join Ankurshala today.
-          </h3>
-          <p className="mt-2 text-slate-300">
-            Students learn faster with focused 1:1 sessions. Teachers grow with flexible, meaningful work.
-          </p>
-                 <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
-                   <Button size="lg" className="bg-emerald-500 hover:bg-emerald-600 text-white" asChild>
-                     <Link href="/register-student">Get Started (Student)</Link>
-                   </Button>
-                   <Button size="lg" variant="outline" className="border-blue-400 text-blue-300 hover:bg-blue-500/10" asChild>
-                     <Link href="/register-teacher">Become a Teacher</Link>
-                   </Button>
-                 </div>
+      {/* BOARDS SECTION */}
+      <section id="boards" className="py-20 bg-white">
+        <div className="container mx-auto px-6">
+          <div className="bg-gradient-to-r from-ankur-secondary to-ankur-primary rounded-3xl p-8 md:p-12 text-center">
+            <BookOpen className="h-12 w-12 text-white/80 mx-auto mb-6" />
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+              All Major Boards Covered
+            </h2>
+            <p className="text-white/80 text-lg max-w-2xl mx-auto mb-8">
+              Our expert teachers are certified to teach across all major educational boards in India and internationally
+            </p>
+            <div className="flex flex-wrap justify-center gap-4">
+              {boards.map((board) => (
+                <span 
+                  key={board}
+                  className="bg-white/10 backdrop-blur border border-white/20 px-6 py-3 rounded-full text-white font-medium"
+                >
+                  {board}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA SECTION */}
+      <section className="py-20 bg-gray-50">
+        <div className="container mx-auto px-6">
+          <div className="max-w-4xl mx-auto text-center">
+            <h2 className="text-3xl md:text-4xl font-bold text-ankur-secondary mb-4">
+              Ready to Transform Your Learning?
+            </h2>
+            <p className="text-gray-600 text-lg mb-8">
+              Join thousands of students achieving their academic goals with Ankurshala
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button size="lg" className="btn-primary text-base px-8" asChild>
+                <Link href="/register-student">
+                  <GraduationCap className="mr-2 h-5 w-5" />
+                  Start as Student
+                </Link>
+              </Button>
+              <Button size="lg" variant="outline" className="border-ankur-secondary text-ankur-secondary hover:bg-ankur-secondary/5 text-base px-8" asChild>
+                <Link href="/register-teacher">
+                  <Users className="mr-2 h-5 w-5" />
+                  Become a Teacher
+                </Link>
+              </Button>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* FOOTER */}
-      <footer className="border-t border-white/10">
-        <div className="container mx-auto px-6 py-8 flex flex-col items-center gap-3">
-          <Image src="/ankurshala.svg" width={60} height={60} alt="Ankurshala" />
-          <p className="text-slate-400 text-sm">
-            © {new Date().getFullYear()} Ankurshala • On Demand Learning
-          </p>
+      <footer className="bg-ankur-secondary text-white py-12">
+        <div className="container mx-auto px-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-3">
+              <Image src="/ankurshala-logo-small.png" width={48} height={48} alt="Ankurshala" className="rounded-lg" />
+              <div>
+                <h3 className="font-bold text-xl">Ankurshala</h3>
+                <p className="text-white/70 text-sm">On Demand Learning</p>
+              </div>
+            </div>
+            <div className="flex gap-6 text-white/70">
+              <Link href="/login" className="hover:text-white transition-colors">Login</Link>
+              <Link href="/register-student" className="hover:text-white transition-colors">Student Signup</Link>
+              <Link href="/register-teacher" className="hover:text-white transition-colors">Teacher Signup</Link>
+            </div>
+          </div>
+          <div className="border-t border-white/10 mt-8 pt-8 text-center text-white/60 text-sm">
+            © {new Date().getFullYear()} Ankurshala. All rights reserved.
+          </div>
         </div>
       </footer>
 
-      {/* Floating role actions (mobile-friendly) */}
-      <div className="fixed inset-x-0 bottom-4 flex justify-center px-4 md:hidden">
-        <div className="flex gap-2 rounded-full border border-white/10 bg-[#0E1730]/80 backdrop-blur px-3 py-2">
-          <Link href="/login" className="rounded-full bg-emerald-500 px-4 py-2 text-sm">Login</Link>
-          <Link href="/register-student" className="rounded-full px-4 py-2 text-sm border border-white/10">Student</Link>
-          <Link href="/register-teacher" className="rounded-full px-4 py-2 text-sm border border-white/10">Teacher</Link>
+      {/* Mobile floating bar */}
+      <div className="fixed inset-x-0 bottom-4 flex justify-center px-4 md:hidden z-50">
+        <div className="flex gap-2 rounded-full bg-ankur-secondary/95 backdrop-blur shadow-lg px-4 py-3">
+          <Link href="/login" className="rounded-full bg-white/10 px-4 py-2 text-sm text-white">Login</Link>
+          <Link href="/register-student" className="rounded-full bg-ankur-primary px-4 py-2 text-sm text-white">Student</Link>
+          <Link href="/register-teacher" className="rounded-full bg-white/10 px-4 py-2 text-sm text-white">Teacher</Link>
         </div>
       </div>
     </main>

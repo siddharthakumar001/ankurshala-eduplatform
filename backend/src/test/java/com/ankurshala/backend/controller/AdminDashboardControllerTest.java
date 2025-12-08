@@ -35,7 +35,7 @@ class AdminDashboardControllerTest {
     void setUp() {
         // Setup mock metrics
         mockMetrics = new DashboardMetricsDto(100L, 50L, 80L, 40L, 20L, 10L, 
-            10L, 30L, 5L, 15L, 5L, 10L, 20L, 50L, 100L, 25L, 10L);
+            10L, 30L, 5L, 15L, 5L, 10L, 20L, 50L, 100L, 25L, 10L, 5L, 4L, 1L, 0L, 0L);
 
         // Setup mock series
         DashboardSeriesDto series1 = new DashboardSeriesDto("2023-01-01", 10L, 5L);

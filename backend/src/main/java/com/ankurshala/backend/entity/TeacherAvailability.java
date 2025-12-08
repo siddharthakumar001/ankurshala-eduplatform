@@ -1,13 +1,14 @@
 package com.ankurshala.backend.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Max;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
-import org.hibernate.type.SqlTypes;
 
-import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZonedDateTime;
 
 @Entity
 @Table(name = "teacher_availability")
@@ -16,36 +17,49 @@ public class TeacherAvailability {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "teacher_id", nullable = false, unique = true)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "teacher_id", nullable = false)
+    @NotNull
     private Teacher teacher;
 
-    @Column(name = "available_from")
-    private LocalTime availableFrom;
+    @NotNull
+    @Min(0)
+    @Max(6)
+    @Column(name = "weekday", nullable = false)
+    private Integer weekday; // 0=Sunday, 1=Monday, ..., 6=Saturday
 
-    @Column(name = "available_to")
-    private LocalTime availableTo;
+    @NotNull
+    @Column(name = "start_time", nullable = false)
+    private LocalTime startTime;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "preferred_student_levels", columnDefinition = "jsonb")
-    private String preferredStudentLevels;
+    @NotNull
+    @Column(name = "end_time", nullable = false)
+    private LocalTime endTime;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "languages_spoken", columnDefinition = "jsonb")
-    private String languagesSpoken;
+    @NotNull
+    @Column(name = "timezone", nullable = false)
+    private String timezone;
+
+    @Column(name = "active", nullable = false)
+    private Boolean active = true;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private ZonedDateTime createdAt;
 
     @UpdateTimestamp
     @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    private ZonedDateTime updatedAt;
 
+    // Constructors
     public TeacherAvailability() {}
 
-    public TeacherAvailability(Teacher teacher) {
+    public TeacherAvailability(Teacher teacher, Integer weekday, LocalTime startTime, LocalTime endTime, String timezone) {
         this.teacher = teacher;
+        this.weekday = weekday;
+        this.startTime = startTime;
+        this.endTime = endTime;
+        this.timezone = timezone;
     }
 
     // Getters and Setters
@@ -65,51 +79,59 @@ public class TeacherAvailability {
         this.teacher = teacher;
     }
 
-    public LocalTime getAvailableFrom() {
-        return availableFrom;
+    public Integer getWeekday() {
+        return weekday;
     }
 
-    public void setAvailableFrom(LocalTime availableFrom) {
-        this.availableFrom = availableFrom;
+    public void setWeekday(Integer weekday) {
+        this.weekday = weekday;
     }
 
-    public LocalTime getAvailableTo() {
-        return availableTo;
+    public LocalTime getStartTime() {
+        return startTime;
     }
 
-    public void setAvailableTo(LocalTime availableTo) {
-        this.availableTo = availableTo;
+    public void setStartTime(LocalTime startTime) {
+        this.startTime = startTime;
     }
 
-    public String getPreferredStudentLevels() {
-        return preferredStudentLevels;
+    public LocalTime getEndTime() {
+        return endTime;
     }
 
-    public void setPreferredStudentLevels(String preferredStudentLevels) {
-        this.preferredStudentLevels = preferredStudentLevels;
+    public void setEndTime(LocalTime endTime) {
+        this.endTime = endTime;
     }
 
-    public String getLanguagesSpoken() {
-        return languagesSpoken;
+    public String getTimezone() {
+        return timezone;
     }
 
-    public void setLanguagesSpoken(String languagesSpoken) {
-        this.languagesSpoken = languagesSpoken;
+    public void setTimezone(String timezone) {
+        this.timezone = timezone;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public Boolean getActive() {
+        return active;
+    }
+
+    public void setActive(Boolean active) {
+        this.active = active;
+    }
+
+    public ZonedDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(ZonedDateTime createdAt) {
         this.createdAt = createdAt;
     }
 
-    public LocalDateTime getUpdatedAt() {
+    public ZonedDateTime getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(LocalDateTime updatedAt) {
+    public void setUpdatedAt(ZonedDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }
 }

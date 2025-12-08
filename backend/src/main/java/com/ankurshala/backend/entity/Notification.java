@@ -2,7 +2,6 @@ package com.ankurshala.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
@@ -10,21 +9,21 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "notifications")
 @Data
-@NoArgsConstructor
 public class Notification {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "user_id", insertable = false, updatable = false)
     private User user;
 
-    @Column(name = "title", nullable = false)
-    private String title;
-
-    @Column(name = "body", nullable = false, columnDefinition = "TEXT")
-    private String body;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type", nullable = false)
+    private NotificationType type;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "audience", nullable = false)
@@ -36,31 +35,35 @@ public class Notification {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    private NotificationStatus status = NotificationStatus.QUEUED;
+    private NotificationStatus status = NotificationStatus.PENDING;
+
+    @Column(name = "title", nullable = false)
+    private String title;
+
+    @Column(name = "message", columnDefinition = "TEXT", nullable = false)
+    private String message;
+
+    @Column(name = "read", nullable = false)
+    private Boolean read = false;
+
+    @Column(name = "meta", columnDefinition = "JSONB")
+    private String meta; // JSON metadata for additional data
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "sent_at")
-    private LocalDateTime sentAt;
-
-    public enum NotificationAudience {
-        STUDENT, TEACHER, BOTH
+    // Additional methods for compatibility
+    public void setBody(String body) {
+        this.message = body;
     }
 
-    public enum NotificationDelivery {
-        IN_APP, EMAIL, BOTH
+    public String getBody() {
+        return message;
     }
 
-    public enum NotificationStatus {
-        QUEUED, SENT, FAILED
-    }
-
-    public Notification(String title, String body, NotificationAudience audience, NotificationDelivery delivery) {
-        this.title = title;
-        this.body = body;
-        this.audience = audience;
-        this.delivery = delivery;
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        // This method is needed for compatibility but updatedAt is managed by @UpdateTimestamp
+        // So we don't actually set it here
     }
 }

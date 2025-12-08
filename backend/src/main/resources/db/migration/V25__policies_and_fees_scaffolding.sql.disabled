@@ -1,0 +1,217 @@
+-- V21__policies_and_fees_scaffolding.sql
+-- Policies and fees scaffolding for Phase 4A
+
+-- POLICY CATEGORIES
+CREATE TABLE policy_categories (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT,
+    active BOOLEAN DEFAULT TRUE NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- POLICIES
+CREATE TABLE policies (
+    id BIGSERIAL PRIMARY KEY,
+    category_id BIGINT NOT NULL REFERENCES policy_categories(id) ON DELETE RESTRICT,
+    title VARCHAR(200) NOT NULL,
+    content TEXT NOT NULL,
+    version VARCHAR(20) NOT NULL,
+    effective_date TIMESTAMPTZ NOT NULL,
+    expiry_date TIMESTAMPTZ,
+    active BOOLEAN DEFAULT TRUE NOT NULL,
+    created_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- POLICY ACCEPTANCES
+CREATE TABLE policy_acceptances (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    policy_id BIGINT NOT NULL REFERENCES policies(id) ON DELETE CASCADE,
+    accepted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    ip_address INET,
+    user_agent TEXT,
+    CONSTRAINT uk_policy_acceptance UNIQUE (user_id, policy_id)
+);
+
+-- FEE CATEGORIES
+CREATE TABLE fee_categories (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT,
+    active BOOLEAN DEFAULT TRUE NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- FEE STRUCTURES
+CREATE TABLE fee_structures (
+    id BIGSERIAL PRIMARY KEY,
+    category_id BIGINT NOT NULL REFERENCES fee_categories(id) ON DELETE RESTRICT,
+    name VARCHAR(200) NOT NULL,
+    description TEXT,
+    fee_type VARCHAR(50) NOT NULL CHECK (fee_type IN ('PERCENTAGE', 'FIXED', 'TIERED')),
+    base_amount_cents BIGINT NOT NULL DEFAULT 0,
+    percentage_rate NUMERIC(5,4) DEFAULT 0,
+    min_amount_cents BIGINT DEFAULT 0,
+    max_amount_cents BIGINT DEFAULT 0,
+    currency VARCHAR(3) DEFAULT 'INR',
+    active BOOLEAN DEFAULT TRUE NOT NULL,
+    effective_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expiry_date TIMESTAMPTZ,
+    created_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- FEE STRUCTURE TIERS
+CREATE TABLE fee_structure_tiers (
+    id BIGSERIAL PRIMARY KEY,
+    fee_structure_id BIGINT NOT NULL REFERENCES fee_structures(id) ON DELETE CASCADE,
+    min_amount_cents BIGINT NOT NULL,
+    max_amount_cents BIGINT,
+    fee_amount_cents BIGINT NOT NULL,
+    fee_percentage NUMERIC(5,4) DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- FEE APPLICATIONS
+CREATE TABLE fee_applications (
+    id BIGSERIAL PRIMARY KEY,
+    fee_structure_id BIGINT NOT NULL REFERENCES fee_structures(id) ON DELETE RESTRICT,
+    entity_type VARCHAR(50) NOT NULL, -- BOOKING, WALLET_TRANSACTION, etc.
+    entity_id BIGINT NOT NULL,
+    amount_cents BIGINT NOT NULL,
+    fee_amount_cents BIGINT NOT NULL,
+    calculated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    applied_at TIMESTAMPTZ,
+    status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPLIED', 'WAIVED', 'CANCELLED')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- FEE WAIVERS
+CREATE TABLE fee_waivers (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
+    fee_application_id BIGINT REFERENCES fee_applications(id) ON DELETE CASCADE,
+    waiver_type VARCHAR(50) NOT NULL CHECK (waiver_type IN ('FULL', 'PARTIAL', 'PERCENTAGE')),
+    waiver_amount_cents BIGINT DEFAULT 0,
+    waiver_percentage NUMERIC(5,2) DEFAULT 0,
+    reason TEXT NOT NULL,
+    approved_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    approved_at TIMESTAMPTZ,
+    status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED', 'EXPIRED')),
+    expires_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- FEE DISCOUNTS
+CREATE TABLE fee_discounts (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(200) NOT NULL,
+    description TEXT,
+    discount_type VARCHAR(50) NOT NULL CHECK (discount_type IN ('PERCENTAGE', 'FIXED', 'TIERED')),
+    discount_amount_cents BIGINT DEFAULT 0,
+    discount_percentage NUMERIC(5,2) DEFAULT 0,
+    min_amount_cents BIGINT DEFAULT 0,
+    max_amount_cents BIGINT DEFAULT 0,
+    currency VARCHAR(3) DEFAULT 'INR',
+    active BOOLEAN DEFAULT TRUE NOT NULL,
+    effective_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expiry_date TIMESTAMPTZ,
+    usage_limit INTEGER,
+    usage_count INTEGER DEFAULT 0,
+    created_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- FEE DISCOUNT APPLICATIONS
+CREATE TABLE fee_discount_applications (
+    id BIGSERIAL PRIMARY KEY,
+    discount_id BIGINT NOT NULL REFERENCES fee_discounts(id) ON DELETE RESTRICT,
+    fee_application_id BIGINT NOT NULL REFERENCES fee_applications(id) ON DELETE CASCADE,
+    discount_amount_cents BIGINT NOT NULL,
+    applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- FEE REFUNDS
+CREATE TABLE fee_refunds (
+    id BIGSERIAL PRIMARY KEY,
+    fee_application_id BIGINT NOT NULL REFERENCES fee_applications(id) ON DELETE RESTRICT,
+    refund_amount_cents BIGINT NOT NULL,
+    refund_reason TEXT NOT NULL,
+    refund_method VARCHAR(50) NOT NULL CHECK (refund_method IN ('WALLET', 'BANK_TRANSFER', 'CARD_REFUND')),
+    refund_reference VARCHAR(200),
+    processed_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    processed_at TIMESTAMPTZ,
+    status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PROCESSED', 'FAILED', 'CANCELLED')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- FEE AUDIT LOG
+CREATE TABLE fee_audit_log (
+    id BIGSERIAL PRIMARY KEY,
+    fee_application_id BIGINT NOT NULL REFERENCES fee_applications(id) ON DELETE CASCADE,
+    action VARCHAR(50) NOT NULL,
+    old_value JSONB,
+    new_value JSONB,
+    performed_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    performed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    ip_address INET,
+    user_agent TEXT
+);
+
+-- Indexes
+CREATE INDEX idx_policies_category ON policies(category_id);
+CREATE INDEX idx_policies_effective ON policies(effective_date, expiry_date);
+CREATE INDEX idx_policy_acceptances_user ON policy_acceptances(user_id);
+CREATE INDEX idx_policy_acceptances_policy ON policy_acceptances(policy_id);
+CREATE INDEX idx_fee_structures_category ON fee_structures(category_id);
+CREATE INDEX idx_fee_structures_effective ON fee_structures(effective_date, expiry_date);
+CREATE INDEX idx_fee_structure_tiers_structure ON fee_structure_tiers(fee_structure_id);
+CREATE INDEX idx_fee_applications_structure ON fee_applications(fee_structure_id);
+CREATE INDEX idx_fee_applications_entity ON fee_applications(entity_type, entity_id);
+CREATE INDEX idx_fee_applications_status ON fee_applications(status);
+CREATE INDEX idx_fee_waivers_user ON fee_waivers(user_id);
+CREATE INDEX idx_fee_waivers_application ON fee_waivers(fee_application_id);
+CREATE INDEX idx_fee_waivers_status ON fee_waivers(status);
+CREATE INDEX idx_fee_discounts_effective ON fee_discounts(effective_date, expiry_date);
+CREATE INDEX idx_fee_discount_applications_discount ON fee_discount_applications(discount_id);
+CREATE INDEX idx_fee_discount_applications_application ON fee_discount_applications(fee_application_id);
+CREATE INDEX idx_fee_refunds_application ON fee_refunds(fee_application_id);
+CREATE INDEX idx_fee_refunds_status ON fee_refunds(status);
+CREATE INDEX idx_fee_audit_log_application ON fee_audit_log(fee_application_id);
+CREATE INDEX idx_fee_audit_log_performed ON fee_audit_log(performed_at);
+
+-- Insert default policy categories
+INSERT INTO policy_categories (name, description) VALUES
+('TERMS_OF_SERVICE', 'Terms of Service and User Agreement'),
+('PRIVACY_POLICY', 'Privacy Policy and Data Protection'),
+('REFUND_POLICY', 'Refund and Cancellation Policy'),
+('ACCEPTABLE_USE', 'Acceptable Use Policy'),
+('PAYMENT_TERMS', 'Payment Terms and Conditions');
+
+-- Insert default fee categories
+INSERT INTO fee_categories (name, description) VALUES
+('BOOKING_FEE', 'Fees for booking classes'),
+('PLATFORM_FEE', 'Platform usage fees'),
+('PAYMENT_PROCESSING', 'Payment processing fees'),
+('REFUND_FEE', 'Fees for processing refunds'),
+('WALLET_FEE', 'Wallet transaction fees');
+
+-- Insert default fee structures
+INSERT INTO fee_structures (category_id, name, description, fee_type, base_amount_cents, percentage_rate, currency) VALUES
+(1, 'Standard Booking Fee', 'Standard fee for booking classes', 'PERCENTAGE', 0, 0.05, 'INR'),
+(2, 'Platform Usage Fee', 'Fee for using the platform', 'FIXED', 1000, 0, 'INR'),
+(3, 'Payment Processing Fee', 'Fee for processing payments', 'PERCENTAGE', 0, 0.029, 'INR'),
+(4, 'Refund Processing Fee', 'Fee for processing refunds', 'FIXED', 500, 0, 'INR'),
+(5, 'Wallet Transfer Fee', 'Fee for wallet transfers', 'FIXED', 200, 0, 'INR');

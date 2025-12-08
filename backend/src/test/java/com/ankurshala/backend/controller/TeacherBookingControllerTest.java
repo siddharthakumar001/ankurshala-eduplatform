@@ -18,6 +18,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -66,10 +67,10 @@ class TeacherBookingControllerTest {
         booking = new Booking();
         booking.setId(1L);
         booking.setStudent(student);
-        booking.setStatus(Booking.BookingStatus.REQUESTED);
+        booking.setState("REQUESTED");
         booking.setAcceptanceToken("test-token");
-        booking.setStartTime(LocalDateTime.now().plusDays(1));
-        booking.setEndTime(LocalDateTime.now().plusDays(1).plusHours(1));
+        booking.setStartTs(ZonedDateTime.now().plusDays(1));
+        booking.setEndTs(ZonedDateTime.now().plusDays(1).plusHours(1));
 
         bookingResponse = new BookingResponse();
         bookingResponse.setId(1L);
@@ -86,10 +87,10 @@ class TeacherBookingControllerTest {
         savedBooking.setId(1L);
         savedBooking.setStudent(student);
         savedBooking.setTeacher(teacher);
-        savedBooking.setStatus(Booking.BookingStatus.ACCEPTED);
-        savedBooking.setAcceptedAt(LocalDateTime.now());
-        savedBooking.setStartTime(LocalDateTime.now().plusDays(1));
-        savedBooking.setEndTime(LocalDateTime.now().plusDays(1).plusHours(1));
+        savedBooking.setState("ACCEPTED");
+        savedBooking.setAcceptedAt(ZonedDateTime.now());
+        savedBooking.setStartTs(ZonedDateTime.now().plusDays(1));
+        savedBooking.setEndTs(ZonedDateTime.now().plusDays(1).plusHours(1));
 
         // Mock repositories
         when(bookingRepository.findByAcceptanceToken(acceptanceToken)).thenReturn(Optional.of(booking));
@@ -167,7 +168,7 @@ class TeacherBookingControllerTest {
     void testAcceptBooking_BookingNotRequested() {
         // Setup
         String acceptanceToken = "test-token";
-        booking.setStatus(Booking.BookingStatus.ACCEPTED); // Already accepted
+        booking.setState("ACCEPTED"); // Already accepted
 
         // Mock repository
         when(bookingRepository.findByAcceptanceToken(acceptanceToken)).thenReturn(Optional.of(booking));

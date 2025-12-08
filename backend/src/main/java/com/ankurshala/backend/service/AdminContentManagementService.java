@@ -161,7 +161,35 @@ public class AdminContentManagementService {
         return convertToGradeDto(grade);
     }
 
+    public List<GradeDto> getGradesByBoardName(String boardName) {
+        // Find board by name
+        Board board = boardRepository.findByName(boardName)
+                .orElseThrow(() -> new ResourceNotFoundException("Board not found with name: " + boardName));
+        
+        // Check if board is soft deleted
+        if (board.getSoftDeleted() != null && board.getSoftDeleted()) {
+            throw new ResourceNotFoundException("Board not found with name: " + boardName);
+        }
+        
+        // Get active grades for this board
+        List<Grade> grades = gradeRepository.findActiveGradesByBoardId(board.getId());
+        
+        return grades.stream()
+                .map(this::convertToGradeDto)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
     public GradeDto createGrade(CreateGradeRequest request) {
+        // Validate grade is between 7-12
+        try {
+            int gradeNumber = Integer.parseInt(request.getName());
+            if (gradeNumber < 7 || gradeNumber > 12) {
+                throw new IllegalArgumentException("Grade must be between 7 and 12. Got: " + gradeNumber);
+            }
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Grade name must be a number between 7 and 12");
+        }
+        
         // Verify board exists
         Board board = boardRepository.findByIdAndSoftDeletedFalse(request.getBoardId())
                 .orElseThrow(() -> new ResourceNotFoundException("Board not found with id: " + request.getBoardId()));
@@ -278,6 +306,31 @@ public class AdminContentManagementService {
         return convertToSubjectDto(subject);
     }
 
+    public List<SubjectDto> getSubjectsByBoardAndGrade(String boardName, String gradeName) {
+        // Find board by name
+        Board board = boardRepository.findByName(boardName)
+                .orElseThrow(() -> new ResourceNotFoundException("Board not found with name: " + boardName));
+        
+        // Check if board is soft deleted
+        if (board.getSoftDeleted() != null && board.getSoftDeleted()) {
+            throw new ResourceNotFoundException("Board not found with name: " + boardName);
+        }
+        
+        // Find grade by name AND boardId (important - there can be multiple grades with same name in different boards)
+        List<Grade> grades = gradeRepository.findByBoardIdAndSoftDeletedFalse(board.getId());
+        Grade grade = grades.stream()
+                .filter(g -> gradeName.equals(g.getName()))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Grade not found with name: " + gradeName + " in board: " + boardName));
+        
+        // Get active subjects for this board and grade
+        List<Subject> subjects = subjectRepository.findActiveSubjectsByBoardIdAndGradeId(board.getId(), grade.getId());
+        
+        return subjects.stream()
+                .map(this::convertToSubjectDto)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
     public SubjectDto createSubject(CreateSubjectRequest request) {
         // Verify board and grade exist
         Board board = boardRepository.findByIdAndSoftDeletedFalse(request.getBoardId())
@@ -286,9 +339,30 @@ public class AdminContentManagementService {
         Grade grade = gradeRepository.findByIdAndSoftDeletedFalse(request.getGradeId())
                 .orElseThrow(() -> new ResourceNotFoundException("Grade not found with id: " + request.getGradeId()));
 
-        // Check if subject name already exists within the grade
-        if (subjectRepository.existsByNameIgnoreCaseAndGradeId(request.getName(), request.getGradeId())) {
-            throw new IllegalArgumentException("Subject with name '" + request.getName() + "' already exists in grade '" + grade.getDisplayName() + "'");
+        // Check if subject name already exists globally (database has global unique constraint)
+        // NOTE: Check ALL subjects including soft-deleted ones because database constraint doesn't care about soft_deleted
+        Optional<Subject> existingSubject = subjectRepository.findAll().stream()
+                .filter(s -> s.getName().equalsIgnoreCase(request.getName()))
+                .findFirst();
+        
+        if (existingSubject.isPresent()) {
+            Subject existing = existingSubject.get();
+            
+            if (existing.getSoftDeleted()) {
+                throw new IllegalArgumentException(
+                    "Subject with name '" + request.getName() + "' already exists (but is deleted). " +
+                    "Please restore it instead of creating a new one, or use a different name."
+                );
+            }
+            
+            // Get the grade info for better error message
+            Optional<Grade> existingGrade = gradeRepository.findById(existing.getGradeId());
+            String gradeInfo = existingGrade.map(g -> "grade '" + g.getDisplayName() + "'").orElse("another grade");
+            
+            throw new IllegalArgumentException(
+                "Subject with name '" + request.getName() + "' already exists in " + gradeInfo + ". " +
+                "Please use a different name or edit the existing subject."
+            );
         }
 
         Subject subject = new Subject();
@@ -704,11 +778,11 @@ public class AdminContentManagementService {
         TopicNote note = new TopicNote();
         note.setTitle(request.getTitle());
         note.setContent(request.getContent());
+        note.setTopic(topic);  // Set the relationship object, not the ID
         note.setBoardId(request.getBoardId());
         note.setGradeId(request.getGradeId());
         note.setSubjectId(request.getSubjectId());
         note.setChapterId(request.getChapterId());
-        note.setTopicId(request.getTopicId());
         note.setActive(request.getActive());
         
         TopicNote savedNote = topicNoteRepository.save(note);

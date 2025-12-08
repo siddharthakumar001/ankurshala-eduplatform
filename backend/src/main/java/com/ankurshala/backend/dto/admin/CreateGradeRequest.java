@@ -2,9 +2,11 @@ package com.ankurshala.backend.dto.admin;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 
 public class CreateGradeRequest {
     @NotBlank(message = "Grade name is required")
+    @Pattern(regexp = "^(7|8|9|10|11|12)$", message = "Grade must be between 7 and 12")
     private String name;
     
     @NotBlank(message = "Grade display name is required")

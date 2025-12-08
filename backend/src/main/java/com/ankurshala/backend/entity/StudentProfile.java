@@ -91,6 +91,28 @@ public class StudentProfile {
     @Column(name = "school_id_card_url")
     private String schoolIdCardUrl;
 
+    // Onboarding fields
+    @Column(name = "board_id")
+    private Long boardId;
+
+    @Column(name = "grade_id")
+    private Long gradeId;
+
+    @Size(max = 50)
+    @Column(name = "language")
+    private String language;
+
+    @Size(max = 1000)
+    @Column(name = "goals")
+    private String goals;
+
+    @Size(max = 500)
+    @Column(name = "avatar_url")
+    private String avatarUrl;
+
+    @Column(name = "is_complete", nullable = false)
+    private Boolean isComplete = false;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -261,6 +283,54 @@ public class StudentProfile {
 
     public void setSchoolIdCardUrl(String schoolIdCardUrl) {
         this.schoolIdCardUrl = schoolIdCardUrl;
+    }
+
+    public Long getBoardId() {
+        return boardId;
+    }
+
+    public void setBoardId(Long boardId) {
+        this.boardId = boardId;
+    }
+
+    public Long getGradeId() {
+        return gradeId;
+    }
+
+    public void setGradeId(Long gradeId) {
+        this.gradeId = gradeId;
+    }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public void setLanguage(String language) {
+        this.language = language;
+    }
+
+    public String getGoals() {
+        return goals;
+    }
+
+    public void setGoals(String goals) {
+        this.goals = goals;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
+    }
+
+    public Boolean getIsComplete() {
+        return isComplete;
+    }
+
+    public void setIsComplete(Boolean isComplete) {
+        this.isComplete = isComplete;
     }
 
     public LocalDateTime getCreatedAt() {

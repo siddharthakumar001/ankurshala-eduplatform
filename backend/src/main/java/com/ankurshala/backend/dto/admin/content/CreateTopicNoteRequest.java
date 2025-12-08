@@ -23,10 +23,17 @@ public class CreateTopicNoteRequest {
     @NotNull(message = "Topic ID is required")
     private Long topicId;
     
-    // Optional hierarchy fields for easier filtering/querying
+    // Hierarchy fields required for data integrity
+    @NotNull(message = "Board ID is required")
     private Long boardId;
+    
+    @NotNull(message = "Grade ID is required")
     private Long gradeId;
+    
+    @NotNull(message = "Subject ID is required")
     private Long subjectId;
+    
+    @NotNull(message = "Chapter ID is required")
     private Long chapterId;
     
     private Boolean active = true;

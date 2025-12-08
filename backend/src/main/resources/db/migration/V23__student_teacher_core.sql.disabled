@@ -1,0 +1,262 @@
+-- V20__student_teacher_core.sql
+-- Comprehensive Student and Teacher core functionality
+-- Implements strict onboarding, booking system, wallet, and AI features
+
+-- ==============================================
+-- STUDENT DOMAIN
+-- ==============================================
+
+-- Enhanced student profile with mandatory personalization fields
+ALTER TABLE student_profiles 
+ADD COLUMN IF NOT EXISTS board VARCHAR(50),
+ADD COLUMN IF NOT EXISTS grade VARCHAR(50),
+ADD COLUMN IF NOT EXISTS language VARCHAR(50) DEFAULT 'English',
+ADD COLUMN IF NOT EXISTS goals JSONB,
+ADD COLUMN IF NOT EXISTS school VARCHAR(200),
+ADD COLUMN IF NOT EXISTS dob DATE,
+ADD COLUMN IF NOT EXISTS pincode VARCHAR(10),
+ADD COLUMN IF NOT EXISTS guardian_name VARCHAR(100),
+ADD COLUMN IF NOT EXISTS guardian_contact VARCHAR(20);
+
+-- Student documents (already exists, but ensure proper structure)
+-- student_documents table already exists in V1
+
+-- Student wallet for balance tracking
+CREATE TABLE IF NOT EXISTS student_wallet (
+    id BIGSERIAL PRIMARY KEY,
+    student_id BIGINT NOT NULL UNIQUE REFERENCES student_profiles(id) ON DELETE CASCADE,
+    balance_cents BIGINT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- Student quiz results for AI-powered learning
+CREATE TABLE IF NOT EXISTS student_quiz_result (
+    id BIGSERIAL PRIMARY KEY,
+    student_id BIGINT NOT NULL REFERENCES student_profiles(id) ON DELETE CASCADE,
+    subject_id BIGINT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+    topic_id BIGINT REFERENCES topics(id) ON DELETE CASCADE,
+    score NUMERIC(5,2) NOT NULL CHECK (score >= 0 AND score <= 100),
+    total INTEGER NOT NULL CHECK (total > 0),
+    breakdown JSONB,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- ==============================================
+-- TEACHER DOMAIN
+-- ==============================================
+
+-- Enhanced teacher profile with mandatory fields
+ALTER TABLE teachers 
+ADD COLUMN IF NOT EXISTS bio TEXT,
+ADD COLUMN IF NOT EXISTS years_experience INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS languages TEXT[] DEFAULT '{"English"}',
+ADD COLUMN IF NOT EXISTS categories TEXT[] DEFAULT '{"STANDARD"}',
+ADD COLUMN IF NOT EXISTS hourly_rate NUMERIC(10,2) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS rating_avg NUMERIC(3,2) DEFAULT 0 CHECK (rating_avg >= 0 AND rating_avg <= 5),
+ADD COLUMN IF NOT EXISTS rating_count INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT true;
+
+-- Teacher availability with timezone support
+CREATE TABLE IF NOT EXISTS teacher_availability (
+    id BIGSERIAL PRIMARY KEY,
+    teacher_id BIGINT NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+    weekday SMALLINT NOT NULL CHECK (weekday >= 0 AND weekday <= 6), -- 0=Sunday, 6=Saturday
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    timezone VARCHAR(64) NOT NULL DEFAULT 'Asia/Kolkata',
+    active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    CONSTRAINT chk_availability_time CHECK (end_time > start_time)
+);
+
+-- Teacher subjects mapping (board + grade + subject + language)
+CREATE TABLE IF NOT EXISTS teacher_subjects (
+    teacher_id BIGINT NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+    board VARCHAR(50) NOT NULL,
+    grade VARCHAR(50) NOT NULL,
+    subject_id BIGINT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+    language VARCHAR(50) NOT NULL DEFAULT 'English',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (teacher_id, board, grade, subject_id, language)
+);
+
+-- Teacher wallet for earnings tracking
+CREATE TABLE IF NOT EXISTS teacher_wallet (
+    id BIGSERIAL PRIMARY KEY,
+    teacher_id BIGINT NOT NULL UNIQUE REFERENCES teachers(id) ON DELETE CASCADE,
+    balance_cents BIGINT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- ==============================================
+-- CONTENT ENHANCEMENTS
+-- ==============================================
+
+-- Ensure topics have expected minutes and prerequisites
+ALTER TABLE topics 
+ADD COLUMN IF NOT EXISTS expected_minutes INTEGER NOT NULL DEFAULT 60,
+ADD COLUMN IF NOT EXISTS prerequisites TEXT[] DEFAULT '{}';
+
+-- ==============================================
+-- BOOKING SYSTEM
+-- ==============================================
+
+-- Enhanced booking table with comprehensive fields
+CREATE TABLE IF NOT EXISTS booking (
+    id BIGSERIAL PRIMARY KEY,
+    student_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    teacher_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    board VARCHAR(50) NOT NULL,
+    grade VARCHAR(50) NOT NULL,
+    subject_id BIGINT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+    chapter_id BIGINT REFERENCES chapters(id) ON DELETE CASCADE,
+    topic_id BIGINT NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
+    start_ts TIMESTAMP WITH TIME ZONE NOT NULL,
+    end_ts TIMESTAMP WITH TIME ZONE NOT NULL,
+    category VARCHAR(20) NOT NULL DEFAULT 'STANDARD' CHECK (category IN ('STANDARD', 'PREMIUM')),
+    price_min_cents INTEGER NOT NULL,
+    price_max_cents INTEGER NOT NULL,
+    applied_rule_id BIGINT REFERENCES pricing_rules(id),
+    state VARCHAR(20) NOT NULL DEFAULT 'REQUESTED' CHECK (state IN ('REQUESTED', 'ACCEPTED', 'RESCHEDULED', 'CANCELLED', 'COMPLETED', 'NO_SHOW')),
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    CONSTRAINT chk_booking_time CHECK (end_ts > start_ts),
+    CONSTRAINT chk_booking_price CHECK (price_max_cents >= price_min_cents)
+);
+
+-- Booking notes for session documentation
+CREATE TABLE IF NOT EXISTS booking_notes (
+    id BIGSERIAL PRIMARY KEY,
+    booking_id BIGINT NOT NULL REFERENCES booking(id) ON DELETE CASCADE,
+    author_role VARCHAR(10) NOT NULL CHECK (author_role IN ('STUDENT', 'TEACHER')),
+    url VARCHAR(500),
+    text TEXT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- Booking bookmarks for important moments
+CREATE TABLE IF NOT EXISTS booking_bookmarks (
+    id BIGSERIAL PRIMARY KEY,
+    booking_id BIGINT NOT NULL REFERENCES booking(id) ON DELETE CASCADE,
+    ts_seconds INTEGER NOT NULL CHECK (ts_seconds >= 0),
+    note TEXT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- ==============================================
+-- FEES & PAYMENTS
+-- ==============================================
+
+-- Enhanced pricing rules with category support
+ALTER TABLE pricing_rules 
+ADD COLUMN IF NOT EXISTS category VARCHAR(20) DEFAULT 'STANDARD' CHECK (category IN ('STANDARD', 'PREMIUM'));
+
+-- Enhanced fee waivers
+ALTER TABLE fee_waivers 
+ADD COLUMN IF NOT EXISTS student_id BIGINT REFERENCES student_profiles(id) ON DELETE CASCADE,
+ADD COLUMN IF NOT EXISTS booking_id BIGINT REFERENCES booking(id) ON DELETE CASCADE,
+ADD COLUMN IF NOT EXISTS percent NUMERIC(5,2) CHECK (percent >= 0 AND percent <= 100),
+ADD COLUMN IF NOT EXISTS flat_cents INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT true,
+ADD COLUMN IF NOT EXISTS reason TEXT,
+ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP WITH TIME ZONE;
+
+-- Wallet transactions for all financial operations
+CREATE TYPE wallet_owner_type AS ENUM ('STUDENT', 'TEACHER');
+CREATE TYPE wallet_txn_type AS ENUM ('CREDIT', 'DEBIT');
+CREATE TYPE wallet_txn_source AS ENUM ('PAYMENT', 'REFUND', 'BONUS', 'EARNING');
+
+CREATE TABLE IF NOT EXISTS wallet_txn (
+    id BIGSERIAL PRIMARY KEY,
+    owner_type wallet_owner_type NOT NULL,
+    owner_id BIGINT NOT NULL,
+    booking_id BIGINT REFERENCES booking(id) ON DELETE SET NULL,
+    type wallet_txn_type NOT NULL,
+    amount_cents BIGINT NOT NULL CHECK (amount_cents > 0),
+    source wallet_txn_source NOT NULL,
+    meta JSONB,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- ==============================================
+-- INDEXES FOR PERFORMANCE
+-- ==============================================
+
+-- Student indexes
+CREATE INDEX IF NOT EXISTS idx_student_wallet_student_id ON student_wallet(student_id);
+CREATE INDEX IF NOT EXISTS idx_student_quiz_student_id ON student_quiz_result(student_id);
+CREATE INDEX IF NOT EXISTS idx_student_quiz_subject_topic ON student_quiz_result(subject_id, topic_id);
+
+-- Teacher indexes
+CREATE INDEX IF NOT EXISTS idx_teacher_availability_teacher_id ON teacher_availability(teacher_id);
+CREATE INDEX IF NOT EXISTS idx_teacher_availability_weekday ON teacher_availability(weekday, active);
+CREATE INDEX IF NOT EXISTS idx_teacher_subjects_teacher_id ON teacher_subjects(teacher_id);
+CREATE INDEX IF NOT EXISTS idx_teacher_subjects_subject_id ON teacher_subjects(subject_id);
+CREATE INDEX IF NOT EXISTS idx_teacher_wallet_teacher_id ON teacher_wallet(teacher_id);
+
+-- Booking indexes
+CREATE INDEX IF NOT EXISTS idx_booking_student_time ON booking(student_id, start_ts, end_ts);
+CREATE INDEX IF NOT EXISTS idx_booking_teacher_time ON booking(teacher_id, start_ts, end_ts);
+CREATE INDEX IF NOT EXISTS idx_booking_state_time ON booking(state, start_ts);
+CREATE INDEX IF NOT EXISTS idx_booking_topic_id ON booking(topic_id);
+CREATE INDEX IF NOT EXISTS idx_booking_notes_booking_id ON booking_notes(booking_id);
+CREATE INDEX IF NOT EXISTS idx_booking_bookmarks_booking_id ON booking_bookmarks(booking_id);
+
+-- Wallet transaction indexes
+CREATE INDEX IF NOT EXISTS idx_wallet_txn_owner ON wallet_txn(owner_type, owner_id);
+CREATE INDEX IF NOT EXISTS idx_wallet_txn_booking_id ON wallet_txn(booking_id);
+CREATE INDEX IF NOT EXISTS idx_wallet_txn_created_at ON wallet_txn(created_at);
+
+-- Fee waiver indexes
+CREATE INDEX IF NOT EXISTS idx_fee_waiver_student_id ON fee_waivers(student_id);
+CREATE INDEX IF NOT EXISTS idx_fee_waiver_booking_id ON fee_waivers(booking_id);
+CREATE INDEX IF NOT EXISTS idx_fee_waiver_active ON fee_waivers(active);
+
+-- ==============================================
+-- CONSTRAINTS AND VALIDATIONS
+-- ==============================================
+
+-- Ensure student profile has mandatory fields
+ALTER TABLE student_profiles 
+ADD CONSTRAINT chk_student_board CHECK (board IS NOT NULL AND board != ''),
+ADD CONSTRAINT chk_student_grade CHECK (grade IS NOT NULL AND grade != ''),
+ADD CONSTRAINT chk_student_language CHECK (language IS NOT NULL AND language != ''),
+ADD CONSTRAINT chk_student_guardian CHECK (guardian_name IS NOT NULL AND guardian_name != ''),
+ADD CONSTRAINT chk_student_guardian_contact CHECK (guardian_contact IS NOT NULL AND guardian_contact != '');
+
+-- Ensure teacher has mandatory fields
+ALTER TABLE teachers 
+ADD CONSTRAINT chk_teacher_languages CHECK (array_length(languages, 1) > 0),
+ADD CONSTRAINT chk_teacher_categories CHECK (array_length(categories, 1) > 0),
+ADD CONSTRAINT chk_teacher_hourly_rate CHECK (hourly_rate > 0);
+
+-- Ensure teacher has at least one availability
+-- This will be enforced at application level during signup
+
+-- Ensure teacher has at least one subject mapping
+-- This will be enforced at application level during signup
+
+-- ==============================================
+-- COMMENTS FOR DOCUMENTATION
+-- ==============================================
+
+COMMENT ON TABLE student_wallet IS 'Student wallet for tracking balance and transactions';
+COMMENT ON TABLE student_quiz_result IS 'AI-powered quiz results for personalized learning';
+COMMENT ON TABLE teacher_availability IS 'Teacher availability slots with timezone support';
+COMMENT ON TABLE teacher_subjects IS 'Teacher subject expertise mapping (board+grade+subject+language)';
+COMMENT ON TABLE teacher_wallet IS 'Teacher wallet for earnings tracking';
+COMMENT ON TABLE booking IS 'Core booking system with Uber-style matching';
+COMMENT ON TABLE booking_notes IS 'Session notes from students and teachers';
+COMMENT ON TABLE booking_bookmarks IS 'Important moments bookmarked during sessions';
+COMMENT ON TABLE wallet_txn IS 'All wallet transactions for audit trail';
+
+COMMENT ON COLUMN booking.state IS 'Booking lifecycle: REQUESTED -> ACCEPTED -> COMPLETED';
+COMMENT ON COLUMN booking.category IS 'Teacher category affecting pricing: STANDARD/PREMIUM';
+COMMENT ON COLUMN teacher_availability.weekday IS '0=Sunday, 1=Monday, ..., 6=Saturday';
+COMMENT ON COLUMN wallet_txn.amount_cents IS 'Amount in cents to avoid floating point issues';
+COMMENT ON COLUMN topics.expected_minutes IS 'Expected duration for booking calculations';
+COMMENT ON COLUMN topics.prerequisites IS 'Array of prerequisite topic IDs';

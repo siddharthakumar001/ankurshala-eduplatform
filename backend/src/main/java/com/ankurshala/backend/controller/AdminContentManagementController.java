@@ -280,6 +280,40 @@ public class AdminContentManagementController {
         }
     }
 
+    @GetMapping("/grades/by-board")
+    public ResponseEntity<ApiResponse<List<GradeDto>>> getGradesByBoard(
+            @RequestParam String board,
+            HttpServletRequest request) {
+        
+        String traceId = TraceUtil.getTraceId();
+        String requestId = TraceUtil.getRequestId();
+        long startTime = System.currentTimeMillis();
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put("board", board);
+        
+        loggingService.logBusinessOperationStart("GET_GRADES_BY_BOARD", null, context);
+        
+        try {
+            List<GradeDto> grades = contentManagementService.getGradesByBoardName(board);
+            
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("GET_GRADES_BY_BOARD", null, true, executionTime);
+            
+            ApiResponse<List<GradeDto>> response = ApiResponse.success(grades, "Grades by board retrieved successfully");
+            response.setTraceId(traceId);
+            response.setRequestId(requestId);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("GET_GRADES_BY_BOARD", null, false, executionTime);
+            loggingService.logError("GET_GRADES_BY_BOARD", e, context);
+            throw e;
+        }
+    }
+
     @GetMapping("/grades/{id}")
     public ResponseEntity<ApiResponse<GradeDto>> getGradeById(@PathVariable Long id, HttpServletRequest request) {
         String traceId = TraceUtil.getTraceId();
@@ -474,6 +508,42 @@ public class AdminContentManagementController {
             long executionTime = System.currentTimeMillis() - startTime;
             loggingService.logBusinessOperationComplete("GET_SUBJECTS", null, false, executionTime);
             loggingService.logError("GET_SUBJECTS", e, context);
+            throw e;
+        }
+    }
+
+    @GetMapping("/subjects/by-grade")
+    public ResponseEntity<ApiResponse<List<SubjectDto>>> getSubjectsByGrade(
+            @RequestParam String board,
+            @RequestParam String grade,
+            HttpServletRequest request) {
+        
+        String traceId = TraceUtil.getTraceId();
+        String requestId = TraceUtil.getRequestId();
+        long startTime = System.currentTimeMillis();
+        
+        Map<String, Object> context = new HashMap<>();
+        context.put("board", board);
+        context.put("grade", grade);
+        
+        loggingService.logBusinessOperationStart("GET_SUBJECTS_BY_GRADE", null, context);
+        
+        try {
+            List<SubjectDto> subjects = contentManagementService.getSubjectsByBoardAndGrade(board, grade);
+            
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("GET_SUBJECTS_BY_GRADE", null, true, executionTime);
+            
+            ApiResponse<List<SubjectDto>> response = ApiResponse.success(subjects, "Subjects by grade retrieved successfully");
+            response.setTraceId(traceId);
+            response.setRequestId(requestId);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            long executionTime = System.currentTimeMillis() - startTime;
+            loggingService.logBusinessOperationComplete("GET_SUBJECTS_BY_GRADE", null, false, executionTime);
+            loggingService.logError("GET_SUBJECTS_BY_GRADE", e, context);
             throw e;
         }
     }
