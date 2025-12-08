@@ -94,16 +94,14 @@ services:
     restart: unless-stopped
 
   # -------- Backend (Spring) --------
-  # --- Backend (Spring) ---
   backend:
-    # Build locally from your repo (so changes are picked up)
+    # Use pre-built image from GitHub Container Registry (or build locally if needed)
+    image: ankurshala/backend:${BACKEND_TAG:-prod}
     build:
       context: ./backend
       dockerfile: Dockerfile
       args:
-        # add any build args your Dockerfile expects
         SPRING_PROFILES_ACTIVE: production
-    image: ankurshala/backend:${BACKEND_TAG:-prod}
     container_name: ankurshala_backend_prod
     env_file:
       - .env-prod
@@ -131,6 +129,9 @@ services:
       BANK_ENC_KEY: ${BANK_ENC_KEY}
       SERVER_PORT: 8080
       SPRING_PROFILES_ACTIVE: production
+      # Flyway settings for migrations
+      SPRING_FLYWAY_OUT_OF_ORDER: "true"
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
       SMTP_HOST: ${SMTP_HOST:-mailhog}
       SMTP_PORT: ${SMTP_PORT:-1025}
       SMTP_USERNAME: ${SMTP_USERNAME}
@@ -149,16 +150,16 @@ services:
     networks: [ankurshala-network]
     restart: unless-stopped
 
-  # --- Frontend (Next.js) ---
+  # -------- Frontend (Next.js) --------
   frontend:
-    # Build locally from your repo (so changes are picked up)
+    # Use pre-built image from GitHub Container Registry (or build locally if needed)
+    image: ankurshala/frontend:${FRONTEND_TAG:-prod}
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
         NODE_ENV: production
-    image: ankurshala/frontend:${FRONTEND_TAG:-prod}
     container_name: ankurshala_frontend_prod
     env_file:
       - .env-prod

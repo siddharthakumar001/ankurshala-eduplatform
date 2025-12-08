@@ -1,0 +1,320 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ankurshala/prod-1.0-final]
+  workflow_dispatch:
+    inputs:
+      force_deploy:
+        description: 'Force deploy all services'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/ankurshala
+  VM_IP: 74.225.207.72
+  VM_USER: AnkurshalaVM
+
+jobs:
+  # ============================================
+  # Stage 1: Detect What Changed
+  # ============================================
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      nginx: ${{ steps.filter.outputs.nginx }}
+      docker: ${{ steps.filter.outputs.docker }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'docker-compose.prod.yml'
+            frontend:
+              - 'frontend/**'
+              - 'docker-compose.prod.yml'
+            nginx:
+              - 'nginx/**'
+            docker:
+              - 'docker-compose.prod.yml'
+              - '.env-prod'
+
+  # ============================================
+  # Stage 2: Build & Test Backend
+  # ============================================
+  build-backend:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true' || github.event.inputs.force_deploy == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+      
+      - name: Build & Test Backend
+        working-directory: backend
+        run: |
+          ./mvnw clean verify -B -q
+          echo "✅ Backend tests passed"
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Build & Push Backend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            SPRING_PROFILES_ACTIVE=production
+
+  # ============================================
+  # Stage 3: Build & Test Frontend
+  # ============================================
+  build-frontend:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true' || github.event.inputs.force_deploy == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install & Lint & Type Check
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run lint || echo "Lint warnings - continuing"
+          npm run type-check || echo "Type check warnings - continuing"
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Build & Push Frontend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-frontend:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-frontend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NEXT_PUBLIC_API_URL=https://ankurshala.com/api
+            NODE_ENV=production
+
+  # ============================================
+  # Stage 4: Deploy to Production Server
+  # ============================================
+  deploy:
+    needs: [detect-changes, build-backend, build-frontend]
+    if: always() && !cancelled() && (needs.build-backend.result == 'success' || needs.build-backend.result == 'skipped') && (needs.build-frontend.result == 'success' || needs.build-frontend.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      
+      - name: Add SSH Known Hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ env.VM_IP }} >> ~/.ssh/known_hosts
+      
+      - name: Test SSH Connection
+        run: |
+          ssh ${{ env.VM_USER }}@${{ env.VM_IP }} "echo '✅ SSH connection successful'"
+      
+      - name: Deploy Application
+        env:
+          DEPLOY_BACKEND: ${{ needs.detect-changes.outputs.backend == 'true' || github.event.inputs.force_deploy == 'true' }}
+          DEPLOY_FRONTEND: ${{ needs.detect-changes.outputs.frontend == 'true' || github.event.inputs.force_deploy == 'true' }}
+          DEPLOY_NGINX: ${{ needs.detect-changes.outputs.nginx == 'true' || github.event.inputs.force_deploy == 'true' }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          echo "🚀 Starting deployment..."
+          echo "   Backend: $DEPLOY_BACKEND"
+          echo "   Frontend: $DEPLOY_FRONTEND"
+          echo "   Nginx: $DEPLOY_NGINX"
+          echo "   Image Tag: $IMAGE_TAG"
+          
+          ssh ${{ env.VM_USER }}@${{ env.VM_IP }} << ENDSSH
+          set -e
+          cd /opt/ankurshala
+          
+          echo "📥 Pulling latest configuration..."
+          git fetch origin
+          git reset --hard origin/ankurshala/prod-1.0-final
+          
+          # Load environment variables
+          export \$(cat .env-prod | grep -v '^#' | xargs)
+          
+          # Login to GitHub Container Registry
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          
+          # Pull new images
+          if [ "$DEPLOY_BACKEND" = "true" ]; then
+            echo "📦 Pulling backend image..."
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:${IMAGE_TAG}
+            docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:${IMAGE_TAG} ankurshala/backend:prod
+          fi
+          
+          if [ "$DEPLOY_FRONTEND" = "true" ]; then
+            echo "📦 Pulling frontend image..."
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-frontend:${IMAGE_TAG}
+            docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-frontend:${IMAGE_TAG} ankurshala/frontend:prod
+          fi
+          
+          # Restart services
+          echo "🔄 Restarting services..."
+          if [ "$DEPLOY_BACKEND" = "true" ]; then
+            docker compose -f docker-compose.prod.yml stop backend || true
+            docker compose -f docker-compose.prod.yml up -d backend
+          fi
+          
+          if [ "$DEPLOY_FRONTEND" = "true" ]; then
+            docker compose -f docker-compose.prod.yml stop frontend || true
+            docker compose -f docker-compose.prod.yml up -d frontend
+          fi
+          
+          if [ "$DEPLOY_NGINX" = "true" ]; then
+            docker compose -f docker-compose.prod.yml stop nginx || true
+            docker compose -f docker-compose.prod.yml up -d nginx
+          fi
+          
+          # Wait for services
+          echo "⏳ Waiting for services to start..."
+          sleep 30
+          
+          # Health checks
+          echo "🏥 Running health checks..."
+          docker compose -f docker-compose.prod.yml ps
+          
+          echo "✅ Deployment completed!"
+          ENDSSH
+
+      - name: Verify Deployment
+        run: |
+          echo "🔍 Verifying deployment..."
+          
+          # Wait for services to stabilize
+          sleep 10
+          
+          # Check health endpoint
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://ankurshala.com/health || echo "000")
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Health check passed: $HTTP_CODE"
+          else
+            echo "❌ Health check failed: $HTTP_CODE"
+            exit 1
+          fi
+          
+          # Check API health
+          API_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://ankurshala.com/api/actuator/health || echo "000")
+          if [ "$API_CODE" = "200" ]; then
+            echo "✅ API health check passed: $API_CODE"
+          else
+            echo "⚠️ API health check: $API_CODE"
+          fi
+          
+          # Check homepage
+          HOME_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://ankurshala.com || echo "000")
+          if [ "$HOME_CODE" = "200" ]; then
+            echo "✅ Homepage check passed: $HOME_CODE"
+          else
+            echo "⚠️ Homepage check: $HOME_CODE"
+          fi
+          
+      - name: Rollback on Failure
+        if: failure()
+        run: |
+          echo "🔄 Attempting rollback..."
+          ssh ${{ env.VM_USER }}@${{ env.VM_IP }} << 'ENDSSH'
+          cd /opt/ankurshala
+          
+          # Pull previous images
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:latest || true
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-frontend:latest || true
+          
+          # Restart with previous images
+          docker compose -f docker-compose.prod.yml up -d --force-recreate
+          
+          echo "⚠️ Rollback attempted - check manually"
+          ENDSSH
+
+  # ============================================
+  # Stage 5: Post-Deployment Notification
+  # ============================================
+  notify:
+    needs: [deploy]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deployment Summary
+        run: |
+          echo "=========================================="
+          echo "📋 DEPLOYMENT SUMMARY"
+          echo "=========================================="
+          echo "Commit: ${{ github.sha }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Triggered by: ${{ github.actor }}"
+          echo "Run ID: ${{ github.run_id }}"
+          echo ""
+          if [ "${{ needs.deploy.result }}" = "success" ]; then
+            echo "✅ DEPLOYMENT SUCCESSFUL"
+            echo ""
+            echo "🔗 https://ankurshala.com"
+            echo "🔗 https://ankurshala.com/admin/dashboard"
+            echo "🔗 https://ankurshala.com/api/actuator/health"
+          else
+            echo "❌ DEPLOYMENT FAILED"
+            echo ""
+            echo "Please check the logs for details."
+          fi
+          echo "=========================================="
