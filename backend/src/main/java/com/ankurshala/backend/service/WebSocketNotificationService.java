@@ -1,20 +1,28 @@
 package com.ankurshala.backend.service;
 
 import com.ankurshala.backend.entity.Booking;
-import lombok.RequiredArgsConstructor;
+import com.ankurshala.backend.repository.TeacherSubjectExpertiseRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class WebSocketNotificationService {
 
     private final SimpMessagingTemplate messagingTemplate;
+    
+    @Autowired
+    private TeacherSubjectExpertiseRepository teacherSubjectExpertiseRepository;
+    
+    public WebSocketNotificationService(SimpMessagingTemplate messagingTemplate) {
+        this.messagingTemplate = messagingTemplate;
+    }
 
     public void notifyBookingAccepted(Booking booking) {
         log.info("Sending booking accepted notification to student {}", booking.getStudent().getId());
@@ -88,8 +96,69 @@ public class WebSocketNotificationService {
     }
 
     public void broadcastBookingRequest(Booking booking) {
-        log.info("Broadcasting booking request to eligible teachers");
+        log.info("Broadcasting booking request to eligible teachers based on expertise");
         
+        // Get topic details for matching
+        Long subjectId = booking.getTopic().getSubjectId();
+        Long gradeId = booking.getTopic().getGradeId();
+        Long boardId = booking.getTopic().getBoardId();
+        
+        log.info("Finding teachers with expertise: subject={}, grade={}, board={}", subjectId, gradeId, boardId);
+        
+        // Find teachers with matching expertise using the eligible teacher query
+        List<Long> matchingTeacherIds = 
+            teacherSubjectExpertiseRepository.findEligibleTeacherIds(subjectId, gradeId, boardId);
+        
+        log.info("Found {} teachers with matching expertise", matchingTeacherIds.size());
+        
+        if (matchingTeacherIds.isEmpty()) {
+            log.warn("No teachers found with matching expertise for booking {}. Broadcasting to all teachers as fallback.", 
+                booking.getId());
+            broadcastToAllTeachers(booking);
+            return;
+        }
+        
+        // Build notification payload
+        Map<String, Object> notification = new HashMap<>();
+        notification.put("type", "booking.requested");
+        notification.put("bookingId", booking.getId());
+        notification.put("studentId", booking.getStudent().getId());
+        notification.put("studentName", booking.getStudent().getName());
+        notification.put("topicId", booking.getTopic().getId());
+        notification.put("topicTitle", booking.getTopic().getTitle());
+        notification.put("subjectName", booking.getTopic().getSubject() != null ? booking.getTopic().getSubject().getName() : "Unknown");
+        notification.put("gradeName", booking.getTopic().getGrade() != null ? booking.getTopic().getGrade().getName() : "Unknown");
+        notification.put("boardName", booking.getTopic().getBoard() != null ? booking.getTopic().getBoard().getName() : "Unknown");
+        notification.put("startTime", booking.getStartTime());
+        notification.put("endTime", booking.getEndTime());
+        notification.put("durationMinutes", booking.getDurationMinutes());
+        notification.put("acceptanceToken", booking.getAcceptanceToken());
+        
+        // Send notification to each matching teacher individually
+        int notifiedCount = 0;
+        for (Long teacherId : matchingTeacherIds) {
+            try {
+                String destination = "/topic/teacher/" + teacherId;
+                messagingTemplate.convertAndSend(destination, notification);
+                notifiedCount++;
+                log.debug("Sent booking request to teacher {}", teacherId);
+            } catch (Exception e) {
+                log.error("Failed to send notification to teacher {}: {}", teacherId, e.getMessage());
+            }
+        }
+        
+        // Also send to general teachers topic for any legacy listeners
+        String generalDestination = "/topic/teachers";
+        notification.put("matchingTeacherIds", matchingTeacherIds);
+        messagingTemplate.convertAndSend(generalDestination, notification);
+        
+        log.info("Broadcasted booking request {} to {} matching teachers", booking.getId(), notifiedCount);
+    }
+    
+    /**
+     * Fallback method to broadcast to all teachers when no matching expertise is found
+     */
+    private void broadcastToAllTeachers(Booking booking) {
         Map<String, Object> notification = new HashMap<>();
         notification.put("type", "booking.requested");
         notification.put("bookingId", booking.getId());
@@ -101,12 +170,12 @@ public class WebSocketNotificationService {
         notification.put("endTime", booking.getEndTime());
         notification.put("durationMinutes", booking.getDurationMinutes());
         notification.put("acceptanceToken", booking.getAcceptanceToken());
+        notification.put("fallbackBroadcast", true);
         
-        // Broadcast to all teachers (in a real implementation, this would be filtered by eligibility)
         String destination = "/topic/teachers";
         messagingTemplate.convertAndSend(destination, notification);
         
-        log.info("Broadcasted booking request to {}", destination);
+        log.info("Broadcasted booking request {} to all teachers (fallback)", booking.getId());
     }
 
     /**

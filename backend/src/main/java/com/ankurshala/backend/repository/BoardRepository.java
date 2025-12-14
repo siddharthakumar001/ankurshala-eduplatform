@@ -16,6 +16,10 @@ import java.util.Optional;
 public interface BoardRepository extends JpaRepository<Board, Long>, JpaSpecificationExecutor<Board> {
     Optional<Board> findByName(String name);
     
+    // Find by name case insensitive
+    @Query("SELECT b FROM Board b WHERE LOWER(b.name) = LOWER(:name) AND b.softDeleted = false")
+    Optional<Board> findByNameIgnoreCase(@Param("name") String name);
+    
     // Find by ID excluding soft deleted
     @Query("SELECT b FROM Board b WHERE b.id = :id AND b.softDeleted = false")
     Optional<Board> findByIdAndSoftDeletedFalse(@Param("id") Long id);

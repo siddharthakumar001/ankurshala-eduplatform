@@ -3,8 +3,11 @@ package com.ankurshala.backend.controller;
 import com.ankurshala.backend.dto.student.BookingResponse;
 import com.ankurshala.backend.entity.Booking;
 import com.ankurshala.backend.entity.BookingStatus;
+import com.ankurshala.backend.entity.Teacher;
 import com.ankurshala.backend.entity.User;
 import com.ankurshala.backend.repository.BookingRepository;
+import com.ankurshala.backend.repository.TeacherRepository;
+import com.ankurshala.backend.repository.TeacherSubjectExpertiseRepository;
 import com.ankurshala.backend.repository.UserRepository;
 import com.ankurshala.backend.security.UserPrincipal;
 import com.ankurshala.backend.service.WebSocketNotificationService;
@@ -17,9 +20,11 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/teacher/bookings")
@@ -31,6 +36,8 @@ public class TeacherBookingController {
 
     private final BookingRepository bookingRepository;
     private final UserRepository userRepository;
+    private final TeacherRepository teacherRepository;
+    private final TeacherSubjectExpertiseRepository teacherSubjectExpertiseRepository;
     private final WebSocketNotificationService webSocketService;
 
     @PostMapping("/{bookingId}/accept")
@@ -91,16 +98,66 @@ public class TeacherBookingController {
         
         log.info("Getting pending bookings for teacher {}", userPrincipal.getId());
         
-        // TODO: Implement logic to get pending bookings for this teacher
-        // This would typically involve:
-        // 1. Finding bookings where teacher is null (not yet assigned)
-        // 2. Filtering by teacher's subject expertise
-        // 3. Filtering by teacher's availability
-        // 4. Filtering by teacher's preferred student levels
+        // Get teacher entity from user ID
+        Optional<Teacher> teacherOpt = teacherRepository.findByUserId(userPrincipal.getId());
+        if (teacherOpt.isEmpty()) {
+            log.warn("No teacher profile found for user {}", userPrincipal.getId());
+            return ResponseEntity.ok(List.of());
+        }
+        Teacher teacher = teacherOpt.get();
         
-        List<BookingResponse> pendingBookings = List.of(); // Placeholder
+        // Get all pending bookings (where teacher is null - not yet assigned)
+        List<Booking> allPendingBookings = bookingRepository.findByStatus(BookingStatus.PENDING);
         
-        return ResponseEntity.ok(pendingBookings);
+        // Filter by teacher's subject expertise
+        List<BookingResponse> matchingBookings = allPendingBookings.stream()
+            .filter(booking -> {
+                // Check if teacher has expertise for this booking's topic
+                if (booking.getTopic() == null) return false;
+                
+                Long subjectId = booking.getTopic().getSubjectId();
+                Long gradeId = booking.getTopic().getGradeId();
+                Long boardId = booking.getTopic().getBoardId();
+                
+                return teacherSubjectExpertiseRepository.hasExpertise(
+                    teacher.getId(), subjectId, gradeId, boardId);
+            })
+            .map(this::convertToBookingResponse)
+            .collect(Collectors.toList());
+        
+        log.info("Found {} matching pending bookings for teacher {}", matchingBookings.size(), teacher.getId());
+        return ResponseEntity.ok(matchingBookings);
+    }
+    
+    private BookingResponse convertToBookingResponse(Booking booking) {
+        BookingResponse response = new BookingResponse();
+        response.setId(booking.getId());
+        response.setStudentId(booking.getStudentId());
+        response.setTeacherId(booking.getTeacherId());
+        response.setTopicId(booking.getTopicId());
+        response.setTopicTitle(booking.getTopic() != null ? booking.getTopic().getTitle() : "Unknown");
+        response.setTeacherName(booking.getTeacher() != null ? booking.getTeacher().getName() : null);
+        response.setStatus(booking.getStatus() != null ? booking.getStatus().name() : null);
+        response.setDurationMinutes(booking.getDurationMinutes());
+        response.setStudentNotes(booking.getStudentNotes());
+        response.setTeacherNotes(booking.getTeacherNotes());
+        response.setPriceMin(booking.getPriceMin());
+        response.setPriceMax(booking.getPriceMax());
+        response.setPriceCurrency(booking.getPriceCurrency());
+        if (booking.getStartTime() != null) {
+            response.setStartTime(booking.getStartTime().toLocalDateTime());
+        }
+        if (booking.getEndTime() != null) {
+            response.setEndTime(booking.getEndTime().toLocalDateTime());
+        }
+        if (booking.getAcceptedAt() != null) {
+            response.setAcceptedAt(booking.getAcceptedAt().toLocalDateTime());
+        }
+        if (booking.getCancelledAt() != null) {
+            response.setCancelledAt(booking.getCancelledAt().toLocalDateTime());
+        }
+        response.setCancellationReason(booking.getCancellationReason());
+        return response;
     }
 
     @GetMapping("/accepted")
@@ -110,10 +167,16 @@ public class TeacherBookingController {
         
         log.info("Getting accepted bookings for teacher {}", userPrincipal.getId());
         
-        // TODO: Implement logic to get accepted bookings for this teacher
-        List<BookingResponse> acceptedBookings = List.of(); // Placeholder
+        // Get bookings where this teacher is assigned
+        List<Booking> acceptedBookings = bookingRepository.findByTeacherIdAndStatus(
+            userPrincipal.getId(), BookingStatus.ACCEPTED);
         
-        return ResponseEntity.ok(acceptedBookings);
+        List<BookingResponse> responses = acceptedBookings.stream()
+            .map(this::convertToBookingResponse)
+            .collect(Collectors.toList());
+        
+        log.info("Found {} accepted bookings for teacher {}", responses.size(), userPrincipal.getId());
+        return ResponseEntity.ok(responses);
     }
 
     @PostMapping("/{bookingId}/notes")

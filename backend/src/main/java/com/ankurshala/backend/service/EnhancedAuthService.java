@@ -137,10 +137,15 @@ public class EnhancedAuthService {
             }
 
             // Validate teacher categories
+            // Valid categories: School Tutoring, Competitive Exams, Languages, Arts & Music, Technology, Other, STANDARD, PREMIUM
+            List<String> validCategories = java.util.Arrays.asList(
+                "School Tutoring", "Competitive Exams", "Languages", "Arts & Music", "Technology", "Other",
+                "STANDARD", "PREMIUM" // Legacy categories for backward compatibility
+            );
             List<String> categories = signupRequest.getCategories();
             for (String category : categories) {
-                if (!category.equals("STANDARD") && !category.equals("PREMIUM")) {
-                    throw new BusinessException("Invalid teacher category: " + category, 
+                if (!validCategories.contains(category)) {
+                    throw new BusinessException("Invalid teacher category: " + category + ". Valid categories are: " + String.join(", ", validCategories), 
                             org.springframework.http.HttpStatus.BAD_REQUEST, "INVALID_CATEGORY");
                 }
             }

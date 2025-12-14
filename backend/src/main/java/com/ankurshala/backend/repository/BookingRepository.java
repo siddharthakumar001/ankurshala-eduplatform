@@ -172,4 +172,14 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     
     @Query("SELECT b FROM Booking b WHERE b.student = :student AND b.startTs < :now")
     Page<Booking> findHistoryByStudent(@Param("student") User student, @Param("now") ZonedDateTime now, Pageable pageable);
+    
+    /**
+     * Find bookings by status (BookingStatus enum)
+     */
+    List<Booking> findByStatus(com.ankurshala.backend.entity.BookingStatus status);
+    
+    /**
+     * Find bookings by teacher ID and status
+     */
+    List<Booking> findByTeacherIdAndStatus(Long teacherId, com.ankurshala.backend.entity.BookingStatus status);
 }

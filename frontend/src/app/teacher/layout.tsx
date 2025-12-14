@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import { useRouter } from 'next/navigation';
+import { TeacherRoute } from '@/components/route-guard';
 
 const teacherNavItems = [
   { href: '/teacher/dashboard', label: 'Dashboard', icon: Home },
@@ -215,7 +216,9 @@ export default function TeacherLayout({
 
         {/* Page content */}
         <main className="p-6">
-          {children}
+          <TeacherRoute>
+            {children}
+          </TeacherRoute>
         </main>
       </div>
     </div>
