@@ -18,6 +18,8 @@ public interface SubjectRepository extends JpaRepository<Subject, Long>, JpaSpec
     
     Optional<Subject> findByBoardIdAndName(Long boardId, String name);
     
+    Optional<Subject> findByNameAndBoardId(String name, Long boardId);
+    
     Optional<Subject> findByGradeIdAndName(Long gradeId, String name);
     
     // Find by ID excluding soft deleted

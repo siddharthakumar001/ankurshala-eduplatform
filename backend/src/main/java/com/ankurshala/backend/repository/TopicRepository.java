@@ -15,6 +15,9 @@ import java.util.Optional;
 @Repository
 public interface TopicRepository extends JpaRepository<Topic, Long>, JpaSpecificationExecutor<Topic> {
     Optional<Topic> findByChapterIdAndTitle(Long chapterId, String title);
+    
+    Optional<Topic> findByTitleAndChapterId(String title, Long chapterId);
+    
     Optional<Topic> findByCode(String code);
     
     // Find by ID excluding soft deleted

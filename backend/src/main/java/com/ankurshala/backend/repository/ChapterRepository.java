@@ -16,6 +16,8 @@ import java.util.Optional;
 public interface ChapterRepository extends JpaRepository<Chapter, Long>, JpaSpecificationExecutor<Chapter> {
     Optional<Chapter> findBySubjectIdAndName(Long subjectId, String name);
     
+    Optional<Chapter> findByNameAndSubjectId(String name, Long subjectId);
+    
     // Find by ID excluding soft deleted
     @Query("SELECT c FROM Chapter c WHERE c.id = :id AND c.softDeleted = false")
     Optional<Chapter> findByIdAndSoftDeletedFalse(@Param("id") Long id);

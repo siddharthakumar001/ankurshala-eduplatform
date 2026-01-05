@@ -74,16 +74,21 @@ export async function POST(
     let forwardHeaders: Record<string, string> = {
       'Authorization': `Bearer ${accessToken}`,
     }
-    if (contentType) {
-      forwardHeaders['Content-Type'] = contentType
-    }
-
+    
     let forwardBody: BodyInit | undefined
     if (contentType.includes('application/json')) {
+      forwardHeaders['Content-Type'] = contentType
       const json = await request.json()
       forwardBody = JSON.stringify(json)
+    } else if (contentType.includes('multipart/form-data')) {
+      // For multipart/form-data, preserve the original Content-Type header with boundary
+      forwardHeaders['Content-Type'] = contentType
+      forwardBody = await request.arrayBuffer()
     } else {
-      // For text/csv, multipart/form-data, or other types, forward raw bytes
+      // For text/csv or other types, forward raw bytes
+      if (contentType) {
+        forwardHeaders['Content-Type'] = contentType
+      }
       const arrayBuffer = await request.arrayBuffer()
       forwardBody = Buffer.from(arrayBuffer)
     }

@@ -9,20 +9,19 @@ LABEL com.ankurshala=1
 
 WORKDIR /app
 
-# Cache deps with retry mechanism
+# Cache deps
 COPY pom.xml ./
-COPY .mvn ./.mvn
-COPY mvnw ./
-RUN --mount=type=cache,target=/root/.m2 \
-    ./mvnw dependency:resolve -B || \
-    (echo "First attempt failed, retrying..." && sleep 5 && ./mvnw dependency:resolve -B) || \
-    (echo "Second attempt failed, trying without cache..." && ./mvnw dependency:resolve -B -U)
 
-# Build with retry mechanism
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn dependency:resolve -B || \
+    (echo "First attempt failed, retrying..." && sleep 5 && mvn dependency:resolve -B) || \
+    (echo "Second attempt failed, trying without cache..." && mvn dependency:resolve -B -U)
+
+# Build
 COPY src ./src
 RUN --mount=type=cache,target=/root/.m2 \
-    ./mvnw clean package -DskipTests -Dmaven.test.skip=true -B || \
-    (echo "Build failed, retrying without cache..." && ./mvnw clean package -DskipTests -Dmaven.test.skip=true -B -U)
+    mvn clean package -DskipTests -Dmaven.test.skip=true -B || \
+    (echo "Build failed, retrying without cache..." && mvn clean package -DskipTests -Dmaven.test.skip=true -B -U)
 
 ############################
 # Stage 2: Runtime (Minimal JRE)

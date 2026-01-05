@@ -108,11 +108,11 @@ export default function AdminContentImportPage() {
   }
 
   const handleFileSelect = (file: File) => {
-    // Validate file type - CSV only
+    // Validate file type - CSV or XLSX
     const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'))
     
-    if (fileExtension !== '.csv') {
-      toast.error('Only CSV files are supported. XLSX files are not allowed.')
+    if (fileExtension !== '.csv' && fileExtension !== '.xlsx') {
+      toast.error('Only CSV and XLSX files are supported.')
       return
     }
 
@@ -124,6 +124,15 @@ export default function AdminContentImportPage() {
     }
 
     setSelectedFile(file)
+  }
+  
+  // Determine if file is curriculum format (based on filename or we can add a toggle)
+  const isCurriculumFile = (file: File | null): boolean => {
+    if (!file) return false
+    // Check if filename suggests curriculum format, or we can assume all CSV/XLSX in this context
+    // For now, we'll route CSV/XLSX files to curriculum endpoint
+    const ext = file.name.toLowerCase().substring(file.name.lastIndexOf('.'))
+    return ext === '.csv' || ext === '.xlsx'
   }
 
   const handleDrag = (e: React.DragEvent) => {
@@ -201,14 +210,32 @@ export default function AdminContentImportPage() {
 
     setIsUploading(true)
     try {
-      const response = await fetch(`/api/admin/content/import/csv?dryRun=true`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/csv',
-        },
-        body: selectedFile,
-        credentials: 'include'
-      })
+      const fileExtension = selectedFile.name.toLowerCase().substring(selectedFile.name.lastIndexOf('.'))
+      const isCurriculumFormat = fileExtension === '.xlsx' || fileExtension === '.csv'
+      
+      let response: Response
+      if (isCurriculumFormat) {
+        // Curriculum format files (XLSX or CSV) use FormData and the curriculum endpoint with dryRun
+        const formData = new FormData()
+        formData.append('file', selectedFile)
+        formData.append('dryRun', 'true')
+        
+        response = await fetch(`/api/admin/content/import/curriculum?dryRun=true`, {
+          method: 'POST',
+          body: formData,
+          credentials: 'include'
+        })
+      } else {
+        // Legacy CSV format uses raw body (keep for backward compatibility)
+        response = await fetch(`/api/admin/content/import/csv?dryRun=true`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/csv',
+          },
+          body: selectedFile,
+          credentials: 'include'
+        })
+      }
 
       if (response.ok) {
         const data = await response.json()
@@ -242,14 +269,32 @@ export default function AdminContentImportPage() {
 
     setIsUploading(true)
     try {
-      const response = await fetch(`/api/admin/content/import/csv?dryRun=false`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/csv',
-        },
-        body: selectedFile,
-        credentials: 'include'
-      })
+      const fileExtension = selectedFile.name.toLowerCase().substring(selectedFile.name.lastIndexOf('.'))
+      const isCurriculumFormat = fileExtension === '.xlsx' || fileExtension === '.csv'
+      
+      let response: Response
+      if (isCurriculumFormat) {
+        // Curriculum format files (XLSX or CSV) use FormData and the curriculum endpoint
+        const formData = new FormData()
+        formData.append('file', selectedFile)
+        formData.append('dryRun', 'false')
+        
+        response = await fetch(`/api/admin/content/import/curriculum?dryRun=false`, {
+          method: 'POST',
+          body: formData,
+          credentials: 'include'
+        })
+      } else {
+        // Legacy CSV format uses raw body (keep for backward compatibility)
+        response = await fetch(`/api/admin/content/import/csv?dryRun=false`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/csv',
+          },
+          body: selectedFile,
+          credentials: 'include'
+        })
+      }
 
       if (response.ok) {
         const data = await response.json()
@@ -433,10 +478,10 @@ export default function AdminContentImportPage() {
               <Upload className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
               <div className="mt-4">
                 <p className="text-lg font-medium text-gray-900 dark:text-white">
-                  Drop your CSV file here, or click to browse
+                  Drop your file here, or click to browse
                 </p>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  Supports CSV files only up to 10MB
+                  Supports CSV and XLSX (Curriculum) files up to 10MB
                 </p>
               </div>
               <Button 
@@ -449,7 +494,7 @@ export default function AdminContentImportPage() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".csv"
+                accept=".csv,.xlsx"
                 onChange={handleFileInputChange}
                 className="hidden"
               />
@@ -505,7 +550,8 @@ export default function AdminContentImportPage() {
               <Button 
                 variant="outline"
                 onClick={handleValidation}
-                disabled={!selectedFile || isUploading}
+                disabled={!selectedFile || isUploading || (selectedFile?.name.toLowerCase().endsWith('.xlsx') ?? false)}
+                title={selectedFile?.name.toLowerCase().endsWith('.xlsx') ? 'Validation is only available for CSV files' : 'Validate file for duplicates and updates'}
               >
                 {isUploading ? (
                   <>

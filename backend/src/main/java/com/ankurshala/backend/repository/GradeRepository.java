@@ -16,6 +16,10 @@ import java.util.Optional;
 public interface GradeRepository extends JpaRepository<Grade, Long>, JpaSpecificationExecutor<Grade> {
     Optional<Grade> findByName(String name);
     
+    // Find by boardId and name
+    @Query("SELECT g FROM Grade g WHERE g.boardId = :boardId AND g.name = :name AND g.softDeleted = false")
+    Optional<Grade> findByBoardIdAndName(@Param("boardId") Long boardId, @Param("name") String name);
+    
     // Find by ID excluding soft deleted
     @Query("SELECT g FROM Grade g WHERE g.id = :id AND g.softDeleted = false")
     Optional<Grade> findByIdAndSoftDeletedFalse(@Param("id") Long id);

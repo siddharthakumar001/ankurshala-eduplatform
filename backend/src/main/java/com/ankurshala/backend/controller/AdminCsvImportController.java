@@ -2,6 +2,7 @@ package com.ankurshala.backend.controller;
 
 import com.ankurshala.backend.entity.ImportJob;
 import com.ankurshala.backend.service.CsvContentImportService;
+import com.ankurshala.backend.service.EnhancedCurriculumImportService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -9,7 +10,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @RestController
@@ -20,6 +23,9 @@ public class AdminCsvImportController {
 
     @Autowired
     private CsvContentImportService csvImportService;
+    
+    @Autowired
+    private EnhancedCurriculumImportService enhancedCurriculumImportService;
 
     @PostMapping(value = "/csv", consumes = "text/csv")
     public ResponseEntity<Map<String, Object>> uploadCsvContent(
@@ -115,15 +121,44 @@ public class AdminCsvImportController {
         ));
     }
 
-    @GetMapping("/{jobId}")
+    @GetMapping("/jobs/{jobId}")
     public ResponseEntity<Map<String, Object>> getImportJobStatus(@PathVariable Long jobId) {
-        // This would need to be implemented to fetch job details
-        // For now, return a placeholder response
-        return ResponseEntity.ok(Map.of(
-            "jobId", jobId,
-            "status", "SUCCEEDED",
-            "message", "Import job details endpoint - to be implemented"
-        ));
+        try {
+            var importJob = enhancedCurriculumImportService.getImportJobById(jobId);
+            if (importJob == null) {
+                return ResponseEntity.status(404).body(Map.of(
+                    "error", "Import job not found",
+                    "jobId", jobId
+                ));
+            }
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("id", importJob.getId());
+            response.put("fileName", importJob.getFileName());
+            response.put("status", importJob.getStatus().toString());
+            response.put("totalRows", importJob.getTotalRows());
+            response.put("successRows", importJob.getSuccessRows());
+            response.put("errorRows", importJob.getErrorRows());
+            if (importJob.getStats() != null) {
+                response.put("stats", importJob.getStats());
+            }
+            if (importJob.getErrorMessage() != null) {
+                response.put("errorMessage", importJob.getErrorMessage());
+            }
+            if (importJob.getStartedAt() != null) {
+                response.put("startedAt", importJob.getStartedAt().toString());
+            }
+            if (importJob.getCompletedAt() != null) {
+                response.put("completedAt", importJob.getCompletedAt().toString());
+            }
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of(
+                "error", "Failed to fetch import job",
+                "message", e.getMessage()
+            ));
+        }
     }
 
     @DeleteMapping("/jobs/{jobId}")
@@ -224,5 +259,80 @@ public class AdminCsvImportController {
             .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"content_sample.csv\"")
             .contentType(MediaType.parseMediaType("text/csv"))
             .body(csvContent);
+    }
+    
+    /**
+     * Upload curriculum file with enhanced structure (supports CSV and XLSX)
+     * Format: Board, Grade, Subject, Chapter/Chapters, Topics, Brief Description, Duration, Suggested Topics
+     */
+    @PostMapping(value = "/curriculum", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Map<String, Object>> uploadCurriculumFile(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(defaultValue = "false") boolean dryRun,
+            Authentication authentication) {
+        
+        try {
+            // Validate file
+            if (file.isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body(Map.of(
+                        "type", "https://ankurshala.com/problems/invalid-file",
+                        "title", "Invalid File",
+                        "status", 400,
+                        "detail", "File is empty",
+                        "instance", "/admin/content/import/curriculum"
+                    ));
+            }
+            
+            String fileName = file.getOriginalFilename();
+            if (fileName == null || (!fileName.toLowerCase().endsWith(".xlsx") && !fileName.toLowerCase().endsWith(".csv"))) {
+                return ResponseEntity.badRequest()
+                    .body(Map.of(
+                        "type", "https://ankurshala.com/problems/invalid-file-type",
+                        "title", "Invalid File Type",
+                        "status", 400,
+                        "detail", "Only CSV and XLSX files are supported",
+                        "instance", "/admin/content/import/curriculum"
+                    ));
+            }
+            
+            // Get user ID from authentication
+            Long userId = null;
+            if (authentication != null && authentication.getPrincipal() instanceof org.springframework.security.core.userdetails.UserDetails) {
+                // This would need to be implemented based on your authentication setup
+            }
+            
+            // Create import job
+            ImportJob importJob = enhancedCurriculumImportService.createImportJob(
+                fileName,
+                file.getSize(),
+                userId
+            );
+            
+            // Read file bytes before async processing (MultipartFile stream closes after request)
+            byte[] fileBytes = file.getBytes();
+            
+            // Process XLSX file asynchronously
+            enhancedCurriculumImportService.processFileAsync(importJob, fileBytes, fileName, dryRun);
+            
+            return ResponseEntity.ok(Map.of(
+                "message", dryRun ? "Dry run completed successfully" : "Curriculum file uploaded and processing started",
+                "jobId", importJob.getId(),
+                "status", importJob.getStatus().toString(),
+                "fileName", fileName,
+                "fileSize", file.getSize(),
+                "dryRun", dryRun
+            ));
+            
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                .body(Map.of(
+                    "type", "https://ankurshala.com/problems/import-failed",
+                    "title", "Import Failed",
+                    "status", 500,
+                    "detail", "Failed to process file: " + e.getMessage(),
+                    "instance", "/admin/content/import/curriculum"
+                ));
+        }
     }
 }
