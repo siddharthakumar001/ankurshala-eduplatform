@@ -1,52 +1,74 @@
-# Ankurshala Education Platform - Documentation# AnkurShala Educational Platform - Complete Documentation
+# Ankurshala Education Platform - Documentation
 
+**Version:** 1.0 Production Ready  
+**Last Updated:** January 9, 2026  
+**Status:** ✅ Deployed and Operational
 
+---
 
-**Version:** 1.0 Production Ready  ## Table of Contents
+## 📚 Documentation Index
 
-**Last Updated:** October 7, 2025  
+This folder contains all consolidated documentation for the Ankurshala Education Platform.
 
-**Status:** ✅ Deployed and Operational1. [Project Overview](#project-overview)
+### 🎯 Core Documentation
 
-2. [Architecture](#architecture)
+1. **[ARCHITECTURE_AND_DESIGN.md](./ARCHITECTURE_AND_DESIGN.md)** - System architecture, tech stack, database
+2. **[ENHANCED_CURRICULUM_IMPORT.md](./ENHANCED_CURRICULUM_IMPORT.md)** - Curriculum import system (complete guide with automation)
+3. **[AUTHENTICATION_AND_SECURITY.md](./AUTHENTICATION_AND_SECURITY.md)** - Auth flow, RBAC, security
+4. **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** - Common issues, debugging, optimization
 
----3. [Getting Started](#getting-started)
+### 📦 Feature Modules
 
-4. [API Documentation](#api-documentation)
+- **Booking System**: [BOOKING_SYSTEM_IMPLEMENTATION_SUMMARY.md](./BOOKING_SYSTEM_IMPLEMENTATION_SUMMARY.md), [BOOKING_SYSTEM_CONCURRENCY.md](./BOOKING_SYSTEM_CONCURRENCY.md), [BOOKING_SYSTEM_QUICK_REFERENCE.md](./BOOKING_SYSTEM_QUICK_REFERENCE.md)
+- **Student Module**: [STUDENT_MODULE_COMPLETE.md](./STUDENT_MODULE_COMPLETE.md)
+- **Teacher Module**: [TEACHER_SEARCH_IMPLEMENTATION.md](./TEACHER_SEARCH_IMPLEMENTATION.md)
+- **Payments**: [PAYMENT_INTEGRATION_IMPLEMENTATION.md](./PAYMENT_INTEGRATION_IMPLEMENTATION.md)
+- **Monitoring**: [MONITORING_IMPLEMENTATION.md](./MONITORING_IMPLEMENTATION.md)
+- **Rate Limiting**: [RATE_LIMITING_IMPLEMENTATION.md](./RATE_LIMITING_IMPLEMENTATION.md)
 
-## 📚 Documentation Index5. [Frontend Guide](#frontend-guide)
+### 🚀 Deployment & Testing
 
-6. [Database Schema](#database-schema)
+- [DEPLOYMENT.md](./DEPLOYMENT.md) - Production deployment
+- [DEPLOYMENT_AND_TESTING_GUIDE.md](./DEPLOYMENT_AND_TESTING_GUIDE.md) - Deployment with testing
+- [E2E_TESTING_GUIDE.md](./E2E_TESTING_GUIDE.md) - End-to-end testing
+- [E2E_TESTING_CHECKLIST.md](./E2E_TESTING_CHECKLIST.md) - Testing checklist
 
-This folder contains all consolidated documentation for the Ankurshala Education Platform.7. [Deployment Guide](#deployment-guide)
+---
 
-8. [Security](#security)
+## 🚀 Quick Start
 
-### Core Documentation Files9. [Monitoring](#monitoring)
+**Developers:**  
+Read [ARCHITECTURE_AND_DESIGN.md](./ARCHITECTURE_AND_DESIGN.md) → [DEPLOYMENT_AND_TESTING_GUIDE.md](./DEPLOYMENT_AND_TESTING_GUIDE.md)
 
-10. [Troubleshooting](#troubleshooting)
+**Content Managers:**  
+See [ENHANCED_CURRICULUM_IMPORT.md](./ENHANCED_CURRICULUM_IMPORT.md) for curriculum import with automation
 
-1. **[SETUP_AND_DEPLOYMENT.md](./SETUP_AND_DEPLOYMENT.md)** - Setup, Docker, CI/CD, deployment11. [Contributing](#contributing)
+**Admins:**  
+Review [AUTHENTICATION_AND_SECURITY.md](./AUTHENTICATION_AND_SECURITY.md) → [MONITORING_IMPLEMENTATION.md](./MONITORING_IMPLEMENTATION.md)
 
-2. **[ARCHITECTURE_AND_DESIGN.md](./ARCHITECTURE_AND_DESIGN.md)** - System architecture, tech stack, database
+---
 
-3. **[ADMIN_MODULE_GUIDE.md](./ADMIN_MODULE_GUIDE.md)** - Admin features, content & student management## Project Overview
+## 🔄 Recent Updates (January 2026)
 
-4. **[AUTHENTICATION_AND_SECURITY.md](./AUTHENTICATION_AND_SECURITY.md)** - Auth flow, RBAC, security
+- ✅ Consolidated curriculum import documentation into single comprehensive guide
+- ✅ Created `.github/copilot-instructions.md` to prevent redundant documentation
+- ✅ Added automation scripts (PowerShell + Python) for curriculum import
+- ✅ Removed redundant documentation files
+- ✅ Updated .gitignore to prevent future redundancy
 
-5. **[TESTING_GUIDE.md](./TESTING_GUIDE.md)** - Playwright tests, manual testing, test scriptsAnkurShala is a comprehensive educational platform that connects students with qualified teachers for personalized learning experiences. The platform supports real-time classes, booking management, payment processing, and comprehensive analytics.
+---
 
-6. **[API_REFERENCE.md](./API_REFERENCE.md)** - Backend APIs, endpoints, formats
+## 📋 Documentation Guidelines
 
-7. **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** - Common issues, debugging, optimization### Key Features
+> **CRITICAL:** Review `.github/copilot-instructions.md` before creating ANY new documentation!
 
+**Always update existing files instead of creating new ones:**
+- New features → Update feature docs or `ARCHITECTURE_AND_DESIGN.md`
+- Bug fixes → Update `TROUBLESHOOTING.md`
+- API changes → Update feature-specific documentation
+- Deployment changes → Update `DEPLOYMENT.md`
 
-
----- **Multi-Role System**: Students, Teachers, and Admins
-
-- **Real-Time Classes**: WebSocket-based live sessions
-
-## 🚀 Quick Start- **Booking System**: Uber-style teacher matching and scheduling
+---
 
 - **Payment Integration**: Multiple payment providers (Razorpay, Stripe, PayU)
 

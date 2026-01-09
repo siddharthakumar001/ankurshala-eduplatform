@@ -212,3 +212,28 @@ frontend-image.tar
 deployment-report-*.txt
 .seed.override.yml
 .deploy-state.json
+
+# Sensitive tokens and credentials
+token.txt
+*.pem
+*.key
+*.crt
+
+# Redundant curriculum documentation (keep only consolidated docs in docs/)
+/*_CLASS*_*.md
+/*_IMPORT_*.md
+/*_SUMMARY_*.md
+/*_COMPARISON_*.md
+/*_QUICK_*.md
+/*_GUIDE_*.md
+/INDEX_*.txt
+/ARCHITECTURE_CLASS*.md
+/README_CLASS*.md
+/README_CURRICULUM*.md
+
+# Large sample/test data files (keep only essential ones)
+/*.xlsx
+!docs/CBSE\ Bihar\ Board\ Curriculum.xlsx
+/CBSE_*.csv
+!class-7-curriculum.csv
+!sample-course-content.csv
