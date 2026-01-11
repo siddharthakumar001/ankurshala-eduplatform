@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import StudentRoute from '@/components/StudentRoute'
+import { StudentRoute } from '@/components/route-guard'
 import { studentAPI } from '@/lib/apiClient'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
