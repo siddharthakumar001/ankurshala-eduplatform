@@ -48,9 +48,14 @@ public class BookingConcurrencyService {
     @Autowired
     private WebSocketNotificationService webSocketService;
 
+    @Autowired
+    private DistributedLockService distributedLockService;
+
     /**
      * Accept booking with pessimistic locking (first-accept wins)
      * Similar to Uber's driver acceptance mechanism
+     * 
+     * Uses distributed lock (Redis or in-memory) as Layer 1, then pessimistic DB lock as Layer 2
      * 
      * @param bookingId The booking ID to accept
      * @param teacherId The teacher attempting to accept
@@ -59,59 +64,65 @@ public class BookingConcurrencyService {
      */
     @Transactional(isolation = Isolation.SERIALIZABLE)
     public Booking acceptBookingWithLock(Long bookingId, Long teacherId) {
-        log.info("[BOOKING_ACCEPT] Teacher {} attempting to accept booking {}", teacherId, bookingId);
+        String lockKey = "booking:accept:" + bookingId;
         
-        // Step 1: Acquire pessimistic write lock on the booking
-        Optional<Booking> bookingOpt = bookingRepository.findByIdWithLock(bookingId);
-        
-        if (bookingOpt.isEmpty()) {
-            log.warn("[BOOKING_ACCEPT] Booking {} not found", bookingId);
-            throw new IllegalArgumentException("Booking not found");
-        }
-        
-        Booking booking = bookingOpt.get();
-        
-        // Step 2: Validate booking is still in PENDING/REQUESTED state
-        if (booking.getStatus() != BookingStatus.PENDING && !booking.getState().equals("REQUESTED")) {
-            log.warn("[BOOKING_ACCEPT] Booking {} is no longer available. Current state: {}, status: {}", 
-                    bookingId, booking.getState(), booking.getStatus());
-            throw new BookingAlreadyAcceptedException(
-                "Booking has already been accepted by another teacher or is no longer available");
-        }
-        
-        // Step 3: Validate teacher is not already assigned
-        if (booking.getTeacherId() != null) {
-            log.warn("[BOOKING_ACCEPT] Booking {} already has teacher {} assigned. Teacher {} attempted acceptance.", 
-                    bookingId, booking.getTeacherId(), teacherId);
-            throw new BookingAlreadyAcceptedException(
-                "This booking has already been accepted by another teacher");
-        }
-        
-        // Step 4: Validate no time conflicts for this teacher
-        validateNoTimeConflicts(teacherId, booking.getStartTs(), booking.getEndTs(), bookingId);
-        
-        // Step 5: Atomically update booking (within the transaction with lock held)
-        booking.setTeacherId(teacherId);
-        booking.setStatus(BookingStatus.ACCEPTED);
-        booking.setState("ACCEPTED");
-        booking.setAcceptedAt(ZonedDateTime.now());
-        
-        // Find and set teacher entity
-        Teacher teacher = teacherRepository.findById(teacherId)
-                .orElseThrow(() -> new IllegalArgumentException("Teacher not found"));
-        booking.setTeacher(teacher.getUser());
-        
-        Booking acceptedBooking = bookingRepository.save(booking);
-        
-        log.info("[BOOKING_ACCEPT] ✅ SUCCESS - Teacher {} successfully accepted booking {}", 
-                teacherId, bookingId);
-        
-        // Step 6: Publish events asynchronously (after commit)
-        publishBookingAcceptedEvent(acceptedBooking);
-        notifyStudentOfAcceptance(acceptedBooking);
-        notifyOtherTeachersBookingTaken(acceptedBooking);
-        
-        return acceptedBooking;
+        // Layer 1: Distributed application lock (Redis or in-memory)
+        return distributedLockService.executeWithLock(lockKey, 10, () -> {
+            log.info("[BOOKING_ACCEPT] Teacher {} attempting to accept booking {} (with distributed lock)", 
+                    teacherId, bookingId);
+            
+            // Step 1: Acquire pessimistic write lock on the booking (Layer 2: Database lock)
+            Optional<Booking> bookingOpt = bookingRepository.findByIdWithLock(bookingId);
+            
+            if (bookingOpt.isEmpty()) {
+                log.warn("[BOOKING_ACCEPT] Booking {} not found", bookingId);
+                throw new IllegalArgumentException("Booking not found");
+            }
+            
+            Booking booking = bookingOpt.get();
+            
+            // Step 2: Validate booking is still in PENDING/REQUESTED state
+            if (booking.getStatus() != BookingStatus.PENDING && !booking.getState().equals("REQUESTED")) {
+                log.warn("[BOOKING_ACCEPT] Booking {} is no longer available. Current state: {}, status: {}", 
+                        bookingId, booking.getState(), booking.getStatus());
+                throw new BookingAlreadyAcceptedException(
+                    "Booking has already been accepted by another teacher or is no longer available");
+            }
+            
+            // Step 3: Validate teacher is not already assigned
+            if (booking.getTeacherId() != null) {
+                log.warn("[BOOKING_ACCEPT] Booking {} already has teacher {} assigned. Teacher {} attempted acceptance.", 
+                        bookingId, booking.getTeacherId(), teacherId);
+                throw new BookingAlreadyAcceptedException(
+                    "This booking has already been accepted by another teacher");
+            }
+            
+            // Step 4: Validate no time conflicts for this teacher
+            validateNoTimeConflicts(teacherId, booking.getStartTs(), booking.getEndTs(), bookingId);
+            
+            // Step 5: Atomically update booking (within the transaction with lock held)
+            booking.setTeacherId(teacherId);
+            booking.setStatus(BookingStatus.ACCEPTED);
+            booking.setState("ACCEPTED");
+            booking.setAcceptedAt(ZonedDateTime.now());
+            
+            // Find and set teacher entity
+            Teacher teacher = teacherRepository.findById(teacherId)
+                    .orElseThrow(() -> new IllegalArgumentException("Teacher not found"));
+            booking.setTeacher(teacher.getUser());
+            
+            Booking acceptedBooking = bookingRepository.save(booking);
+            
+            log.info("[BOOKING_ACCEPT] ✅ SUCCESS - Teacher {} successfully accepted booking {}", 
+                    teacherId, bookingId);
+            
+            // Step 6: Publish events asynchronously (after commit)
+            publishBookingAcceptedEvent(acceptedBooking);
+            notifyStudentOfAcceptance(acceptedBooking);
+            notifyOtherTeachersBookingTaken(acceptedBooking);
+            
+            return acceptedBooking;
+        });
     }
 
     /**

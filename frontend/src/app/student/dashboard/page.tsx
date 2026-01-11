@@ -108,7 +108,7 @@ function DashboardContent() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6" data-testid="dashboard-loading">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {[...Array(4)].map((_, i) => (
             <Card key={i} className="animate-pulse">
@@ -124,9 +124,9 @@ function DashboardContent() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="dashboard-content">
       {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-ankur-secondary to-[#2a4a73] rounded-2xl p-8 text-white shadow-lg">
+      <div className="bg-gradient-to-r from-ankur-secondary to-[#2a4a73] rounded-2xl p-8 text-white shadow-lg" data-testid="dashboard-welcome">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold mb-2">
@@ -137,11 +137,11 @@ function DashboardContent() {
             </p>
           </div>
           <div className="flex items-center gap-6">
-            <div className="text-center">
+            <div className="text-center" data-testid="dashboard-upcoming-count">
               <p className="text-4xl font-bold text-ankur-accent">{stats?.upcomingBookings || 0}</p>
               <p className="text-sm text-white/70">Upcoming Classes</p>
             </div>
-            <div className="text-center">
+            <div className="text-center" data-testid="dashboard-completed-count">
               <p className="text-4xl font-bold text-white">{stats?.completedBookings || 0}</p>
               <p className="text-sm text-white/70">Completed</p>
             </div>
@@ -150,7 +150,7 @@ function DashboardContent() {
       </div>
 
       {/* Platform Overview - Stats Cards */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100" data-testid="dashboard-stats">
         <div className="mb-6">
           <h2 className="text-xl font-bold text-gray-900">Platform Overview</h2>
           <p className="text-sm text-gray-500">KEY METRICS AT A GLANCE</p>
@@ -204,7 +204,7 @@ function DashboardContent() {
       </div>
 
       {/* Quick Actions */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100" data-testid="dashboard-quick-actions">
         <div className="mb-6">
           <h2 className="text-xl font-bold text-gray-900">Quick Actions</h2>
           <p className="text-sm text-gray-500">FREQUENT TASKS</p>
@@ -212,7 +212,7 @@ function DashboardContent() {
         
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Link href="/student/booking">
-            <div className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl hover:shadow-lg transition-all cursor-pointer border-2 border-transparent hover:border-emerald-200">
+            <div className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl hover:shadow-lg transition-all cursor-pointer border-2 border-transparent hover:border-emerald-200" data-testid="dashboard-action-book">
               <div className="h-14 w-14 bg-white rounded-xl flex items-center justify-center mb-3 shadow-sm">
                 <BookOpen className="h-6 w-6 text-emerald-600" />
               </div>
@@ -251,7 +251,7 @@ function DashboardContent() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Upcoming Classes */}
-        <Card className="border-gray-100 shadow-sm">
+        <Card className="border-gray-100 shadow-sm" data-testid="dashboard-upcoming-classes">
           <CardHeader className="border-b border-gray-100 bg-gray-50/50">
             <CardTitle className="flex items-center text-lg">
               <Calendar className="h-5 w-5 mr-2 text-emerald-500" />

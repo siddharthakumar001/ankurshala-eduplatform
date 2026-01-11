@@ -26,16 +26,18 @@ import {
   ArrowRight
 } from 'lucide-react'
 
-// Main export wrapped in Suspense
+// Two-component pattern: StudentRoute wraps inner content to ensure auth before API calls
 export default function StudentBookingPage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-ankur-primary" />
-      </div>
-    }>
-      <BookingContent />
-    </Suspense>
+    <StudentRoute>
+      <Suspense fallback={
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-ankur-primary" />
+        </div>
+      }>
+        <BookingContent />
+      </Suspense>
+    </StudentRoute>
   )
 }
 
@@ -247,8 +249,7 @@ function BookingContent() {
   const today = new Date().toISOString().split('T')[0]
 
   return (
-    <StudentRoute>
-      <div className="container mx-auto py-8 px-4 max-w-4xl">
+    <div className="container mx-auto py-8 px-4 max-w-4xl">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Book a Class</h1>
@@ -559,6 +560,5 @@ function BookingContent() {
           </Card>
         )}
       </div>
-    </StudentRoute>
   )
 }

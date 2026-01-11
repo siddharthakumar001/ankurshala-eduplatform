@@ -1,7 +1,7 @@
 services:
-  # -------- Postgres Database --------
+  # -------- Postgres Database with pgvector --------
   postgres:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg15
     container_name: ankurshala_db_local
     environment:
       POSTGRES_DB: ankurshala
@@ -153,6 +153,10 @@ services:
       DEMO_ENV: dev
       DEMO_FORCE: true
       DEV_SEEDER_ENABLED: true
+      
+      # AI Configuration (placeholder for local development)
+      OPENAI_API_KEY: sk-placeholder-for-local-development
+      AI_ENABLED: false
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/actuator/health"]
       interval: 30s
@@ -172,7 +176,7 @@ services:
     container_name: ankurshala_frontend_local
     depends_on:
       backend:
-        condition: service_healthy
+        condition: service_started
     ports:
       - "3000:3000"
     environment:

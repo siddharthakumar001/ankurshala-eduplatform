@@ -1,0 +1,499 @@
+package com.ankurshala.backend.bootstrap;
+
+import com.ankurshala.backend.entity.*;
+import com.ankurshala.backend.repository.*;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.*;
+import java.util.*;
+
+/**
+ * E2E Test Data Seeder - Creates deterministic data for local E2E testing.
+ * 
+ * Creates:
+ * - 1 admin user (credentials printed at startup)
+ * - 2 students (student-e2e1, student-e2e2)
+ * - 2 teachers (teacher-e2e1, teacher-e2e2) with availability
+ * - Board: CBSE
+ * - Grades: 7, 8, 9, 10
+ * - Subject: Mathematics (Grade 9)
+ * - 3 Chapters with 9 Topics
+ * - 20 Active content chunks with embeddings (for RAG testing)
+ * - 1 pre-created booking (for companion flow)
+ * 
+ * Controlled by: SEED_E2E_DATA=true (default: false in prod, true in local)
+ */
+@Component
+@Order(10) // Run after BulkDemoSeeder if it exists
+@Slf4j
+public class E2ETestDataSeeder implements CommandLineRunner {
+
+    @Value("${SEED_E2E_DATA:${DEMO_ENV:local}}")
+    private String seedE2EData;
+
+    @Value("${DEMO_ENV:local}")
+    private String demoEnv;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private StudentProfileRepository studentProfileRepository;
+
+    @Autowired
+    private TeacherRepository teacherRepository;
+
+    @Autowired
+    private TeacherProfileRepository teacherProfileRepository;
+
+    @Autowired
+    private TeacherWeeklyAvailabilityRepository teacherAvailabilityRepository;
+
+    @Autowired
+    private BoardRepository boardRepository;
+
+    @Autowired
+    private GradeRepository gradeRepository;
+
+    @Autowired
+    private SubjectRepository subjectRepository;
+
+    @Autowired
+    private ChapterRepository chapterRepository;
+
+    @Autowired
+    private TopicRepository topicRepository;
+
+    @Autowired
+    private ContentChunkRepository contentChunkRepository;
+
+    @Autowired
+    private BookingRepository bookingRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    private static final String E2E_PASSWORD = "Test@123";
+    private static final String ADMIN_EMAIL = "admin-e2e@ankurshala.com";
+    private static final String STUDENT1_EMAIL = "student-e2e1@ankurshala.com";
+    private static final String STUDENT2_EMAIL = "student-e2e2@ankurshala.com";
+    private static final String TEACHER1_EMAIL = "teacher-e2e1@ankurshala.com";
+    private static final String TEACHER2_EMAIL = "teacher-e2e2@ankurshala.com";
+
+    @Override
+    public void run(String... args) throws Exception {
+        if (!shouldSeed()) {
+            log.info("E2E Test Data Seeder skipped. SEED_E2E_DATA={}, DEMO_ENV={}", seedE2EData, demoEnv);
+            return;
+        }
+
+        log.info("========================================");
+        log.info("🚀 E2E Test Data Seeder Starting...");
+        log.info("========================================");
+
+        try {
+            seedE2EData();
+            printCredentials();
+            log.info("✅ E2E Test Data Seeder completed successfully!");
+            log.info("========================================");
+        } catch (Exception e) {
+            log.error("❌ E2E Test Data Seeder failed", e);
+            throw e;
+        }
+    }
+
+    private boolean shouldSeed() {
+        // Seed if SEED_E2E_DATA=true OR if DEMO_ENV=local
+        return "true".equalsIgnoreCase(seedE2EData) || "local".equalsIgnoreCase(demoEnv);
+    }
+
+    @Transactional
+    public void seedE2EData() {
+        log.info("Step 1/8: Seeding admin user...");
+        User admin = seedAdminUser();
+
+        log.info("Step 2/8: Seeding students...");
+        User student1 = seedStudent(STUDENT1_EMAIL, "E2E Student One");
+        User student2 = seedStudent(STUDENT2_EMAIL, "E2E Student Two");
+
+        log.info("Step 3/8: Seeding teachers...");
+        User teacher1 = seedTeacher(TEACHER1_EMAIL, "E2E Teacher One");
+        User teacher2 = seedTeacher(TEACHER2_EMAIL, "E2E Teacher Two");
+
+        log.info("Step 4/8: Seeding curriculum structure...");
+        Board board = seedBoard();
+        List<Grade> grades = seedGrades(board);
+        Subject subject = seedSubject(board, grades.get(2)); // Grade 9
+        List<Chapter> chapters = seedChapters(subject);
+        List<Topic> topics = seedTopics(chapters);
+
+        log.info("Step 5/8: Seeding content chunks for RAG...");
+        seedContentChunks(topics);
+
+        log.info("Step 6/8: Seeding teacher availability...");
+        seedTeacherAvailability(teacher1, teacher2);
+
+        log.info("Step 7/8: Seeding pre-created booking...");
+        seedBooking(student1, teacher1, topics.get(0));
+
+        log.info("Step 8/8: Seeding complete!");
+    }
+
+    private User seedAdminUser() {
+        return userRepository.findByEmail(ADMIN_EMAIL).orElseGet(() -> {
+            User admin = new User();
+            admin.setFullName("E2E Admin");
+            admin.setEmail(ADMIN_EMAIL);
+            admin.setPassword(passwordEncoder.encode(E2E_PASSWORD));
+            admin.setRole(User.Role.ADMIN);
+            admin.setActive(true);
+            admin.setEmailVerified(true);
+            return userRepository.save(admin);
+        });
+    }
+
+    private User seedStudent(String email, String name) {
+        return userRepository.findByEmail(email).orElseGet(() -> {
+            User student = new User();
+            student.setFullName(name);
+            student.setEmail(email);
+            student.setPassword(passwordEncoder.encode(E2E_PASSWORD));
+            student.setRole(User.Role.STUDENT);
+            student.setActive(true);
+            student.setEmailVerified(true);
+            student = userRepository.save(student);
+
+            // Create student profile
+            StudentProfile profile = new StudentProfile();
+            profile.setUserId(student.getId());
+            profile.setPhoneNumber("9876543210");
+            profile.setGradeLevel(9);
+            profile.setSchoolName("Test School");
+            profile.setAddress("Test Address, Test City");
+            profile.setCompletedOnboarding(true);
+            studentProfileRepository.save(profile);
+
+            return student;
+        });
+    }
+
+    private User seedTeacher(String email, String name) {
+        return userRepository.findByEmail(email).orElseGet(() -> {
+            User teacher = new User();
+            teacher.setFullName(name);
+            teacher.setEmail(email);
+            teacher.setPassword(passwordEncoder.encode(E2E_PASSWORD));
+            teacher.setRole(User.Role.TEACHER);
+            teacher.setActive(true);
+            teacher.setEmailVerified(true);
+            teacher = userRepository.save(teacher);
+
+            // Create teacher entity
+            Teacher teacherEntity = new Teacher();
+            teacherEntity.setUserId(teacher.getId());
+            teacherEntity.setStatus(Teacher.Status.ACTIVE);
+            teacherRepository.save(teacherEntity);
+
+            // Create teacher profile
+            TeacherProfile profile = new TeacherProfile();
+            profile.setUserId(teacher.getId());
+            profile.setPhoneNumber("9876543211");
+            profile.setBio("Experienced E2E test teacher");
+            profile.setYearsOfExperience(5);
+            profile.setHourlyRate(500.0);
+            profile.setCity("Bangalore");
+            profile.setState("Karnataka");
+            profile.setQualification("M.Sc. Mathematics");
+            profile.setCompletedOnboarding(true);
+            profile.setVerified(true);
+            teacherProfileRepository.save(profile);
+
+            return teacher;
+        });
+    }
+
+    private Board seedBoard() {
+        return boardRepository.findByBoardName("CBSE").orElseGet(() -> {
+            Board board = new Board();
+            board.setBoardName("CBSE");
+            board.setDescription("Central Board of Secondary Education");
+            board.setActive(true);
+            return boardRepository.save(board);
+        });
+    }
+
+    private List<Grade> seedGrades(Board board) {
+        List<Grade> grades = new ArrayList<>();
+        for (int gradeNum : Arrays.asList(7, 8, 9, 10)) {
+            String gradeName = "Grade " + gradeNum;
+            Grade grade = gradeRepository.findByBoardIdAndName(board.getId(), gradeName)
+                    .orElseGet(() -> {
+                        Grade g = new Grade();
+                        g.setBoardId(board.getId());
+                        g.setName(gradeName);
+                        g.setDisplayName(gradeName);
+                        g.setActive(true);
+                        return gradeRepository.save(g);
+                    });
+            grades.add(grade);
+        }
+        return grades;
+    }
+
+    private Subject seedSubject(Board board, Grade grade) {
+        return subjectRepository.findByBoardIdAndGradeIdAndName(board.getId(), grade.getId(), "Mathematics")
+                .orElseGet(() -> {
+                    Subject subject = new Subject();
+                    subject.setBoardId(board.getId());
+                    subject.setGradeId(grade.getId());
+                    subject.setName("Mathematics");
+                    subject.setActive(true);
+                    return subjectRepository.save(subject);
+                });
+    }
+
+    private List<Chapter> seedChapters(Subject subject) {
+        List<Chapter> chapters = new ArrayList<>();
+        String[] chapterNames = {
+            "Number Systems",
+            "Polynomials",
+            "Linear Equations in Two Variables"
+        };
+
+        for (int i = 0; i < chapterNames.length; i++) {
+            String chapterName = chapterNames[i];
+            Chapter chapter = chapterRepository.findBySubjectIdAndName(subject.getId(), chapterName)
+                    .orElseGet(() -> {
+                        Chapter c = new Chapter();
+                        c.setSubjectId(subject.getId());
+                        c.setName(chapterName);
+                        c.setActive(true);
+                        return chapterRepository.save(c);
+                    });
+            chapters.add(chapter);
+        }
+        return chapters;
+    }
+
+    private List<Topic> seedTopics(List<Chapter> chapters) {
+        List<Topic> topics = new ArrayList<>();
+        
+        // Chapter 1: Number Systems
+        topics.addAll(seedTopicsForChapter(chapters.get(0), Arrays.asList(
+            "Rational Numbers",
+            "Irrational Numbers",
+            "Real Numbers and their Decimal Expansions"
+        )));
+
+        // Chapter 2: Polynomials
+        topics.addAll(seedTopicsForChapter(chapters.get(1), Arrays.asList(
+            "Polynomials in One Variable",
+            "Zeroes of a Polynomial",
+            "Remainder Theorem"
+        )));
+
+        // Chapter 3: Linear Equations
+        topics.addAll(seedTopicsForChapter(chapters.get(2), Arrays.asList(
+            "Linear Equations",
+            "Solution of Linear Equations",
+            "Graphical Method"
+        )));
+
+        return topics;
+    }
+
+    private List<Topic> seedTopicsForChapter(Chapter chapter, List<String> topicNames) {
+        List<Topic> topics = new ArrayList<>();
+        for (int i = 0; i < topicNames.size(); i++) {
+            String topicName = topicNames.get(i);
+            Topic topic = topicRepository.findByChapterIdAndTitle(chapter.getId(), topicName)
+                    .orElseGet(() -> {
+                        Topic t = new Topic();
+                        t.setChapterId(chapter.getId());
+                        t.setTitle(topicName);
+                        t.setCode("T" + chapter.getId() + "_" + (i + 1));
+                        t.setDescription("Learn about " + topicName);
+                        t.setExpectedTimeMins(120);
+                        t.setActive(true);
+                        return topicRepository.save(t);
+                    });
+            topics.add(topic);
+        }
+        return topics;
+    }
+
+    private void seedContentChunks(List<Topic> topics) {
+        // Create content chunks for first 3 topics (for RAG testing)
+        for (int i = 0; i < Math.min(3, topics.size()); i++) {
+            Topic topic = topics.get(i);
+            Long existingCount = contentChunkRepository.countByTopicIdAndStatus(
+                topic.getId(), 
+                ContentChunk.ChunkStatus.ACTIVE
+            );
+
+            if (existingCount > 0) {
+                log.debug("Topic {} already has {} content chunks, skipping", topic.getTitle(), existingCount);
+                continue;
+            }
+
+            // Create 6-7 chunks per topic for realistic RAG testing
+            String[] chunkContents = getContentForTopic(topic.getTitle());
+            for (int j = 0; j < chunkContents.length; j++) {
+                ContentChunk chunk = new ContentChunk();
+                chunk.setTopicId(topic.getId());
+                chunk.setChapterId(topic.getChapterId());
+                Chapter chapter = chapterRepository.findById(topic.getChapterId()).orElse(null);
+                if (chapter != null) {
+                    chunk.setSubjectId(chapter.getSubjectId());
+                }
+                chunk.setChunkText(chunkContents[j]);
+                chunk.setSourceType(ContentChunk.SourceType.TEXTBOOK);
+                chunk.setSourceRef("NCERT Grade 9 Mathematics");
+                chunk.setLanguage("en");
+                chunk.setStatus(ContentChunk.ChunkStatus.ACTIVE);
+                
+                // Embedding is null in E2E mode (would be generated by AI service in real scenario)
+                chunk.setEmbedding(null);
+                
+                contentChunkRepository.save(chunk);
+            }
+        }
+    }
+
+    private String[] getContentForTopic(String topicName) {
+        // Return realistic educational content for each topic
+        switch (topicName) {
+            case "Rational Numbers":
+                return new String[]{
+                    "A rational number is a number that can be expressed as the quotient or fraction p/q of two integers, where p is the numerator and q is the denominator (q ≠ 0).",
+                    "Examples of rational numbers include 1/2, -3/4, 5, and 0.75. Every integer is also a rational number because it can be written with denominator 1.",
+                    "Rational numbers can be represented on a number line. Between any two rational numbers, there are infinitely many other rational numbers.",
+                    "The decimal expansion of a rational number is either terminating (like 0.5 = 1/2) or non-terminating repeating (like 0.333... = 1/3).",
+                    "Operations on rational numbers: Addition, subtraction, multiplication, and division (except by zero) of rational numbers always result in another rational number.",
+                    "Rational numbers are closed under addition, subtraction, multiplication, and division (except division by zero). This is called the closure property.",
+                    "The additive identity for rational numbers is 0, and the multiplicative identity is 1. Every rational number has an additive inverse and every non-zero rational number has a multiplicative inverse."
+                };
+            case "Irrational Numbers":
+                return new String[]{
+                    "An irrational number is a real number that cannot be expressed as a ratio of integers. In other words, it cannot be written in the form p/q where p and q are integers and q ≠ 0.",
+                    "Common examples of irrational numbers include √2, √3, π (pi), and e (Euler's number). These numbers have non-terminating, non-repeating decimal expansions.",
+                    "Proof that √2 is irrational: Assume √2 = p/q where p and q are coprime integers. Then 2q² = p², which implies p is even. Let p = 2k, then 2q² = 4k², so q² = 2k², making q even. This contradicts our assumption that p and q are coprime.",
+                    "The decimal representation of irrational numbers goes on forever without repeating. For example, π = 3.14159265358979... continues indefinitely without any repeating pattern.",
+                    "Between any two rational numbers, there exists an irrational number, and vice versa. This demonstrates the density of both rational and irrational numbers on the number line.",
+                    "Operations involving irrational numbers: The sum or product of a rational number (other than zero) and an irrational number is always irrational.",
+                    "Some operations with irrational numbers can produce rational results. For example, √2 × √2 = 2 (rational), and √5 - √5 = 0 (rational)."
+                };
+            case "Real Numbers and their Decimal Expansions":
+                return new String[]{
+                    "Real numbers include all rational and irrational numbers. They can be represented on a number line and include all numbers we typically use in mathematics.",
+                    "Every real number has a decimal expansion. Rational numbers have either terminating or repeating decimal expansions, while irrational numbers have non-terminating, non-repeating expansions.",
+                    "Terminating decimals: These are decimals that come to an end. For example, 0.5, 0.75, and 0.125 are terminating decimals. They represent rational numbers whose denominators (in lowest terms) have only 2 and/or 5 as prime factors.",
+                    "Non-terminating repeating decimals: These decimals continue forever but have a repeating pattern. For example, 1/3 = 0.333..., 1/7 = 0.142857142857... These represent rational numbers.",
+                    "Non-terminating non-repeating decimals represent irrational numbers. Examples include √2 = 1.414213562..., π = 3.141592653..., and e = 2.718281828...",
+                    "Converting terminating decimals to fractions: Multiply by appropriate power of 10 to eliminate decimals. For example, 0.75 = 75/100 = 3/4.",
+                    "The set of real numbers is complete, meaning every point on the number line corresponds to a real number, and vice versa. This property is fundamental to calculus and analysis."
+                };
+            default:
+                return new String[]{
+                    "This topic covers important mathematical concepts that build upon previous knowledge.",
+                    "Understanding this topic is essential for progressing to more advanced mathematics.",
+                    "Practice problems and examples help solidify understanding of these concepts.",
+                    "Real-world applications demonstrate the relevance of these mathematical principles."
+                };
+        }
+    }
+
+    private float[] generateMockEmbedding(String text) {
+        // Generate deterministic mock embedding based on text hash
+        int hash = text.hashCode();
+        Random random = new Random(hash);
+        float[] embedding = new float[768]; // OpenAI ada-002 dimension
+        for (int i = 0; i < 768; i++) {
+            embedding[i] = random.nextFloat() * 2 - 1; // Range: -1 to 1
+        }
+        return embedding;
+    }
+
+    private void seedTeacherAvailability(User teacher1, User teacher2) {
+        // Create availability for both teachers (next 7 days, 9 AM to 5 PM)
+        for (User teacher : Arrays.asList(teacher1, teacher2)) {
+            for (int dayOffset = 0; dayOffset < 7; dayOffset++) {
+                LocalDate date = LocalDate.now().plusDays(dayOffset);
+                DayOfWeek dayOfWeek = date.getDayOfWeek();
+                Integer dayOfWeekInt = dayOfWeek.getValue() % 7; // Convert to 0-6
+
+                // Skip if already exists
+                if (teacherAvailabilityRepository.findByTeacherIdAndDayOfWeek(teacher.getId(), dayOfWeekInt).isPresent()) {
+                    continue;
+                }
+
+                TeacherWeeklyAvailability availability = new TeacherWeeklyAvailability();
+                availability.setTeacher(Teacher.builder().id(teacher.getId()).build());
+                availability.setDayOfWeek(dayOfWeekInt);
+                availability.setStartTime(LocalTime.of(9, 0));
+                availability.setEndTime(LocalTime.of(17, 0));
+                availability.setIsAvailable(true);
+                teacherAvailabilityRepository.save(availability);
+            }
+        }
+    }
+
+    private void seedBooking(User student, User teacher, Topic topic) {
+        // Check if booking already exists
+        LocalDateTime bookingTime = LocalDateTime.now().plusDays(1).withHour(10).withMinute(0);
+        ZonedDateTime bookingTimeZoned = bookingTime.atZone(ZoneId.systemDefault());
+
+        Optional<Booking> existing = bookingRepository.findByStudentIdAndStartTime(student.getId(), bookingTimeZoned);
+        if (existing.isPresent()) {
+            log.debug("Booking already exists for student {}, skipping", student.getEmail());
+            return;
+        }
+
+        Booking booking = new Booking();
+        booking.setStudentId(student.getId());
+        booking.setTeacherId(teacher.getId());
+        booking.setTopicId(topic.getId());
+        booking.setStartTime(bookingTimeZoned);
+        booking.setEndTime(bookingTimeZoned.plusHours(1));
+        booking.setDurationMinutes(60);
+        booking.setStatus(BookingStatus.CONFIRMED);
+        booking.setTotalPriceAmount(BigDecimal.valueOf(500.0));
+        booking.setStudentNotes("E2E test booking for companion flow");
+        bookingRepository.save(booking);
+    }
+
+    private void printCredentials() {
+        log.info("");
+        log.info("========================================");
+        log.info("📋 E2E TEST CREDENTIALS");
+        log.info("========================================");
+        log.info("Admin:");
+        log.info("  Email: {}", ADMIN_EMAIL);
+        log.info("  Password: {}", E2E_PASSWORD);
+        log.info("");
+        log.info("Student 1:");
+        log.info("  Email: {}", STUDENT1_EMAIL);
+        log.info("  Password: {}", E2E_PASSWORD);
+        log.info("");
+        log.info("Student 2:");
+        log.info("  Email: {}", STUDENT2_EMAIL);
+        log.info("  Password: {}", E2E_PASSWORD);
+        log.info("");
+        log.info("Teacher 1:");
+        log.info("  Email: {}", TEACHER1_EMAIL);
+        log.info("  Password: {}", E2E_PASSWORD);
+        log.info("");
+        log.info("Teacher 2:");
+        log.info("  Email: {}", TEACHER2_EMAIL);
+        log.info("  Password: {}", E2E_PASSWORD);
+        log.info("========================================");
+        log.info("");
+    }
+}

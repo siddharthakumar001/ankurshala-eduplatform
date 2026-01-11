@@ -12,9 +12,9 @@ export const metadata: Metadata = {
   title: 'Ankurshala — On Demand Learning',
   description: 'AI-enabled on-demand learning for grades 7–12',
   icons: {
-    icon: '/favicon.svg',
-    shortcut: '/favicon.svg',
-    apple: '/favicon.svg',
+    icon: '/favicon.png',
+    shortcut: '/favicon.png',
+    apple: '/ankurshala-logo-small.png',
   },
 }
 

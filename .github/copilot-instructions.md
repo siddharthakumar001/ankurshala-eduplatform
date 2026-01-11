@@ -14,24 +14,23 @@ When documenting features, bug fixes, or changes:
 
 ## 📁 Existing Documentation Structure
 
-### Core Documentation (docs/)
-- `README.md` - Main documentation index
-- `ARCHITECTURE_AND_DESIGN.md` - System architecture
-- `ENHANCED_CURRICULUM_IMPORT.md` - Curriculum import system (consolidated)
+### Core Documentation (docs/) - 8 Files Total
 
-### Feature Documentation
-- `AUTHENTICATION_*.md` - Authentication system docs
-- `BOOKING_SYSTEM_*.md` - Booking system docs
-- `STUDENT_*.md` - Student module docs
-- `TEACHER_*.md` - Teacher module docs
-- `PAYMENT_INTEGRATION_IMPLEMENTATION.md` - Payment integration
-- `MONITORING_IMPLEMENTATION.md` - Monitoring setup
-- `RATE_LIMITING_IMPLEMENTATION.md` - Rate limiting
+**Main Index:**
+- `README.md` - Main documentation index and quick start guide
 
-### Deployment & Testing
-- `DEPLOYMENT*.md` - Deployment guides
-- `E2E_TESTING_*.md` - End-to-end testing
-- `TROUBLESHOOTING.md` - Troubleshooting guide
+**System Documentation:**
+- `ARCHITECTURE_AND_DESIGN.md` - System architecture, tech stack, database schema
+- `AUTHENTICATION_AND_SECURITY.md` - Auth flow, JWT, RBAC, security best practices
+- `TROUBLESHOOTING.md` - Common issues, debugging, optimization guides
+
+**Module Documentation:**
+- `STUDENT_MODULE.md` - Complete student module (dashboard, profile, booking, study list, notifications, etc.)
+- `TEACHER_MODULE.md` - Complete teacher module (profile management, search, availability, qualifications)
+- `BOOKING_SYSTEM.md` - Booking system with concurrency control, status flow, cancellation policy
+
+**Specialized Documentation:**
+- `ENHANCED_CURRICULUM_IMPORT.md` - Curriculum import system with automation scripts
 
 ### Project Root Documentation
 - `README.md` - Project overview
@@ -42,22 +41,32 @@ When documenting features, bug fixes, or changes:
 ## 📝 How to Document Changes
 
 ### For New Features
-1. Update `docs/README.md` with feature overview
-2. Update the specific feature documentation file
-3. If no specific file exists, update `ARCHITECTURE_AND_DESIGN.md`
+1. **Identify the module**: Determine if it's student, teacher, booking, or system-wide
+2. **Update the relevant file**:
+   - Student features → Update `STUDENT_MODULE.md`
+   - Teacher features → Update `TEACHER_MODULE.md`
+   - Booking features → Update `BOOKING_SYSTEM.md`
+   - Architecture changes → Update `ARCHITECTURE_AND_DESIGN.md`
+3. **Add a dated section** if needed (e.g., `## Update: January 9, 2026`)
 
 ### For Bug Fixes
 1. Update `TROUBLESHOOTING.md` with the issue and solution
 2. Update relevant feature documentation if behavior changed
 
 ### For API Changes
-1. Update `ENHANCED_CURRICULUM_IMPORT.md` for curriculum APIs
-2. Update specific feature docs for other APIs
-3. Update `ARCHITECTURE_AND_DESIGN.md` for architectural changes
+1. Update the appropriate module documentation:
+   - Student APIs → `STUDENT_MODULE.md` (API Endpoints section)
+   - Teacher APIs → `TEACHER_MODULE.md` (API Endpoints section)
+   - Booking APIs → `BOOKING_SYSTEM.md` (API Endpoints section)
+2. Update `ARCHITECTURE_AND_DESIGN.md` if architectural changes were made
 
 ### For Configuration Changes
-1. Update `DEPLOYMENT_STEPS.md` or `LOCAL_DEPLOYMENT_GUIDE.md`
+1. Update deployment sections in `ARCHITECTURE_AND_DESIGN.md`
 2. Update `.env.example` files with new variables
+
+### For Security Changes
+1. Update `AUTHENTICATION_AND_SECURITY.md` with new security measures
+2. Update relevant module docs if auth flow changed
 
 ## 🎯 Documentation Best Practices
 

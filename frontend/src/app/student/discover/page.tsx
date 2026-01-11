@@ -37,7 +37,16 @@ interface StudentProfile {
   gradeLevel?: string
 }
 
+// Two-component pattern: prevents API calls before auth is verified
 export default function StudentDiscoverPage() {
+  return (
+    <StudentRoute>
+      <DiscoverContent />
+    </StudentRoute>
+  )
+}
+
+function DiscoverContent() {
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [chapters, setChapters] = useState<Chapter[]>([])
   const [topics, setTopics] = useState<Topic[]>([])
@@ -54,14 +63,10 @@ export default function StudentDiscoverPage() {
   const router = useRouter()
   const { user } = useAuthStore()
 
-  // Load student profile on mount
+  // Load student profile on mount - auth already verified by StudentRoute
   useEffect(() => {
-    if (!user) {
-      router.push('/login')
-      return
-    }
     loadStudentProfile()
-  }, [user, router])
+  }, [])
 
   // Load subjects when profile is loaded
   useEffect(() => {
@@ -203,20 +208,17 @@ export default function StudentDiscoverPage() {
 
   if (profileLoading) {
     return (
-      <StudentRoute>
-        <div className="p-6 flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mx-auto mb-4" />
-            <p className="text-gray-600">Loading your personalized content...</p>
-          </div>
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading your personalized content...</p>
         </div>
-      </StudentRoute>
+      </div>
     )
   }
 
   return (
-    <StudentRoute>
-      <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6" data-testid="discover-page">
         {/* Header with personalized info */}
         <div className="flex items-center justify-between">
           <div>
@@ -430,6 +432,5 @@ export default function StudentDiscoverPage() {
           </Card>
         )}
       </div>
-    </StudentRoute>
   )
 }

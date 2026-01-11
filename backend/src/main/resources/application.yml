@@ -96,12 +96,12 @@ management:
   metrics:
     distribution:
       percentiles-histogram:
-        '[http.server.requests]': true
-        '[api.request.duration]': true
-        '[db.query.duration]': true
-        '[payment.processing.time]': true
+        "[http.server.requests]": true
+        "[api.request.duration]": true
+        "[db.query.duration]": true
+        "[payment.processing.time]": true
       slo:
-        '[http.server.requests]': 50ms,100ms,200ms,500ms,1s,2s,5s
+        "[http.server.requests]": "50ms,100ms,200ms,500ms,1s,2s,5s"
     tags:
       application: ${spring.application.name}
       environment: ${ENVIRONMENT:development}
@@ -134,7 +134,75 @@ logging:
       max-history: 30
       total-size-cap: 1GB
 
+spring.ai:
+  openai:
+    api-key: ${OPENAI_API_KEY:}
+    model: ${OPENAI_MODEL:gpt-4o-mini}
+    embedding-model: ${OPENAI_EMBEDDING_MODEL:text-embedding-ada-002}
+
+# Application-specific configuration
 app:
+  # E2E Test Data Seeding
+  # Set SEED_E2E_DATA=true to seed test accounts and curriculum data
+  # Automatic in local environment (DEMO_ENV=local)
+  seed-e2e-data: ${SEED_E2E_DATA:${DEMO_ENV:local}}
+  ai:
+    enabled: ${AI_ENABLED:false}
+    dev-mode: ${AI_DEV_MODE:${DEMO_ENV:local}}  # true in local, false in prod
+    provider: ${AI_PROVIDER:openai}
+    max-tokens: ${AI_MAX_TOKENS:2000}
+    temperature: ${AI_TEMPERATURE:0.7}
+    timeout-seconds: ${AI_TIMEOUT_SECONDS:30}
+    safety:
+      enabled: ${AI_SAFETY_ENABLED:true}
+    # Rate limiting configuration
+    rate-limit:
+      enabled: ${AI_RATE_LIMIT_ENABLED:true}
+      cooldown-seconds: 60
+      allow-burst: true
+      burst-multiplier: 1.5
+      chat:
+        limit: 30
+        window-seconds: 60
+        daily-limit: 500
+      quiz-generation:
+        limit: 10
+        window-seconds: 60
+        daily-limit: 50
+      stream-chat:
+        limit: 20
+        window-seconds: 60
+        daily-limit: 300
+      content-search:
+        limit: 60
+        window-seconds: 60
+        daily-limit: 1000
+      token-budget:
+        daily-limit: 50000
+        hourly-limit: 10000
+        per-request-limit: 4000
+        warning-threshold: 0.8
+        cost-per-1k-tokens: 0.002
+    # Caching configuration
+    cache:
+      enabled: ${AI_CACHE_ENABLED:true}
+      chat-ttl-seconds: 300
+      rag-ttl-seconds: 3600
+      embedding-ttl-seconds: 86400
+    # Circuit breaker configuration
+    circuit-breaker:
+      failure-threshold: 5
+      recovery-timeout-seconds: 60
+      half-open-requests: 3
+    # Cost/budget monitoring
+    pricing:
+      input-per-1k: 0.00015
+      output-per-1k: 0.0006
+      embedding-per-1k: 0.00002
+    budget:
+      daily-limit: ${AI_BUDGET_DAILY:100.0}
+      monthly-limit: ${AI_BUDGET_MONTHLY:2000.0}
+      alert-threshold: 0.8
   jwt:
     secret: ${JWT_SECRET:myVeryLongAndSecureSecretKeyForHS512AlgorithmThatIsAtLeast64CharactersLongAndSecure123456789} # Updated secret - must be at least 512 bits (64 bytes)
     access-token-expiration: 900  # 15 minutes

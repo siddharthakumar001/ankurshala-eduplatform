@@ -16,7 +16,6 @@ import {
   Info,
   Loader2,
   CheckCheck,
-  Filter,
   Settings,
   Smartphone
 } from 'lucide-react'
@@ -50,7 +49,16 @@ interface StudentNotificationSettings {
   preferredNotificationTime: string
 }
 
+// Two-component pattern: prevents API calls before auth is verified
 export default function StudentNotificationsPage() {
+  return (
+    <StudentRoute>
+      <NotificationsContent />
+    </StudentRoute>
+  )
+}
+
+function NotificationsContent() {
   const [activeTab, setActiveTab] = useState('notifications')
   const [loading, setLoading] = useState(true)
   const [notifications, setNotifications] = useState<StudentNotification[]>([])
@@ -77,19 +85,25 @@ export default function StudentNotificationsPage() {
       const unreadData = await studentAPI.getUnreadNotifications()
       setUnreadCount(unreadData.length)
       
-      // Mock settings for now (no API endpoint yet)
-      setSettings({
-        emailNotifications: true,
-        smsNotifications: false,
-        pushNotifications: true,
-        bookingConfirmations: true,
-        sessionReminders: true,
-        paymentNotifications: true,
-        feedbackReminders: false,
-        promotionalEmails: false,
-        reminderMinutesBeforeSession: 30,
-        preferredNotificationTime: '09:00'
-      })
+      // Fetch settings from API (with fallback for new users)
+      try {
+        const settingsData = await studentAPI.getNotificationSettings()
+        setSettings(settingsData)
+      } catch {
+        // Fallback defaults for new users who haven't set preferences
+        setSettings({
+          emailNotifications: true,
+          smsNotifications: false,
+          pushNotifications: true,
+          bookingConfirmations: true,
+          sessionReminders: true,
+          paymentNotifications: true,
+          feedbackReminders: false,
+          promotionalEmails: false,
+          reminderMinutesBeforeSession: 30,
+          preferredNotificationTime: '09:00'
+        })
+      }
       
     } catch (error) {
       console.error('Error fetching notification data:', error)
@@ -187,7 +201,7 @@ export default function StudentNotificationsPage() {
 
   if (loading) {
     return (
-      <StudentRoute>
+      <>
         <StudentNavigation />
         <div className="min-h-screen bg-gray-50 py-8">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -197,12 +211,12 @@ export default function StudentNotificationsPage() {
             </div>
           </div>
         </div>
-      </StudentRoute>
+      </>
     )
   }
 
   return (
-    <StudentRoute>
+    <>
       <StudentNavigation />
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -512,6 +526,6 @@ export default function StudentNotificationsPage() {
           </div>
         </div>
       </div>
-    </StudentRoute>
+    </>
   )
 }

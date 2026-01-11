@@ -275,4 +275,71 @@ public class WebSocketNotificationService {
         
         log.info("Broadcasted to all students");
     }
+
+    /**
+     * Notify student that booking status changed to CONFIRMED
+     * Triggered when payment is processed successfully
+     */
+    public void notifyBookingConfirmed(Booking booking) {
+        log.info("Sending booking confirmed notification to student {}", booking.getStudent().getId());
+        
+        Map<String, Object> notification = new HashMap<>();
+        notification.put("type", "booking.confirmed");
+        notification.put("bookingId", booking.getId());
+        notification.put("status", "CONFIRMED");
+        notification.put("teacherName", booking.getTeacher() != null ? booking.getTeacher().getName() : "TBD");
+        notification.put("startTime", booking.getStartTs());
+        notification.put("endTime", booking.getEndTs());
+        notification.put("topicTitle", booking.getTopic() != null ? booking.getTopic().getTitle() : "Unknown");
+        notification.put("message", "Your booking has been confirmed and is ready!");
+        
+        String destination = "/topic/student/" + booking.getStudent().getId();
+        messagingTemplate.convertAndSend(destination, notification);
+        
+        log.info("Sent booking confirmed notification to {}", destination);
+    }
+
+    /**
+     * Notify student that booking status changed to IN_PROGRESS
+     * Triggered when teacher starts the session
+     */
+    public void notifyBookingInProgress(Booking booking) {
+        log.info("Sending booking in-progress notification to student {}", booking.getStudent().getId());
+        
+        Map<String, Object> notification = new HashMap<>();
+        notification.put("type", "booking.in_progress");
+        notification.put("bookingId", booking.getId());
+        notification.put("status", "IN_PROGRESS");
+        notification.put("teacherName", booking.getTeacher() != null ? booking.getTeacher().getName() : "TBD");
+        notification.put("topicTitle", booking.getTopic() != null ? booking.getTopic().getTitle() : "Unknown");
+        notification.put("message", "Your session has started! You can now use the live notes feature.");
+        notification.put("companionReady", true);
+        
+        String destination = "/topic/student/" + booking.getStudent().getId();
+        messagingTemplate.convertAndSend(destination, notification);
+        
+        log.info("Sent booking in-progress notification to {}", destination);
+    }
+
+    /**
+     * Notify student that booking status changed to COMPLETED
+     * Triggered when teacher ends the session
+     */
+    public void notifyBookingCompleted(Booking booking) {
+        log.info("Sending booking completed notification to student {}", booking.getStudent().getId());
+        
+        Map<String, Object> notification = new HashMap<>();
+        notification.put("type", "booking.completed");
+        notification.put("bookingId", booking.getId());
+        notification.put("status", "COMPLETED");
+        notification.put("teacherName", booking.getTeacher() != null ? booking.getTeacher().getName() : "TBD");
+        notification.put("topicTitle", booking.getTopic() != null ? booking.getTopic().getTitle() : "Unknown");
+        notification.put("message", "Your session has been completed. Check the post-session summary!");
+        notification.put("postSummaryAvailable", true);
+        
+        String destination = "/topic/student/" + booking.getStudent().getId();
+        messagingTemplate.convertAndSend(destination, notification);
+        
+        log.info("Sent booking completed notification to {}", destination);
+    }
 }

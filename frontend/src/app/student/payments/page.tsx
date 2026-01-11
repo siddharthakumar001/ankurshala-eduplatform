@@ -77,7 +77,16 @@ interface StudentPaymentMethod {
   updatedAt: string
 }
 
+// Two-component pattern: prevents API calls before auth is verified
 export default function StudentPaymentPage() {
+  return (
+    <StudentRoute>
+      <PaymentContent />
+    </StudentRoute>
+  )
+}
+
+function PaymentContent() {
   const [activeTab, setActiveTab] = useState('overview')
   const [loading, setLoading] = useState(true)
   const [billingSummary, setBillingSummary] = useState<StudentBillingSummary | null>(null)
@@ -202,7 +211,7 @@ export default function StudentPaymentPage() {
 
   if (loading) {
     return (
-      <StudentRoute>
+      <>
         <StudentNavigation />
         <div className="min-h-screen bg-gray-50 py-8">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -212,12 +221,12 @@ export default function StudentPaymentPage() {
             </div>
           </div>
         </div>
-      </StudentRoute>
+      </>
     )
   }
 
   return (
-    <StudentRoute>
+    <>
       <StudentNavigation />
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -508,6 +517,6 @@ export default function StudentPaymentPage() {
           </Tabs>
         </div>
       </div>
-    </StudentRoute>
+    </>
   )
 }

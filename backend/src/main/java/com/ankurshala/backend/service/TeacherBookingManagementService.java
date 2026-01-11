@@ -42,6 +42,9 @@ public class TeacherBookingManagementService {
     @Autowired
     private TeacherSessionFeedbackRepository teacherSessionFeedbackRepository;
 
+    @Autowired(required = false)
+    private WebSocketNotificationService webSocketNotificationService;
+
     // ============ BOOKING ACCEPTANCE/DECLINE ============
     
     public Booking acceptBooking(Long teacherId, Long bookingId) {
@@ -155,11 +158,16 @@ public class TeacherBookingManagementService {
             throw new RuntimeException("Session can only be started within 15 minutes of scheduled time");
         }
         
-        // Update booking status to indicate session has started
-        // Note: You might want to add a new status like "IN_PROGRESS" or use a separate field
-        booking.setState("COMPLETED"); // For now, we'll mark as completed
+        // Update booking status to IN_PROGRESS
+        booking.setStatus(BookingStatus.IN_PROGRESS);
+        booking.setState("ACTIVE");
         
         Booking saved = bookingRepository.save(booking);
+        
+        // Notify student via WebSocket that session has started
+        if (webSocketNotificationService != null) {
+            webSocketNotificationService.notifyBookingInProgress(saved);
+        }
         
         log.info("Session started successfully for booking {} by teacher {}", bookingId, teacherId);
         return saved;
@@ -177,9 +185,15 @@ public class TeacherBookingManagementService {
         
         // Update booking with session notes
         booking.setTeacherNotes(sessionNotes);
+        booking.setStatus(BookingStatus.COMPLETED);
         booking.setState("COMPLETED");
         
         Booking saved = bookingRepository.save(booking);
+        
+        // Notify student via WebSocket that session has completed
+        if (webSocketNotificationService != null) {
+            webSocketNotificationService.notifyBookingCompleted(saved);
+        }
         
         // Update performance metrics
         updatePerformanceMetrics(teacherId, saved, "COMPLETED");

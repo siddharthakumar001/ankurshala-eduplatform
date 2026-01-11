@@ -59,7 +59,7 @@ public class AIService {
             }
 
             // Generate quiz questions (stub implementation)
-            List<QuizQuestion> questions = generateQuizQuestions(subject, topic, request.getNumQuestions(), request.getDifficulty());
+            List<com.ankurshala.backend.dto.ai.QuizQuestion> questions = generateQuizQuestions(subject, topic, request.getNumQuestions(), request.getDifficulty());
 
             GeneratedQuiz quiz = new GeneratedQuiz();
             quiz.setQuizId(System.currentTimeMillis()); // Stub ID
@@ -211,11 +211,11 @@ public class AIService {
     }
 
     // Stub implementations for AI functionality
-    private List<QuizQuestion> generateQuizQuestions(Subject subject, Topic topic, Integer numQuestions, String difficulty) {
-        List<QuizQuestion> questions = new ArrayList<>();
+    private List<com.ankurshala.backend.dto.ai.QuizQuestion> generateQuizQuestions(Subject subject, Topic topic, Integer numQuestions, String difficulty) {
+        List<com.ankurshala.backend.dto.ai.QuizQuestion> questions = new ArrayList<>();
         
         for (int i = 0; i < numQuestions; i++) {
-            QuizQuestion question = new QuizQuestion();
+            com.ankurshala.backend.dto.ai.QuizQuestion question = new com.ankurshala.backend.dto.ai.QuizQuestion();
             question.setQuestion("Sample question " + (i + 1) + " about " + subject.getName() + "?");
             question.setOptions(Arrays.asList("Option A", "Option B", "Option C", "Option D"));
             question.setCorrectAnswer(i % 4); // Stub correct answer

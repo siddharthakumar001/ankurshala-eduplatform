@@ -395,6 +395,276 @@ export const studentAPI = {
   completeSession: async (id: number, feedback: string, rating: number) => {
     const response = await protectedAPI.post(`/student/sessions/${id}/complete`, { feedback, rating })
     return response.data
+  },
+
+  // Notes Management (AI-generated notes)
+  generateNotes: async (topicId: number, format: 'SHORT' | 'LONG' | 'REVISION_SHEET', language: string = 'en', customTitle?: string) => {
+    const response = await protectedAPI.post('/student/notes/generate', { topicId, format, language, customTitle })
+    return response.data
+  },
+
+  getNotes: async (params?: { topicId?: number; subjectId?: number; format?: string; language?: string; isFavorite?: boolean; search?: string; page?: number; size?: number }) => {
+    const response = await protectedAPI.get('/student/notes', { params })
+    return response.data
+  },
+
+  getNoteById: async (noteId: number) => {
+    const response = await protectedAPI.get(`/student/notes/${noteId}`)
+    return response.data
+  },
+
+  getNoteVersions: async (noteId: number) => {
+    const response = await protectedAPI.get(`/student/notes/${noteId}/versions`)
+    return response.data
+  },
+
+  getNotesStats: async () => {
+    const response = await protectedAPI.get('/student/notes/stats')
+    return response.data
+  },
+
+  updateNote: async (noteId: number, data: { title?: string; isFavorite?: boolean }) => {
+    const response = await protectedAPI.put(`/student/notes/${noteId}`, data)
+    return response.data
+  },
+
+  regenerateNote: async (noteId: number, language?: string) => {
+    const response = await protectedAPI.post(`/student/notes/${noteId}/regenerate`, { noteId, language })
+    return response.data
+  },
+
+  archiveNote: async (noteId: number) => {
+    const response = await protectedAPI.delete(`/student/notes/${noteId}`)
+    return response.data
+  },
+
+  toggleNoteFavorite: async (noteId: number) => {
+    const response = await protectedAPI.post(`/student/notes/${noteId}/favorite`)
+    return response.data
+  },
+
+  exportNote: async (noteId: number) => {
+    const response = await protectedAPI.get(`/student/notes/${noteId}/export`, { responseType: 'blob' })
+    return response.data
+  },
+
+  // Focus Mode + Study Sprints
+  getFocusSettings: async () => {
+    const response = await protectedAPI.get('/student/focus/settings')
+    return response.data
+  },
+
+  updateFocusSettings: async (settings: { focusEnabled?: boolean; defaultSprintMinutes?: number; languagePref?: string; reminderEnabled?: boolean; soundEnabled?: boolean }) => {
+    const response = await protectedAPI.put('/student/focus/settings', settings)
+    return response.data
+  },
+
+  startFocusSession: async (data: { topicId: number; goalText: string; sprintMinutes?: number; language?: string }) => {
+    const response = await protectedAPI.post('/student/focus/sessions', data)
+    return response.data
+  },
+
+  getActiveFocusSession: async () => {
+    const response = await protectedAPI.get('/student/focus/sessions/active')
+    return response.data
+  },
+
+  getFocusSession: async (sessionId: number) => {
+    const response = await protectedAPI.get(`/student/focus/sessions/${sessionId}`)
+    return response.data
+  },
+
+  generateFocusCheckin: async (sessionId: number) => {
+    const response = await protectedAPI.post(`/student/focus/sessions/${sessionId}/checkin`)
+    return response.data
+  },
+
+  submitFocusCheckin: async (sessionId: number, stepNumber: number, responseText: string) => {
+    const response = await protectedAPI.post(`/student/focus/sessions/${sessionId}/checkin/${stepNumber}/respond`, { responseText })
+    return response.data
+  },
+
+  endFocusSession: async (sessionId: number) => {
+    const response = await protectedAPI.post(`/student/focus/sessions/${sessionId}/end`)
+    return response.data
+  },
+
+  getFocusSessionHistory: async (page?: number, size?: number) => {
+    const response = await protectedAPI.get('/student/focus/sessions', { params: { page, size } })
+    return response.data
+  },
+
+  getFocusStats: async () => {
+    const response = await protectedAPI.get('/student/focus/stats')
+    return response.data
+  },
+
+  // Daily Practice Loop
+  getPracticePreferences: async () => {
+    const response = await protectedAPI.get('/student/practice/preferences')
+    return response.data
+  },
+
+  updatePracticePreferences: async (prefs: { 
+    enabled?: boolean; 
+    dailyQuestionCount?: number; 
+    preferredTimeLocal?: string; 
+    language?: string;
+    notificationEnabled?: boolean;
+  }) => {
+    const response = await protectedAPI.put('/student/practice/preferences', prefs)
+    return response.data
+  },
+
+  getTodayPractice: async () => {
+    const response = await protectedAPI.get('/student/practice/today')
+    return response.data
+  },
+
+  startPractice: async (practiceId: number) => {
+    const response = await protectedAPI.post(`/student/practice/${practiceId}/start`)
+    return response.data
+  },
+
+  submitPractice: async (practiceId: number, answers: { questionId: number; selectedAnswer: string }[]) => {
+    const response = await protectedAPI.post(`/student/practice/${practiceId}/submit`, { answers })
+    return response.data
+  },
+
+  skipPractice: async (practiceId: number) => {
+    const response = await protectedAPI.post(`/student/practice/${practiceId}/skip`)
+    return response.data
+  },
+
+  getPracticeHistory: async (days: number = 30) => {
+    const response = await protectedAPI.get('/student/practice/history', { params: { days } })
+    return response.data
+  },
+
+  // Session Companion (Live Class Support)
+  getCompanion: async (bookingId: number) => {
+    const response = await protectedAPI.get(`/student/bookings/${bookingId}/companion`)
+    return response.data
+  },
+
+  generateCompanionPrep: async (bookingId: number, language: string = 'en', generateWarmupQuiz: boolean = true) => {
+    const response = await protectedAPI.post(`/student/bookings/${bookingId}/companion/prep`, { language, generateWarmupQuiz })
+    return response.data
+  },
+
+  getWarmupQuiz: async (bookingId: number) => {
+    const response = await protectedAPI.get(`/student/bookings/${bookingId}/companion/warmup`)
+    return response.data
+  },
+
+  markWarmupCompleted: async (bookingId: number) => {
+    const response = await protectedAPI.post(`/student/bookings/${bookingId}/companion/warmup/complete`)
+    return response.data
+  },
+
+  addCompanionNote: async (bookingId: number, content: string, noteType: string = 'NOTE', timestampInSession?: number) => {
+    const response = await protectedAPI.post(`/student/bookings/${bookingId}/companion/live-notes`, { 
+      content, 
+      noteType, 
+      timestampInSession 
+    })
+    return response.data
+  },
+
+  getCompanionNotes: async (bookingId: number) => {
+    const response = await protectedAPI.get(`/student/bookings/${bookingId}/companion/notes`)
+    return response.data
+  },
+
+  generateCompanionPost: async (bookingId: number, language: string = 'en', generateHomework: boolean = true, updateMastery: boolean = true) => {
+    const response = await protectedAPI.post(`/student/bookings/${bookingId}/companion/post`, { 
+      language, 
+      generateHomework, 
+      updateMastery 
+    })
+    return response.data
+  },
+
+  // Today Home (Daily Plan)
+  getDailyPlan: async () => {
+    const response = await protectedAPI.get('/student/today')
+    return response.data
+  },
+
+  completeStep: async (request: { stepType: string; stepIdentifier: string; metadata?: Record<string, any> }) => {
+    const response = await protectedAPI.post('/student/today/complete-step', request)
+    return response.data
+  },
+
+  // AI Tutor Chat
+  sendChatMessage: async (message: string, sessionId?: string, topicId?: number, subjectId?: number) => {
+    const response = await protectedAPI.post('/student/ai/chat', {
+      message,
+      sessionId,
+      topicId,
+      subjectId,
+      language: 'en'
+    })
+    return response.data
+  },
+
+  streamChatMessage: async (
+    message: string, 
+    onChunk: (chunk: string) => void,
+    sessionId?: string,
+    topicId?: number,
+    subjectId?: number
+  ) => {
+    const response = await fetch(`${protectedAPI.defaults.baseURL}/student/ai/chat/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({
+        message,
+        sessionId,
+        topicId,
+        subjectId,
+        language: 'en'
+      })
+    });
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) throw new Error('No reader available');
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+      
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') continue;
+          try {
+            const parsed = JSON.parse(data);
+            onChunk(parsed.content || '');
+          } catch (e) {
+            console.error('Failed to parse SSE data', e);
+          }
+        }
+      }
+    }
+  },
+
+  getAIHealth: async () => {
+    const response = await protectedAPI.get('/student/ai/health')
+    return response.data
+  },
+
+  getAIUsage: async () => {
+    const response = await protectedAPI.get('/student/ai/usage')
+    return response.data
   }
 }
 

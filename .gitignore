@@ -70,7 +70,10 @@ dist
 
 # Gatsby files
 .cache/
-public
+/public
+
+# Allow frontend public directory (logos, favicon, etc.)
+!frontend/public/
 
 # Storybook build outputs
 .out
@@ -189,7 +192,10 @@ vm-*.sh
 stage1-*.sh
 
 # Development assets
+# Ignore temp PNG files but allow frontend assets
 *.png
+!frontend/public/*.png
+!frontend/*.png
 cookies.txt
 azure-credentials-template.json
 

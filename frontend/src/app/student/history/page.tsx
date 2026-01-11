@@ -10,9 +10,18 @@ import { Badge } from '@/components/ui/badge'
 import { bookingService, BookingResponse } from '@/services/bookingService'
 import { StudentRoute } from '@/components/route-guard'
 import { toast } from 'sonner'
-import { Search, ChevronLeft, ChevronRight, Calendar, Clock, User, DollarSign, FileText } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight, Calendar, Clock, User, DollarSign, FileText, Loader2 } from 'lucide-react'
 
+// Two-component pattern: prevents API calls before auth is verified
 export default function BookingHistoryPage() {
+  return (
+    <StudentRoute>
+      <HistoryContent />
+    </StudentRoute>
+  )
+}
+
+function HistoryContent() {
   const router = useRouter()
   const [bookings, setBookings] = useState<BookingResponse[]>([])
   const [filteredBookings, setFilteredBookings] = useState<BookingResponse[]>([])
@@ -113,9 +122,16 @@ export default function BookingHistoryPage() {
   const completedCount = bookings.filter(b => b.status === 'COMPLETED').length
   const confirmedCount = bookings.filter(b => b.status === 'CONFIRMED').length
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+      </div>
+    )
+  }
+
   return (
-    <StudentRoute>
-      <div className="container mx-auto py-8 px-4">
+    <div className="container mx-auto py-8 px-4">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2 dark:text-white">Booking History</h1>
           <p className="text-gray-600 dark:text-gray-400">View and manage your past bookings</p>
@@ -170,12 +186,7 @@ export default function BookingHistoryPage() {
           </CardContent>
         </Card>
 
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"></div>
-            <p className="mt-4 text-gray-600 dark:text-gray-400">Loading booking history...</p>
-          </div>
-        ) : filteredBookings.length === 0 ? (
+        {filteredBookings.length === 0 ? (
           <Card className="dark:bg-gray-800">
             <CardContent className="text-center py-12">
               <Calendar className="h-16 w-16 mx-auto text-gray-400 mb-4" />
@@ -292,6 +303,5 @@ export default function BookingHistoryPage() {
           </div>
         )}
       </div>
-    </StudentRoute>
   )
 }

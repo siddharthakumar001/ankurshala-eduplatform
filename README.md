@@ -239,11 +239,27 @@ cd backend
 
 ### E2E Testing (Playwright)
 
-#### Quick E2E Test Run
-```bash
-# Start services and run E2E tests
-./scripts/run-local-e2e.sh
+#### ⚡ Quick Start (Recommended) - NEW January 10, 2026
+```powershell
+# One command to start everything and run E2E tests
+.\run-e2e-local.ps1
+
+# View test report
+cd frontend
+npx playwright show-report
 ```
+
+**What it does:**
+- ✅ Starts backend with DEV AI mode (zero external API costs)
+- ✅ Auto-seeds deterministic test data (5 test accounts)
+- ✅ Starts frontend dev server
+- ✅ Runs complete Playwright test suite
+- ✅ Generates HTML report
+
+**Test Credentials (Auto-Seeded):**
+- Student 1: `student-e2e1@ankurshala.com` / `Test@123`
+- Student 2: `student-e2e2@ankurshala.com` / `Test@123`
+- Admin: `admin-e2e@ankurshala.com` / `Test@123`
 
 #### Manual E2E Test Execution
 ```bash
@@ -264,6 +280,18 @@ npm run test:e2e:ui           # Interactive UI mode
 ```
 
 #### E2E Test Coverage
+
+**Student Flow Tests (NEW):**
+- ✅ **Dashboard Navigation**: Stats, quick actions, upcoming classes
+- ✅ **Today Home**: Daily plan, progress tracking, step completion
+- ✅ **AI Tutor Chat**: Streaming responses, suggested actions, voice mode
+- ✅ **Practice Flow**: Start session, submit answers, view results
+- ✅ **Notes Creation**: Generate from AI chat, save, organize
+- ✅ **Focus Sessions**: Start timer, check-ins, AI scoping
+- ✅ **Booking Companion**: Prep generation, warmup, live notes, summary
+- ✅ **DEV AI Provider**: Deterministic responses, RAG retrieval
+
+**Authentication & RBAC:**
 - ✅ **Authentication Flow**: Login, logout, token refresh
 - ✅ **Student Profile**: CRUD operations, document management
 - ✅ **Teacher Profile**: All tabs, nested resources, bank details masking

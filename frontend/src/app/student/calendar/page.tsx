@@ -28,7 +28,16 @@ import { bookingService, CalendarEvent } from '@/services/bookingService';
 import { toast } from 'sonner';
 import { StudentRoute } from '@/components/route-guard';
 
+// Two-component pattern: prevents API calls before auth is verified
 export default function StudentCalendarPage() {
+  return (
+    <StudentRoute>
+      <CalendarContent />
+    </StudentRoute>
+  );
+}
+
+function CalendarContent() {
   const router = useRouter();
   const [bookings, setBookings] = useState<CalendarEvent[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -135,17 +144,14 @@ export default function StudentCalendarPage() {
 
   if (isLoading) {
     return (
-      <StudentRoute>
-        <div className="flex items-center justify-center min-h-screen">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-        </div>
-      </StudentRoute>
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+      </div>
     );
   }
 
   return (
-    <StudentRoute>
-      <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Calendar</h1>
@@ -353,6 +359,5 @@ export default function StudentCalendarPage() {
         </CardContent>
       </Card>
     </div>
-    </StudentRoute>
   );
 }

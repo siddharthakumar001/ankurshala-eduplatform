@@ -27,7 +27,16 @@ interface StudyListItem {
   lastUpdatedAt: string
 }
 
+// Two-component pattern: prevents API calls before auth is verified
 export default function StudentStudyListPage() {
+  return (
+    <StudentRoute>
+      <StudyListContent />
+    </StudentRoute>
+  )
+}
+
+function StudyListContent() {
   const [items, setItems] = useState<StudyListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'ALL' | 'ADDED' | 'IN_PROGRESS' | 'DONE'>('ALL')
@@ -40,13 +49,10 @@ export default function StudentStudyListPage() {
   const router = useRouter()
   const { user } = useAuthStore()
 
+  // Load study list on mount - auth already verified by StudentRoute
   useEffect(() => {
-    if (!user) {
-      router.push('/login')
-      return
-    }
     loadStudyList()
-  }, [user, router])
+  }, [])
 
   const loadStudyList = async () => {
     try {
@@ -183,8 +189,7 @@ export default function StudentStudyListPage() {
   }
 
   return (
-    <StudentRoute>
-      <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
@@ -473,6 +478,5 @@ export default function StudentStudyListPage() {
           )}
         </div>
       </div>
-    </StudentRoute>
   )
 }

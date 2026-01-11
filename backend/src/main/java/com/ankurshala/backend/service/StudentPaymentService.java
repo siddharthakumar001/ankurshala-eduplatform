@@ -36,6 +36,9 @@ public class StudentPaymentService {
     @Autowired
     private KafkaTemplate<String, Object> kafkaTemplate;
 
+    @Autowired(required = false)
+    private WebSocketNotificationService webSocketNotificationService;
+
     public StudentBillingSummaryDto getBillingSummary(UserPrincipal userPrincipal) {
         log.info("Getting billing summary for student {}", userPrincipal.getId());
         
@@ -348,6 +351,11 @@ public class StudentPaymentService {
         if (booking.getStatus() == BookingStatus.PENDING) {
             booking.setStatus(BookingStatus.CONFIRMED);
             bookingRepository.save(booking);
+            
+            // Notify student via WebSocket that booking is confirmed
+            if (webSocketNotificationService != null) {
+                webSocketNotificationService.notifyBookingConfirmed(booking);
+            }
         }
 
         // Send payment confirmation notification
