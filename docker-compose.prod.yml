@@ -169,7 +169,7 @@ services:
       - .env-prod
     depends_on:
       backend:
-        condition: service_healthy
+        condition: service_started  # Changed from service_healthy - backend health includes curriculum data check
     ports:
       - "127.0.0.1:3000:3000"
     environment:
