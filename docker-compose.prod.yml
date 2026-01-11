@@ -1,5 +1,5 @@
 services:
-  # -------- Postgres with pgvector --------
+  # -------- Postgres with pgvector for AI embeddings --------
   postgres:
     image: pgvector/pgvector:pg15
     container_name: ankurshala_db_prod
