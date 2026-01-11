@@ -73,8 +73,15 @@ echo -e "${YELLOW}Step 7: Starting Docker services...${NC}"
 cd /opt/ankurshala
 docker compose -f docker-compose.prod.yml up -d
 
-echo -e "${YELLOW}Step 8: Waiting for services to start...${NC}"
-sleep 15
+echo -e "${YELLOW}Step 8: Waiting for services to start (this may take 2-3 minutes)...${NC}"
+echo "  Waiting for database..."
+sleep 20
+echo "  Waiting for Redis and Kafka..."
+sleep 20
+echo "  Waiting for backend to start..."
+sleep 30
+echo "  Waiting for backend health check..."
+sleep 30
 
 echo -e "${YELLOW}Step 9: Checking service status...${NC}"
 docker ps --format 'table {{.Names}}\t{{.Status}}'
