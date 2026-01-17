@@ -139,6 +139,12 @@ spring.ai:
     api-key: ${OPENAI_API_KEY:}
     model: ${OPENAI_MODEL:gpt-4o-mini}
     embedding-model: ${OPENAI_EMBEDDING_MODEL:text-embedding-ada-002}
+  azure:
+    openai:
+      endpoint: ${AZURE_OPENAI_ENDPOINT:}
+      api-key: ${AZURE_OPENAI_API_KEY:}
+      deployment-name: ${AZURE_OPENAI_DEPLOYMENT_NAME:gpt-4o-mini}
+      embedding-deployment-name: ${AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME:text-embedding-ada-002}
 
 # Application-specific configuration
 app:
@@ -149,12 +155,17 @@ app:
   ai:
     enabled: ${AI_ENABLED:false}
     dev-mode: ${AI_DEV_MODE:${DEMO_ENV:local}}  # true in local, false in prod
-    provider: ${AI_PROVIDER:openai}
+    provider: ${AI_PROVIDER:openai}  # openai, azure-openai
     max-tokens: ${AI_MAX_TOKENS:2000}
     temperature: ${AI_TEMPERATURE:0.7}
     timeout-seconds: ${AI_TIMEOUT_SECONDS:30}
     safety:
       enabled: ${AI_SAFETY_ENABLED:true}
+    azure:
+      speech:
+        key: ${AZURE_SPEECH_KEY:}
+        region: ${AZURE_SPEECH_REGION:}
+        language: ${AZURE_SPEECH_LANGUAGE:en-IN}
     # Rate limiting configuration
     rate-limit:
       enabled: ${AI_RATE_LIMIT_ENABLED:true}

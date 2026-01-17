@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -89,11 +89,7 @@ export default function AdminAnalyticsPage() {
   const [importAnalytics, setImportAnalytics] = useState<ImportAnalytics | null>(null)
   const [series, setSeries] = useState<any[] | null>(null)
 
-  useEffect(() => {
-    fetchAnalytics()
-  }, [dateRange])
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     try {
       setLoading(true)
       
@@ -162,7 +158,11 @@ export default function AdminAnalyticsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [dateRange])
+
+  useEffect(() => {
+    fetchAnalytics()
+  }, [fetchAnalytics])
 
   const getDateFromRange = (range: string) => {
     const now = new Date()
@@ -221,7 +221,11 @@ export default function AdminAnalyticsPage() {
 
   return (
     <DashboardLayout role="admin">
-      <div className="space-y-6">
+      <div className="space-y-6 relative">
+        <div className="pointer-events-none absolute inset-0 -z-10">
+          <div className="absolute -top-20 right-8 h-72 w-72 rounded-full bg-ankur-primary/10 blur-3xl" />
+          <div className="absolute bottom-0 left-8 h-64 w-64 rounded-full bg-ankur-accent/10 blur-3xl" />
+        </div>
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -252,7 +256,7 @@ export default function AdminAnalyticsPage() {
 
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="p-6">
+          <Card className="p-6 glass hover-lift">
             <div className="flex items-center">
               <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
                 <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -269,7 +273,7 @@ export default function AdminAnalyticsPage() {
             </div>
           </Card>
 
-          <Card className="p-6">
+          <Card className="p-6 glass hover-lift">
             <div className="flex items-center">
               <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
                 <BookOpen className="h-6 w-6 text-green-600 dark:text-green-400" />
@@ -286,7 +290,7 @@ export default function AdminAnalyticsPage() {
             </div>
           </Card>
 
-          <Card className="p-6">
+          <Card className="p-6 glass hover-lift">
             <div className="flex items-center">
               <div className="p-2 bg-yellow-100 dark:bg-yellow-900 rounded-lg">
                 <Upload className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
@@ -305,7 +309,7 @@ export default function AdminAnalyticsPage() {
             </div>
           </Card>
 
-          <Card className="p-6">
+          <Card className="p-6 glass hover-lift">
             <div className="flex items-center">
               <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
                 <Activity className="h-6 w-6 text-purple-600 dark:text-purple-400" />
@@ -325,7 +329,7 @@ export default function AdminAnalyticsPage() {
 
         {/* Analytics Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="content">Content</TabsTrigger>
@@ -336,7 +340,7 @@ export default function AdminAnalyticsPage() {
             {/* Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* User Growth Chart */}
-              <Card className="p-6">
+              <Card className="p-6 glass">
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">User Growth</h3>
                   <div className="h-64">
@@ -356,7 +360,7 @@ export default function AdminAnalyticsPage() {
               </Card>
 
               {/* Content Distribution */}
-              <Card className="p-6">
+              <Card className="p-6 glass">
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Content Distribution</h3>
                   <div className="h-64">
@@ -385,7 +389,7 @@ export default function AdminAnalyticsPage() {
             </div>
 
             {/* Overview Table */}
-            <Card className="p-6">
+            <Card className="p-6 glass">
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Key Metrics</h3>
                 <div className="overflow-hidden border border-gray-200 dark:border-gray-700 rounded-lg">
@@ -445,7 +449,7 @@ export default function AdminAnalyticsPage() {
           <TabsContent value="users" className="space-y-6">
             {/* User Analytics */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="p-6">
+              <Card className="p-6 glass">
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Board Distribution</h3>
                   <div className="h-64">
@@ -462,7 +466,7 @@ export default function AdminAnalyticsPage() {
                 </div>
               </Card>
 
-              <Card className="p-6">
+              <Card className="p-6 glass">
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">User Statistics</h3>
                   <div className="space-y-4">
@@ -499,7 +503,7 @@ export default function AdminAnalyticsPage() {
           <TabsContent value="content" className="space-y-6">
             {/* Content Analytics */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card className="p-6">
+              <Card className="p-6 glass">
                 <div className="flex items-center">
                   <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
                     <BookOpen className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -516,7 +520,7 @@ export default function AdminAnalyticsPage() {
                 </div>
               </Card>
 
-              <Card className="p-6">
+              <Card className="p-6 glass">
                 <div className="flex items-center">
                   <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
                     <GraduationCap className="h-6 w-6 text-green-600 dark:text-green-400" />
@@ -644,7 +648,7 @@ export default function AdminAnalyticsPage() {
             </div>
 
             {/* Success Rate Chart */}
-            <Card className="p-6">
+            <Card className="p-6 glass">
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Import Success Rate</h3>
                 <div className="h-64">

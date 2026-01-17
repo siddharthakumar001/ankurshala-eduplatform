@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -81,11 +81,40 @@ export default function AdminFeesPage() {
     notes: ''
   })
 
-  useEffect(() => {
-    fetchAllData()
+  const fetchFeeWaivers = useCallback(async () => {
+    try {
+      const response = await api.get('/admin/fees/waivers')
+      const data = response.data as any
+      setFeeWaivers(data.content || data)
+    } catch (error) {
+      console.error('Error fetching fee waivers:', error)
+      toast.error('Failed to fetch fee waivers')
+    }
   }, [])
 
-  const fetchAllData = async () => {
+  const fetchUsers = useCallback(async () => {
+    try {
+      const response = await api.get('/admin/students')
+      const data = response.data as any
+      setUsers(data.content || data)
+    } catch (error) {
+      console.error('Error fetching users:', error)
+      toast.error('Failed to fetch users')
+    }
+  }, [])
+
+  const fetchStats = useCallback(async () => {
+    try {
+      const response = await api.get('/admin/fees/waivers/stats')
+      const data = response.data as any
+      setStats(data)
+    } catch (error) {
+      console.error('Error fetching fee waiver stats:', error)
+      toast.error('Failed to fetch statistics')
+    }
+  }, [])
+
+  const fetchAllData = useCallback(async () => {
     setLoading(true)
     try {
       await Promise.all([
@@ -99,40 +128,11 @@ export default function AdminFeesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [fetchFeeWaivers, fetchUsers, fetchStats])
 
-  const fetchFeeWaivers = async () => {
-    try {
-      const response = await api.get('/admin/fees/waivers')
-      const data = response.data as any
-      setFeeWaivers(data.content || data)
-    } catch (error) {
-      console.error('Error fetching fee waivers:', error)
-      toast.error('Failed to fetch fee waivers')
-    }
-  }
-
-  const fetchUsers = async () => {
-    try {
-      const response = await api.get('/admin/students')
-      const data = response.data as any
-      setUsers(data.content || data)
-    } catch (error) {
-      console.error('Error fetching users:', error)
-      toast.error('Failed to fetch users')
-    }
-  }
-
-  const fetchStats = async () => {
-    try {
-      const response = await api.get('/admin/fees/waivers/stats')
-      const data = response.data as any
-      setStats(data)
-    } catch (error) {
-      console.error('Error fetching fee waiver stats:', error)
-      toast.error('Failed to fetch statistics')
-    }
-  }
+  useEffect(() => {
+    fetchAllData()
+  }, [fetchAllData])
 
   const handleCreateWaiver = async () => {
     // Form validation
@@ -238,9 +238,13 @@ export default function AdminFeesPage() {
 
   return (
     <DashboardLayout role="admin">
-      <div className="space-y-6">
+      <div className="space-y-6 relative">
+        <div className="pointer-events-none absolute inset-0 -z-10">
+          <div className="absolute -top-20 right-6 h-72 w-72 rounded-full bg-ankur-primary/10 blur-3xl" />
+          <div className="absolute bottom-0 left-8 h-64 w-64 rounded-full bg-ankur-accent/10 blur-3xl" />
+        </div>
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Fee Waivers</h1>
             <p className="text-gray-600 dark:text-gray-400">Manage fee waivers and exemptions</p>
@@ -257,7 +261,7 @@ export default function AdminFeesPage() {
         {/* Stats Cards */}
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-            <Card className="p-6">
+            <Card className="p-6 glass hover-lift">
               <div className="flex items-center">
                 <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
                   <CreditCard className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -271,7 +275,7 @@ export default function AdminFeesPage() {
               </div>
             </Card>
 
-            <Card className="p-6">
+            <Card className="p-6 glass hover-lift">
               <div className="flex items-center">
                 <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
                   <DollarSign className="h-6 w-6 text-green-600 dark:text-green-400" />
@@ -288,7 +292,7 @@ export default function AdminFeesPage() {
               </div>
             </Card>
 
-            <Card className="p-6">
+            <Card className="p-6 glass hover-lift">
               <div className="flex items-center">
                 <div className="p-2 bg-yellow-100 dark:bg-yellow-900 rounded-lg">
                   <Calendar className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
@@ -309,7 +313,7 @@ export default function AdminFeesPage() {
 
         {/* Create Waiver Form */}
         {showCreateForm && (
-          <Card className="p-6">
+          <Card className="p-6 glass">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Create Fee Waiver</h3>
@@ -458,7 +462,7 @@ export default function AdminFeesPage() {
         )}
 
         {/* Search and Filters */}
-        <Card className="p-6">
+        <Card className="p-6 glass">
           <div className="flex items-center space-x-4">
             <div className="flex-1">
               <div className="relative">
@@ -479,7 +483,7 @@ export default function AdminFeesPage() {
         </Card>
 
         {/* Fee Waivers Table */}
-        <Card className="p-6">
+        <Card className="p-6 glass">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Fee Waivers</h3>
@@ -504,7 +508,7 @@ export default function AdminFeesPage() {
                 )}
               </div>
             ) : (
-              <div className="overflow-hidden border border-gray-200 dark:border-gray-700 rounded-lg">
+              <div className="overflow-hidden border border-white/30 dark:border-white/10 rounded-lg bg-white/70 dark:bg-slate-900/40 backdrop-blur">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-800">
                     <tr>

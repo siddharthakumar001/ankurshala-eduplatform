@@ -15,6 +15,7 @@ public class TopicDto {
     private String code;
     private String description;
     private String summary;
+    private String suggestedTopics;
     private Integer expectedTimeMins;
     private Long chapterId;
     private String chapterName;

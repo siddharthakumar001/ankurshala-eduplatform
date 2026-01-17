@@ -1,382 +1,389 @@
-'use client';
+'use client'
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/auth';
-import { AdminRoute } from '@/components/route-guard';
-import { adminAPI } from '@/lib/apiClient';
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import AuthGuard from '@/components/AuthGuard'
+import SessionManager from '@/components/SessionManager'
+import DashboardLayout from '@/components/layout/DashboardLayout'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Checkbox } from '@/components/ui/checkbox'
+import { AlertCircle, Loader2 } from 'lucide-react'
+import { useAuthStore } from '@/store/auth'
+import { adminAPI } from '@/lib/apiClient'
 
 interface AdminProfile {
-  id: number;
-  firstName?: string;
-  middleName?: string;
-  lastName?: string;
-  mobileNumber?: string;
-  alternateMobileNumber?: string;
-  contactEmail?: string;
-  department?: string;
-  designation?: string;
-  employeeId?: string;
-  joiningDate?: string;
-  reportingManager?: string;
-  workLocation?: string;
-  emergencyContact?: string;
-  profilePhotoUrl?: string;
-  permissions?: string; // JSONB stored as string
-  lastLoginAt?: string;
-  isActive: boolean;
+  id: number
+  firstName?: string
+  middleName?: string
+  lastName?: string
+  mobileNumber?: string
+  alternateMobileNumber?: string
+  contactEmail?: string
+  department?: string
+  designation?: string
+  employeeId?: string
+  joiningDate?: string
+  reportingManager?: string
+  workLocation?: string
+  emergencyContact?: string
+  profilePhotoUrl?: string
+  permissions?: string
+  lastLoginAt?: string
+  isActive: boolean
+}
+
+type MessageState = {
+  type: 'success' | 'error'
+  text: string
 }
 
 export default function AdminProfilePage() {
-  const router = useRouter();
-  const { user, logout } = useAuthStore();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
-  const [profile, setProfile] = useState<AdminProfile | null>(null);
+  const router = useRouter()
+  const { user, logout } = useAuthStore()
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState<MessageState | null>(null)
+  const [profile, setProfile] = useState<AdminProfile | null>(null)
+
+  const fetchProfile = useCallback(async () => {
+    try {
+      setLoading(true)
+      const data = await adminAPI.getProfile()
+      setProfile(data)
+    } catch (error) {
+      console.error('Error fetching admin profile:', error)
+      if (error instanceof Error && error.message.includes('401')) {
+        logout()
+        router.push('/login')
+      } else {
+        setMessage({ type: 'error', text: 'Error loading profile.' })
+      }
+    } finally {
+      setLoading(false)
+    }
+  }, [logout, router])
 
   useEffect(() => {
-    if (!user || user.role !== 'ADMIN') {
-      router.push('/login');
-      return;
-    }
-    fetchProfile();
-  }, [user, router]);
-
-  const fetchProfile = async () => {
-    try {
-      setLoading(true);
-      const data = await adminAPI.getProfile();
-      setProfile(data);
-    } catch (error) {
-      console.error('Error fetching admin profile:', error);
-      if (error instanceof Error && error.message.includes('401')) {
-        logout();
-        router.push('/login');
-      } else {
-        setMessage('Error loading profile');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+    if (!user) return
+    fetchProfile()
+  }, [user, fetchProfile])
 
   const updateProfile = async () => {
-    if (!profile) return;
+    if (!profile) return
 
     try {
-      setSaving(true);
-      const data = await adminAPI.updateProfile(profile);
-      setProfile(data);
-      setMessage('Profile updated successfully!');
-      setTimeout(() => setMessage(''), 3000);
+      setSaving(true)
+      const data = await adminAPI.updateProfile(profile)
+      setProfile(data)
+      setMessage({ type: 'success', text: 'Profile updated successfully.' })
+      setTimeout(() => setMessage(null), 3000)
     } catch (error) {
-      console.error('Error updating admin profile:', error);
+      console.error('Error updating admin profile:', error)
       if (error instanceof Error && error.message.includes('401')) {
-        logout();
-        router.push('/login');
+        logout()
+        router.push('/login')
       } else {
-        setMessage('Failed to update profile');
+        setMessage({ type: 'error', text: 'Failed to update profile.' })
       }
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
-  };
+  }
+
+  const permissionsText = useMemo(() => {
+    if (!profile?.permissions) return ''
+    try {
+      return JSON.stringify(JSON.parse(profile.permissions), null, 2)
+    } catch {
+      return profile.permissions
+    }
+  }, [profile?.permissions])
+
+  const renderLoading = () => (
+    <DashboardLayout role="admin">
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
+          <p className="text-gray-600 dark:text-gray-400">Loading admin profile...</p>
+        </div>
+      </div>
+    </DashboardLayout>
+  )
+
+  const renderError = () => (
+    <DashboardLayout role="admin">
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <p className="text-red-600 dark:text-red-400 mb-4">Failed to load admin profile.</p>
+          <Button variant="outline" onClick={fetchProfile}>
+            Try Again
+          </Button>
+        </div>
+      </div>
+    </DashboardLayout>
+  )
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-xl">Loading admin profile...</div>
-      </div>
-    );
+      <AuthGuard requiredRoles={['ADMIN']}>
+        <SessionManager showSessionInfo={false}>
+          {renderLoading()}
+        </SessionManager>
+      </AuthGuard>
+    )
   }
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-xl text-red-600">Failed to load admin profile</div>
-      </div>
-    );
+      <AuthGuard requiredRoles={['ADMIN']}>
+        <SessionManager showSessionInfo={false}>
+          {renderError()}
+        </SessionManager>
+      </AuthGuard>
+    )
   }
 
   return (
-    <AdminRoute>
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-4xl mx-auto px-4 py-8">
-          <div className="bg-white rounded-lg shadow-md">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h1 className="text-2xl font-bold text-gray-900">Admin Profile</h1>
-              <p className="text-gray-600 mt-1">Manage your administrative profile and information</p>
+    <AuthGuard requiredRoles={['ADMIN']}>
+      <SessionManager showSessionInfo={false}>
+        <DashboardLayout role="admin">
+          <div className="space-y-6 relative">
+            <div className="pointer-events-none absolute inset-0 -z-10">
+              <div className="absolute -top-20 right-6 h-72 w-72 rounded-full bg-ankur-primary/10 blur-3xl" />
+              <div className="absolute bottom-0 left-6 h-64 w-64 rounded-full bg-ankur-accent/10 blur-3xl" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Admin Profile</h1>
+              <p className="text-gray-600 dark:text-gray-400">Manage your administrative profile and information.</p>
             </div>
 
-          {message && (
-            <div className={`mx-6 mt-4 p-4 rounded-md ${
-              message.includes('successfully') 
-                ? 'bg-green-50 border border-green-200 text-green-800' 
-                : 'bg-red-50 border border-red-200 text-red-800'
-            }`}>
-              <p>{message}</p>
-            </div>
-          )}
-
-          <div className="p-6">
-            <div className="space-y-6">
-              {/* Personal Information Section */}
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      First Name
-                    </label>
-                    <input
-                      type="text"
-                      value={profile.firstName || ''}
-                      onChange={(e) => setProfile({ ...profile, firstName: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter first name"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Middle Name
-                    </label>
-                    <input
-                      type="text"
-                      value={profile.middleName || ''}
-                      onChange={(e) => setProfile({ ...profile, middleName: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter middle name (optional)"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Last Name
-                    </label>
-                    <input
-                      type="text"
-                      value={profile.lastName || ''}
-                      onChange={(e) => setProfile({ ...profile, lastName: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter last name"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Mobile Number
-                    </label>
-                    <input
-                      type="tel"
-                      value={profile.mobileNumber || ''}
-                      onChange={(e) => setProfile({ ...profile, mobileNumber: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter mobile number"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Alternate Mobile
-                    </label>
-                    <input
-                      type="tel"
-                      value={profile.alternateMobileNumber || ''}
-                      onChange={(e) => setProfile({ ...profile, alternateMobileNumber: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter alternate mobile (optional)"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Contact Email
-                    </label>
-                    <input
-                      type="email"
-                      value={profile.contactEmail || ''}
-                      onChange={(e) => setProfile({ ...profile, contactEmail: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter contact email"
-                    />
-                  </div>
-                </div>
+            {message?.text && (
+              <div
+                className={`rounded-lg border p-4 ${
+                  message.type === 'success'
+                    ? 'bg-green-50 border-green-200 text-green-800'
+                    : 'bg-red-50 border-red-200 text-red-800'
+                }`}
+              >
+                {message.text}
               </div>
+            )}
 
-              {/* Professional Information Section */}
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Professional Information</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Employee ID
-                    </label>
-                    <input
-                      type="text"
-                      value={profile.employeeId || ''}
-                      onChange={(e) => setProfile({ ...profile, employeeId: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter employee ID"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Department
-                    </label>
-                    <input
-                      type="text"
-                      value={profile.department || ''}
-                      onChange={(e) => setProfile({ ...profile, department: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter department"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Designation
-                    </label>
-                    <input
-                      type="text"
-                      value={profile.designation || ''}
-                      onChange={(e) => setProfile({ ...profile, designation: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter designation"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Joining Date
-                    </label>
-                    <input
-                      type="date"
-                      value={profile.joiningDate || ''}
-                      onChange={(e) => setProfile({ ...profile, joiningDate: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Reporting Manager
-                    </label>
-                    <input
-                      type="text"
-                      value={profile.reportingManager || ''}
-                      onChange={(e) => setProfile({ ...profile, reportingManager: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter reporting manager name"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Work Location
-                    </label>
-                    <input
-                      type="text"
-                      value={profile.workLocation || ''}
-                      onChange={(e) => setProfile({ ...profile, workLocation: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter work location"
-                    />
-                  </div>
+            <Card className="glass">
+              <CardHeader>
+                <CardTitle>Personal Information</CardTitle>
+                <CardDescription>Keep your contact details up to date.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">First Name</Label>
+                  <Input
+                    id="firstName"
+                    value={profile.firstName || ''}
+                    onChange={(e) => setProfile({ ...profile, firstName: e.target.value })}
+                    placeholder="Enter first name"
+                  />
                 </div>
-              </div>
-
-              {/* Emergency Contact Section */}
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Emergency Information</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Emergency Contact
-                    </label>
-                    <input
-                      type="text"
-                      value={profile.emergencyContact || ''}
-                      onChange={(e) => setProfile({ ...profile, emergencyContact: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter emergency contact details"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Profile Photo URL
-                    </label>
-                    <input
-                      type="url"
-                      value={profile.profilePhotoUrl || ''}
-                      onChange={(e) => setProfile({ ...profile, profilePhotoUrl: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter profile photo URL"
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="middleName">Middle Name</Label>
+                  <Input
+                    id="middleName"
+                    value={profile.middleName || ''}
+                    onChange={(e) => setProfile({ ...profile, middleName: e.target.value })}
+                    placeholder="Enter middle name (optional)"
+                  />
                 </div>
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Last Name</Label>
+                  <Input
+                    id="lastName"
+                    value={profile.lastName || ''}
+                    onChange={(e) => setProfile({ ...profile, lastName: e.target.value })}
+                    placeholder="Enter last name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="mobileNumber">Mobile Number</Label>
+                  <Input
+                    id="mobileNumber"
+                    value={profile.mobileNumber || ''}
+                    onChange={(e) => setProfile({ ...profile, mobileNumber: e.target.value })}
+                    placeholder="Enter mobile number"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="alternateMobileNumber">Alternate Mobile</Label>
+                  <Input
+                    id="alternateMobileNumber"
+                    value={profile.alternateMobileNumber || ''}
+                    onChange={(e) => setProfile({ ...profile, alternateMobileNumber: e.target.value })}
+                    placeholder="Enter alternate mobile (optional)"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="contactEmail">Contact Email</Label>
+                  <Input
+                    id="contactEmail"
+                    type="email"
+                    value={profile.contactEmail || ''}
+                    onChange={(e) => setProfile({ ...profile, contactEmail: e.target.value })}
+                    placeholder="Enter contact email"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="profilePhotoUrl">Profile Photo URL</Label>
+                  <Input
+                    id="profilePhotoUrl"
+                    value={profile.profilePhotoUrl || ''}
+                    onChange={(e) => setProfile({ ...profile, profilePhotoUrl: e.target.value })}
+                    placeholder="Enter profile photo URL"
+                  />
+                </div>
+              </CardContent>
+            </Card>
 
-              {/* Account Status Section */}
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Account Status</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="isActive"
-                      checked={profile.isActive}
-                      onChange={(e) => setProfile({ ...profile, isActive: e.target.checked })}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="isActive" className="ml-2 block text-sm text-gray-900">
-                      Active Account
-                    </label>
-                  </div>
+            <Card className="glass">
+              <CardHeader>
+                <CardTitle>Professional Information</CardTitle>
+                <CardDescription>Manage administrative details and reporting.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="employeeId">Employee ID</Label>
+                  <Input
+                    id="employeeId"
+                    value={profile.employeeId || ''}
+                    onChange={(e) => setProfile({ ...profile, employeeId: e.target.value })}
+                    placeholder="Enter employee ID"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="department">Department</Label>
+                  <Input
+                    id="department"
+                    value={profile.department || ''}
+                    onChange={(e) => setProfile({ ...profile, department: e.target.value })}
+                    placeholder="Enter department"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="designation">Designation</Label>
+                  <Input
+                    id="designation"
+                    value={profile.designation || ''}
+                    onChange={(e) => setProfile({ ...profile, designation: e.target.value })}
+                    placeholder="Enter designation"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="joiningDate">Joining Date</Label>
+                  <Input
+                    id="joiningDate"
+                    type="date"
+                    value={profile.joiningDate || ''}
+                    onChange={(e) => setProfile({ ...profile, joiningDate: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="reportingManager">Reporting Manager</Label>
+                  <Input
+                    id="reportingManager"
+                    value={profile.reportingManager || ''}
+                    onChange={(e) => setProfile({ ...profile, reportingManager: e.target.value })}
+                    placeholder="Enter reporting manager name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="workLocation">Work Location</Label>
+                  <Input
+                    id="workLocation"
+                    value={profile.workLocation || ''}
+                    onChange={(e) => setProfile({ ...profile, workLocation: e.target.value })}
+                    placeholder="Enter work location"
+                  />
+                </div>
+              </CardContent>
+            </Card>
 
-                  {profile.lastLoginAt && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Last Login
-                      </label>
-                      <p className="text-sm text-gray-600">
-                        {new Date(profile.lastLoginAt).toLocaleString()}
-                      </p>
+            <Card className="glass">
+              <CardHeader>
+                <CardTitle>Emergency Information</CardTitle>
+                <CardDescription>Provide a contact for urgent issues.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="emergencyContact">Emergency Contact</Label>
+                  <Textarea
+                    id="emergencyContact"
+                    value={profile.emergencyContact || ''}
+                    onChange={(e) => setProfile({ ...profile, emergencyContact: e.target.value })}
+                    placeholder="Enter emergency contact details"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="glass">
+              <CardHeader>
+                <CardTitle>Account Status</CardTitle>
+                <CardDescription>Activate or review account state.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="flex items-center space-x-3">
+                  <Checkbox
+                    id="isActive"
+                    checked={profile.isActive}
+                    onCheckedChange={(checked) =>
+                      setProfile({ ...profile, isActive: Boolean(checked) })
+                    }
+                  />
+                  <Label htmlFor="isActive">Active Account</Label>
+                </div>
+                {profile.lastLoginAt && (
+                  <div className="space-y-2">
+                    <Label>Last Login</Label>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      {new Date(profile.lastLoginAt).toLocaleString()}
                     </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Permissions Section (Read-only) */}
-              {profile.permissions && (
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Permissions</h2>
-                  <div className="bg-gray-50 p-4 rounded-md">
-                    <pre className="text-sm text-gray-700 whitespace-pre-wrap">
-                      {JSON.stringify(JSON.parse(profile.permissions), null, 2)}
-                    </pre>
                   </div>
-                </div>
-              )}
+                )}
+              </CardContent>
+            </Card>
 
-              {/* Save Button */}
-              <div className="flex justify-end pt-6">
-                <button
-                  onClick={updateProfile}
-                  disabled={saving}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {saving ? 'Saving...' : 'Save Profile'}
-                </button>
-              </div>
+            {permissionsText && (
+              <Card className="glass">
+                <CardHeader>
+                  <CardTitle>Permissions</CardTitle>
+                  <CardDescription>Read-only view of administrative permissions.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <pre className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4">
+                    {permissionsText}
+                  </pre>
+                </CardContent>
+              </Card>
+            )}
+
+            <div className="flex justify-end">
+              <Button onClick={updateProfile} disabled={saving}>
+                {saving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Profile'
+                )}
+              </Button>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-    </AdminRoute>
-  );
+        </DashboardLayout>
+      </SessionManager>
+    </AuthGuard>
+  )
 }

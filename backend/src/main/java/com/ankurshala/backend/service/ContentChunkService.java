@@ -242,6 +242,65 @@ public class ContentChunkService {
     }
 
     /**
+     * Retrieve content for RAG context with student profile personalization
+     * Returns formatted content suitable for LLM context, filtered by grade and board
+     */
+    @Transactional(readOnly = true)
+    public RetrievalResult retrieveForRAGWithProfile(
+            String query,
+            Long topicId,
+            Long subjectId,
+            Long gradeId,
+            Long boardId,
+            String language,
+            int maxChunks) {
+        
+        String traceId = TraceUtil.getTraceId();
+        log.info("Retrieving for RAG with profile - TraceId: {}, TopicId: {}, GradeId: {}, BoardId: {}", 
+                traceId, topicId, gradeId, boardId);
+
+        List<ChunkWithScore> results = searchSimilarChunks(
+                query, topicId, subjectId, gradeId, boardId, language, maxChunks);
+
+        if (results.isEmpty()) {
+            return new RetrievalResult(
+                    Collections.emptyList(),
+                    "",
+                    0,
+                    BigDecimal.ZERO
+            );
+        }
+
+        // Build context string
+        StringBuilder contextBuilder = new StringBuilder();
+        for (int i = 0; i < results.size(); i++) {
+            ChunkWithScore result = results.get(i);
+            ContentChunk chunk = result.getChunk();
+            
+            contextBuilder.append("--- Source ").append(i + 1);
+            if (chunk.getSourceRef() != null) {
+                contextBuilder.append(" (").append(chunk.getSourceRef()).append(")");
+            }
+            contextBuilder.append(" ---\n");
+            contextBuilder.append(chunk.getChunkText());
+            contextBuilder.append("\n\n");
+        }
+
+        // Calculate average score
+        double avgScore = results.stream()
+                .mapToDouble(ChunkWithScore::getScore)
+                .average()
+                .orElse(0.0);
+
+        return new RetrievalResult(
+                results,
+                contextBuilder.toString(),
+                results.size(),
+                BigDecimal.valueOf(avgScore)
+        );
+    }
+
+    /**
      * Retrieve content for RAG context
      * Returns formatted content suitable for LLM context
      */

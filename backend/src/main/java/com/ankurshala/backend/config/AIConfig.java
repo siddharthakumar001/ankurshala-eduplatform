@@ -25,6 +25,15 @@ public class AIConfig {
     @Value("${spring.ai.openai.embedding-model:text-embedding-ada-002}")
     private String embeddingModel;
 
+    @Value("${spring.ai.azure.openai.endpoint:#{null}}")
+    private String azureOpenaiEndpoint;
+
+    @Value("${spring.ai.azure.openai.api-key:#{null}}")
+    private String azureOpenaiApiKey;
+
+    @Value("${spring.ai.azure.openai.deployment-name:gpt-4o-mini}")
+    private String azureOpenaiDeploymentName;
+
     @Value("${app.ai.provider:openai}")
     private String aiProvider;
 
@@ -56,7 +65,16 @@ public class AIConfig {
         props.setMaxTokens(maxTokens);
         props.setTemperature(temperature);
         props.setSafetyEnabled(safetyEnabled);
-        props.setApiKeyConfigured(openaiApiKey != null && !openaiApiKey.isEmpty());
+        
+        // Check API key configuration based on provider
+        boolean apiKeyConfigured = false;
+        if ("azure-openai".equalsIgnoreCase(aiProvider)) {
+            apiKeyConfigured = azureOpenaiApiKey != null && !azureOpenaiApiKey.isEmpty() &&
+                              azureOpenaiEndpoint != null && !azureOpenaiEndpoint.isEmpty();
+        } else {
+            apiKeyConfigured = openaiApiKey != null && !openaiApiKey.isEmpty();
+        }
+        props.setApiKeyConfigured(apiKeyConfigured);
         
         // DEV mode check
         boolean isDevMode = "true".equalsIgnoreCase(devMode) || "local".equalsIgnoreCase(devMode);

@@ -13,7 +13,6 @@ import {
   Calendar,
   CreditCard,
   Bell,
-  Settings,
   LogOut,
   Menu,
   X,
@@ -46,12 +45,12 @@ const adminNavItems: NavItem[] = [
   { label: 'Students', href: '/admin/users/students', icon: <GraduationCap size={20} /> },
   { label: 'Teachers', href: '/admin/users/teachers', icon: <Users size={20} /> },
   { label: 'Content', href: '/admin/content/manage', icon: <BookOpen size={20} /> },
-  { label: 'Import', href: '/admin/content/import', icon: <FileText size={20} /> },
-  { label: 'Bookings', href: '/admin/bookings', icon: <Calendar size={20} /> },
-  { label: 'Payments', href: '/admin/payments', icon: <CreditCard size={20} /> },
+  { label: 'Content Import', href: '/admin/content/import', icon: <FileText size={20} /> },
+  { label: 'Analytics', href: '/admin/content/analytics', icon: <BarChart3 size={20} /> },
   { label: 'Pricing', href: '/admin/pricing', icon: <DollarSign size={20} /> },
+  { label: 'Fee Waivers', href: '/admin/fees', icon: <CreditCard size={20} /> },
   { label: 'Notifications', href: '/admin/notifications', icon: <Bell size={20} />, badge: 3 },
-  { label: 'Settings', href: '/admin/settings', icon: <Settings size={20} /> },
+  { label: 'Profile', href: '/admin/profile', icon: <User size={20} /> },
 ];
 
 const teacherNavItems: NavItem[] = [
@@ -338,14 +337,6 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                       >
                         <User size={18} />
                         <span>My Profile</span>
-                      </Link>
-                      <Link
-                        href={`/${role}/settings`}
-                        className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50"
-                        onClick={() => setUserMenuOpen(false)}
-                      >
-                        <Settings size={18} />
-                        <span>Settings</span>
                       </Link>
                       <hr className="my-2 border-gray-100" />
                       <button

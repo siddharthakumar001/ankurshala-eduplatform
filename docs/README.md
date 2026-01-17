@@ -1,7 +1,7 @@
 # Ankurshala Education Platform - Documentation
 
 **Version:** 1.0 Production Ready  
-**Last Updated:** January 9, 2026  
+**Last Updated:** January 15, 2026  
 **Status:** ✅ Deployed and Operational
 
 ---
@@ -10,19 +10,21 @@
 
 This folder contains all consolidated documentation for the Ankurshala Education Platform.
 
-### 🎯 Core Documentation (8 Files)
+### 🎯 Core Documentation (10 Files)
 
 1. **[README.md](./README.md)** - This file - Documentation index and overview
 2. **[ARCHITECTURE_AND_DESIGN.md](./ARCHITECTURE_AND_DESIGN.md)** - System architecture, tech stack, database schema
 3. **[AUTHENTICATION_AND_SECURITY.md](./AUTHENTICATION_AND_SECURITY.md)** - Auth flow, JWT, RBAC, security best practices
 4. **[ENHANCED_CURRICULUM_IMPORT.md](./ENHANCED_CURRICULUM_IMPORT.md)** - Curriculum import system with automation scripts
-5. **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** - Common issues, debugging, optimization guides
+5. **[COURSE_CONTENT_FORMAT_RULES.md](./COURSE_CONTENT_FORMAT_RULES.md)** - ⭐ Content upload format rules and validation guidelines
+6. **[AI_CONTENT_DATA_MODEL.md](./AI_CONTENT_DATA_MODEL.md)** - AI integration fields and use cases
+7. **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** - Common issues, debugging, optimization guides
 
 ### 📦 Feature Modules (3 Files)
 
-6. **[STUDENT_MODULE.md](./STUDENT_MODULE.md)** - Complete student module documentation (dashboard, profile, booking, study list, etc.)
-7. **[TEACHER_MODULE.md](./TEACHER_MODULE.md)** - Complete teacher module documentation (profile, search, availability, qualifications)
-8. **[BOOKING_SYSTEM.md](./BOOKING_SYSTEM.md)** - Booking system with concurrency control, status flow, cancellation policy
+8. **[STUDENT_MODULE.md](./STUDENT_MODULE.md)** - Complete student module documentation (dashboard, profile, booking, study list, etc.)
+9. **[TEACHER_MODULE.md](./TEACHER_MODULE.md)** - Complete teacher module documentation (profile, search, availability, qualifications)
+10. **[BOOKING_SYSTEM.md](./BOOKING_SYSTEM.md)** - Booking system with concurrency control, status flow, cancellation policy
 
 ---
 
@@ -34,7 +36,10 @@ This folder contains all consolidated documentation for the Ankurshala Education
 3. Check module-specific docs ([STUDENT_MODULE.md](./STUDENT_MODULE.md), [TEACHER_MODULE.md](./TEACHER_MODULE.md), [BOOKING_SYSTEM.md](./BOOKING_SYSTEM.md))
 
 **Content Managers:**  
-See [ENHANCED_CURRICULUM_IMPORT.md](./ENHANCED_CURRICULUM_IMPORT.md) for curriculum import with automation
+1. **Start here:** [COURSE_CONTENT_FORMAT_RULES.md](./COURSE_CONTENT_FORMAT_RULES.md) - **All upload format rules and validation**
+2. See [ENHANCED_CURRICULUM_IMPORT.md](./ENHANCED_CURRICULUM_IMPORT.md) for curriculum import process
+3. Check [../CLASS7_PHYSICS_SAMPLE.md](../CLASS7_PHYSICS_SAMPLE.md) for sample content format
+4. Review [AI_CONTENT_DATA_MODEL.md](./AI_CONTENT_DATA_MODEL.md) for AI integration guidelines
 
 **System Administrators:**  
 Review [ARCHITECTURE_AND_DESIGN.md](./ARCHITECTURE_AND_DESIGN.md) → [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)
@@ -43,10 +48,22 @@ Review [ARCHITECTURE_AND_DESIGN.md](./ARCHITECTURE_AND_DESIGN.md) → [TROUBLESH
 - Student features → [STUDENT_MODULE.md](./STUDENT_MODULE.md)
 - Teacher features → [TEACHER_MODULE.md](./TEACHER_MODULE.md)
 - Booking features → [BOOKING_SYSTEM.md](./BOOKING_SYSTEM.md)
+- AI features → [AI_CONTENT_DATA_MODEL.md](./AI_CONTENT_DATA_MODEL.md)
 
 ---
 
-## 🔄 Recent Updates (January 9, 2026)
+## 🔄 Recent Updates (January 15, 2026)
+
+### Enhanced Curriculum Import with AI Integration
+- ✅ Added `suggested_topics` field to topics table (V37 migration)
+- ✅ Updated EnhancedCurriculumImportService to populate all AI fields
+- ✅ Created AI_CONTENT_DATA_MODEL.md documentation
+- ✅ Added sample Class 7 Physics CBSE content
+- ✅ All 4 AI integration fields now supported: description, summary, suggested_topics, expected_time_mins
+
+---
+
+## 🔄 Previous Updates (January 9, 2026)
 
 ### Documentation Consolidation ✅
 - ✅ Consolidated 32 documentation files into 8 comprehensive files

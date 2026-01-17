@@ -258,7 +258,8 @@
 
   /* Glass Effect */
   .glass {
-    @apply bg-white/80 backdrop-blur-lg border border-white/20;
+    @apply bg-white/80 backdrop-blur-lg border border-white/30 shadow-sm;
+    @apply dark:bg-slate-900/60 dark:border-white/10;
   }
 }
 

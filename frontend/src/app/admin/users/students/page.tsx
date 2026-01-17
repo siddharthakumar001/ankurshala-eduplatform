@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import AuthGuard from '@/components/AuthGuard'
 import SessionManager from '@/components/SessionManager'
@@ -121,29 +121,32 @@ export default function AdminStudentsPage() {
 
   const pageSize = 10
 
-  // Fetch students on mount and when pagination/sort changes
-  useEffect(() => {
-    fetchStudents()
-  }, [currentPage, sortBy, sortDir])
+  const filtersRef = useRef({
+    search,
+    statusFilter,
+    boardFilter,
+    classFilter
+  })
+  const currentPageRef = useRef(currentPage)
+  const loadStateRef = useRef({ loading, studentsLength: students.length })
 
-  // Debounced search effect - fetch when search or filters change
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      // Reset to first page when searching/filtering
-      if (currentPage !== 0) {
-        setCurrentPage(0)
-      } else {
-        fetchStudents()
-      }
-    }, 500) // 500ms debounce
-
-    return () => clearTimeout(timeoutId)
+    filtersRef.current = { search, statusFilter, boardFilter, classFilter }
   }, [search, statusFilter, boardFilter, classFilter])
 
-  const fetchStudents = async () => {
+  useEffect(() => {
+    currentPageRef.current = currentPage
+  }, [currentPage])
+
+  useEffect(() => {
+    loadStateRef.current = { loading, studentsLength: students.length }
+  }, [loading, students.length])
+
+  const fetchStudents = useCallback(async () => {
     // Allow initial load but prevent re-entry
-    const isInitialLoad = students.length === 0
-    if (loading && !isInitialLoad) return
+    const { loading: isLoading, studentsLength } = loadStateRef.current
+    const isInitialLoad = studentsLength === 0
+    if (isLoading && !isInitialLoad) return
     
     setLoading(true)
     setError(null)
@@ -155,7 +158,8 @@ export default function AdminStudentsPage() {
         sortBy,
         sortDir
       })
-      
+
+      const { search, statusFilter, boardFilter, classFilter } = filtersRef.current
       if (search) params.append('search', search)
       if (statusFilter && statusFilter !== 'all') params.append('enabled', statusFilter)
       if (boardFilter && boardFilter !== 'all') params.append('educationalBoard', boardFilter)
@@ -189,7 +193,26 @@ export default function AdminStudentsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [currentPage, pageSize, sortBy, sortDir])
+
+  // Fetch students on mount and when pagination/sort changes
+  useEffect(() => {
+    fetchStudents()
+  }, [fetchStudents])
+
+  // Debounced search effect - fetch when search or filters change
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      // Reset to first page when searching/filtering
+      if (currentPageRef.current !== 0) {
+        setCurrentPage(0)
+      } else {
+        fetchStudents()
+      }
+    }, 500) // 500ms debounce
+
+    return () => clearTimeout(timeoutId)
+  }, [search, statusFilter, boardFilter, classFilter, fetchStudents])
 
   const fetchStudentDetail = async (id: number) => {
     try {
@@ -343,15 +366,19 @@ export default function AdminStudentsPage() {
     return (
       <AuthGuard requiredRoles={['ADMIN']}>
         <SessionManager showSessionInfo={true}>
-          <DashboardLayout role="admin">
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
+      <DashboardLayout role="admin">
+        <div className="space-y-6 relative">
+          <div className="pointer-events-none absolute inset-0 -z-10">
+            <div className="absolute -top-20 right-4 h-72 w-72 rounded-full bg-ankur-primary/10 blur-3xl" />
+            <div className="absolute bottom-4 left-6 h-64 w-64 rounded-full bg-ankur-accent/10 blur-3xl" />
+          </div>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Manage Students</h1>
                   <p className="text-gray-600 dark:text-gray-400">View and manage student accounts</p>
                 </div>
               </div>
-              <Card className="p-6">
+              <Card className="p-6 glass">
                 <div className="animate-pulse space-y-4">
                   {[...Array(5)].map((_, i) => (
                     <div key={i} className="h-16 bg-gray-200 dark:bg-gray-700 rounded"></div>
@@ -369,14 +396,18 @@ export default function AdminStudentsPage() {
     <AuthGuard requiredRoles={['ADMIN']}>
       <SessionManager showSessionInfo={true}>
         <DashboardLayout role="admin">
-          <div className="space-y-6">
+          <div className="space-y-6 relative">
+            <div className="pointer-events-none absolute inset-0 -z-10">
+              <div className="absolute -top-20 right-4 h-72 w-72 rounded-full bg-ankur-primary/10 blur-3xl" />
+              <div className="absolute bottom-4 left-6 h-64 w-64 rounded-full bg-ankur-accent/10 blur-3xl" />
+            </div>
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Manage Students</h1>
                 <p className="text-gray-600 dark:text-gray-400">View and manage student accounts</p>
               </div>
-              <div className="flex space-x-2">
+              <div className="flex flex-wrap gap-2">
                 <Button 
                   variant="outline" 
                   className="flex items-center space-x-2"
@@ -421,7 +452,7 @@ export default function AdminStudentsPage() {
             )}
 
         {/* Search and Filters */}
-        <Card className="p-6">
+        <Card className="p-6 glass">
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1">
@@ -436,7 +467,7 @@ export default function AdminStudentsPage() {
                   />
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-32" data-testid="status-select">
                     <SelectValue placeholder="Status" />
@@ -480,7 +511,7 @@ export default function AdminStudentsPage() {
         </Card>
 
         {/* Students Table */}
-        <Card className="p-6">
+        <Card className="p-6 glass">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Students</h3>
@@ -715,19 +746,19 @@ export default function AdminStudentsPage() {
                     <div className="grid grid-cols-2 gap-4">
                       {selectedStudent.motherName && (
                         <div>
-                          <Label className="text-sm font-medium">Mother's Name</Label>
+                          <Label className="text-sm font-medium">Mother&apos;s Name</Label>
                           <p className="text-sm text-gray-600 dark:text-gray-400">{selectedStudent.motherName}</p>
                         </div>
                       )}
                       {selectedStudent.fatherName && (
                         <div>
-                          <Label className="text-sm font-medium">Father's Name</Label>
+                          <Label className="text-sm font-medium">Father&apos;s Name</Label>
                           <p className="text-sm text-gray-600 dark:text-gray-400">{selectedStudent.fatherName}</p>
                         </div>
                       )}
                       {selectedStudent.guardianName && (
                         <div>
-                          <Label className="text-sm font-medium">Guardian's Name</Label>
+                          <Label className="text-sm font-medium">Guardian&apos;s Name</Label>
                           <p className="text-sm text-gray-600 dark:text-gray-400">{selectedStudent.guardianName}</p>
                         </div>
                       )}
@@ -985,7 +1016,7 @@ function StudentCreateForm({
           </Select>
         </div>
         <div>
-          <Label htmlFor="create-motherName">Mother's Name</Label>
+          <Label htmlFor="create-motherName">Mother&apos;s Name</Label>
           <Input
             id="create-motherName"
             value={formData.motherName}
@@ -993,7 +1024,7 @@ function StudentCreateForm({
           />
         </div>
         <div>
-          <Label htmlFor="create-fatherName">Father's Name</Label>
+          <Label htmlFor="create-fatherName">Father&apos;s Name</Label>
           <Input
             id="create-fatherName"
             value={formData.fatherName}
@@ -1160,7 +1191,7 @@ function StudentEditForm({
           </Select>
         </div>
         <div>
-          <Label htmlFor="motherName">Mother's Name</Label>
+          <Label htmlFor="motherName">Mother&apos;s Name</Label>
           <Input
             id="motherName"
             value={formData.motherName}
@@ -1168,7 +1199,7 @@ function StudentEditForm({
           />
         </div>
         <div>
-          <Label htmlFor="fatherName">Father's Name</Label>
+          <Label htmlFor="fatherName">Father&apos;s Name</Label>
           <Input
             id="fatherName"
             value={formData.fatherName}

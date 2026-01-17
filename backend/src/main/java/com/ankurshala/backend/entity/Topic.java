@@ -31,6 +31,9 @@ public class Topic {
     @Column(name = "summary", columnDefinition = "TEXT")
     private String summary;
 
+    @Column(name = "suggested_topics", columnDefinition = "TEXT")
+    private String suggestedTopics;
+
     @Column(name = "expected_time_mins")
     private Integer expectedTimeMins;
 
@@ -112,6 +115,9 @@ public class Topic {
 
     public String getSummary() { return summary; }
     public void setSummary(String summary) { this.summary = summary; }
+
+    public String getSuggestedTopics() { return suggestedTopics; }
+    public void setSuggestedTopics(String suggestedTopics) { this.suggestedTopics = suggestedTopics; }
 
     public Integer getExpectedTimeMins() { return expectedTimeMins; }
     public void setExpectedTimeMins(Integer expectedTimeMins) { this.expectedTimeMins = expectedTimeMins; }

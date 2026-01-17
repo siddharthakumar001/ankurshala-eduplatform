@@ -626,7 +626,7 @@ function BoardsTab(props: TabProps) {
   // Filter change handlers
   useEffect(() => {
     onFilterChange()
-  }, [searchTerm, statusFilter])
+  }, [searchTerm, statusFilter, onFilterChange])
 
   if (isLoading) {
     return <div className="flex justify-center items-center h-64">Loading boards...</div>
@@ -805,7 +805,7 @@ function BoardsTab(props: TabProps) {
               <DialogTitle>Delete Board</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              <p>Are you sure you want to delete "{deletingItem?.name}"?</p>
+              <p>Are you sure you want to delete &quot;{deletingItem?.name}&quot;?</p>
               
               {deletionImpact && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
@@ -968,7 +968,7 @@ function GradesTab(props: ExtendedTabProps) {
   // Filter change handlers
   useEffect(() => {
     onFilterChange()
-  }, [searchTerm, statusFilter, selectedBoardFilter])
+  }, [searchTerm, statusFilter, selectedBoardFilter, onFilterChange])
 
   if (isLoading) {
     return <div className="flex justify-center items-center h-64">Loading grades...</div>
@@ -1161,7 +1161,7 @@ function GradesTab(props: ExtendedTabProps) {
               <DialogTitle>Delete Grade</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              <p>Are you sure you want to delete "{deletingItem?.displayName}"?</p>
+              <p>Are you sure you want to delete &quot;{deletingItem?.displayName}&quot;?</p>
               
               <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
                 <h4 className="font-semibold text-yellow-800 mb-2">Warning:</h4>

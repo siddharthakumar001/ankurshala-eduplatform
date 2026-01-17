@@ -613,7 +613,8 @@ export const studentAPI = {
     onChunk: (chunk: string) => void,
     sessionId?: string,
     topicId?: number,
-    subjectId?: number
+    subjectId?: number,
+    language?: string
   ) => {
     const response = await fetch(`${protectedAPI.defaults.baseURL}/student/ai/chat/stream`, {
       method: 'POST',
@@ -626,7 +627,7 @@ export const studentAPI = {
         sessionId,
         topicId,
         subjectId,
-        language: 'en'
+        language: language || 'en-IN'
       })
     });
 
@@ -664,6 +665,31 @@ export const studentAPI = {
 
   getAIUsage: async () => {
     const response = await protectedAPI.get('/student/ai/usage')
+    return response.data
+  },
+
+  // Voice AI
+  transcribeAudio: async (audioFile: File, language: string = 'en-IN') => {
+    const formData = new FormData()
+    formData.append('audio', audioFile)
+    formData.append('language', language)
+    
+    const response = await protectedAPI.post('/student/ai/voice/transcribe', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    return response.data
+  },
+
+  synthesizeSpeech: async (text: string, language: string = 'en-IN', voice?: string) => {
+    const response = await protectedAPI.post('/student/ai/voice/synthesize', {
+      text,
+      language,
+      voice
+    }, {
+      responseType: 'blob'
+    })
     return response.data
   }
 }

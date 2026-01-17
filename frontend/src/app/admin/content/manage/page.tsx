@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -111,7 +111,11 @@ function ContentManagePageContent() {
 
   return (
     <DashboardLayout role="admin">
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 relative">
+        <div className="pointer-events-none absolute inset-0 -z-10">
+          <div className="absolute -top-24 right-0 h-80 w-80 rounded-full bg-ankur-primary/10 blur-3xl" />
+          <div className="absolute bottom-10 left-8 h-72 w-72 rounded-full bg-ankur-accent/10 blur-3xl" />
+        </div>
         <div className="container mx-auto p-6">
           {/* Header */}
           <div className="mb-8">
@@ -122,7 +126,7 @@ function ContentManagePageContent() {
           </div>
 
           <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-6">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-6">
               <TabsTrigger value="boards" className="flex items-center gap-2">
                 <BookOpen className="w-4 h-4" />
                 Boards
@@ -206,10 +210,10 @@ function BoardsTab() {
   const totalElements = boardsData?.totalElements || 0
 
   // Handle filter changes
-  const onFilterChange = () => {
+  const onFilterChange = useCallback(() => {
     setCurrentPage(0)
     refetch()
-  }
+  }, [refetch])
 
   // Handle create button click
   const handleCreateClick = () => {
@@ -268,7 +272,7 @@ function BoardsTab() {
   // Filter change handlers
   useEffect(() => {
     onFilterChange()
-  }, [searchTerm, statusFilter])
+  }, [searchTerm, statusFilter, onFilterChange])
 
   if (isLoading) {
     return <div className="flex justify-center items-center h-64">Loading boards...</div>
@@ -295,7 +299,7 @@ function BoardsTab() {
   }
 
   return (
-    <Card>
+    <Card className="glass">
       <CardHeader>
         <div className="flex justify-between items-center">
           <CardTitle className="flex items-center gap-2">
@@ -310,7 +314,7 @@ function BoardsTab() {
       </CardHeader>
       <CardContent>
         {/* Filters */}
-        <div className="flex gap-4 mb-6">
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="relative flex-1" onClick={() => {
             // Keep focus in the input when results refresh
             const el = document.getElementById('boards-search-input') as HTMLInputElement | null
@@ -541,10 +545,10 @@ function GradesTab() {
   console.log('GradesTab: Processed data:', { grades, totalElements });
 
   // Handle filter changes
-  const onFilterChange = () => {
+  const onFilterChange = useCallback(() => {
     setCurrentPage(0)
     refetch()
-  }
+  }, [refetch])
 
   // Handle create button click
   const handleCreateClick = () => {
@@ -608,7 +612,7 @@ function GradesTab() {
   // Filter change handlers
   useEffect(() => {
     onFilterChange()
-  }, [searchTerm, statusFilter, selectedBoardFilter])
+  }, [searchTerm, statusFilter, selectedBoardFilter, onFilterChange])
 
   if (isLoading) {
     console.log('GradesTab: Showing loading state');
@@ -639,7 +643,7 @@ function GradesTab() {
   console.log('GradesTab: Rendering main content with', grades.length, 'grades');
 
   return (
-    <Card>
+    <Card className="glass">
       <CardHeader>
         <div className="flex justify-between items-center">
           <CardTitle className="flex items-center gap-2">
@@ -654,7 +658,7 @@ function GradesTab() {
       </CardHeader>
       <CardContent>
         {/* Filters */}
-        <div className="flex gap-4 mb-6">
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="relative flex-1">
             <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
             <Input
@@ -956,10 +960,10 @@ function SubjectsTab() {
   const totalElements = subjectsData?.totalElements || 0
 
   // Handle filter changes
-  const onFilterChange = () => {
+  const onFilterChange = useCallback(() => {
     setCurrentPage(0)
     refetch()
-  }
+  }, [refetch])
 
   // Handle create button click
   const handleCreateClick = () => {
@@ -1034,7 +1038,7 @@ function SubjectsTab() {
   // Filter change handlers
   useEffect(() => {
     onFilterChange()
-  }, [searchTerm, statusFilter, selectedBoardFilter, selectedGradeFilter])
+  }, [searchTerm, statusFilter, selectedBoardFilter, selectedGradeFilter, onFilterChange])
 
   if (isLoading) {
     return <div className="flex justify-center items-center h-64">Loading subjects...</div>
@@ -1061,7 +1065,7 @@ function SubjectsTab() {
   }
 
   return (
-    <Card>
+    <Card className="glass">
       <CardHeader>
         <div className="flex justify-between items-center">
           <CardTitle className="flex items-center gap-2">
@@ -1506,7 +1510,7 @@ function ChaptersTab() {
   }
 
   return (
-    <Card>
+    <Card className="glass">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>Chapters Management</span>
@@ -1862,7 +1866,7 @@ function TopicsTab() {
   }
 
   return (
-    <Card>
+    <Card className="glass">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>Topics Management</span>
@@ -2267,7 +2271,7 @@ function TopicNotesTab() {
   }
 
   return (
-    <Card>
+    <Card className="glass">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>Topic Notes Management</span>

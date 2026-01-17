@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -86,29 +86,7 @@ export default function AdminNotificationsPage() {
     delivery: 'IN_APP'
   })
 
-  useEffect(() => {
-    fetchAllData()
-  }, [])
-
-  const fetchAllData = async () => {
-    try {
-      setLoading(true)
-      setError('')
-      
-      await Promise.all([
-        fetchNotifications(),
-        fetchStats()
-      ])
-    } catch (error) {
-      console.error('Error fetching data:', error)
-      setError('Failed to load data. Please try again.')
-      toast.error('Failed to load notification data')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       console.log('Fetching notifications...')
       const params = new URLSearchParams()
@@ -124,9 +102,9 @@ export default function AdminNotificationsPage() {
       setNotifications([]) // Set empty array on error
       throw error
     }
-  }
+  }, [audienceFilter, statusFilter])
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       console.log('Fetching notification stats...')
       const response = await api.get('/admin/notifications/statistics')
@@ -145,7 +123,29 @@ export default function AdminNotificationsPage() {
       })
       throw error
     }
-  }
+  }, [])
+
+  const fetchAllData = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError('')
+      
+      await Promise.all([
+        fetchNotifications(),
+        fetchStats()
+      ])
+    } catch (error) {
+      console.error('Error fetching data:', error)
+      setError('Failed to load data. Please try again.')
+      toast.error('Failed to load notification data')
+    } finally {
+      setLoading(false)
+    }
+  }, [fetchNotifications, fetchStats])
+
+  useEffect(() => {
+    fetchAllData()
+  }, [fetchAllData])
 
   const handleSendNotification = async () => {
     try {
@@ -307,7 +307,11 @@ export default function AdminNotificationsPage() {
 
   return (
     <DashboardLayout role="admin">
-      <div className="space-y-6">
+      <div className="space-y-6 relative">
+        <div className="pointer-events-none absolute inset-0 -z-10">
+          <div className="absolute -top-20 right-10 h-64 w-64 rounded-full bg-ankur-primary/10 blur-3xl" />
+          <div className="absolute bottom-0 left-6 h-72 w-72 rounded-full bg-ankur-accent/10 blur-3xl" />
+        </div>
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -326,7 +330,7 @@ export default function AdminNotificationsPage() {
         {/* Stats Cards */}
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-            <Card className="p-6">
+            <Card className="p-6 glass hover-lift">
               <div className="flex items-center">
                 <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
                   <Bell className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -340,7 +344,7 @@ export default function AdminNotificationsPage() {
               </div>
             </Card>
 
-            <Card className="p-6">
+            <Card className="p-6 glass hover-lift">
               <div className="flex items-center">
                 <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
                   <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
@@ -354,7 +358,7 @@ export default function AdminNotificationsPage() {
               </div>
             </Card>
 
-            <Card className="p-6">
+            <Card className="p-6 glass hover-lift">
               <div className="flex items-center">
                 <div className="p-2 bg-yellow-100 dark:bg-yellow-900 rounded-lg">
                   <Clock className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
@@ -368,7 +372,7 @@ export default function AdminNotificationsPage() {
               </div>
             </Card>
 
-            <Card className="p-6">
+            <Card className="p-6 glass hover-lift">
               <div className="flex items-center">
                 <div className="p-2 bg-red-100 dark:bg-red-900 rounded-lg">
                   <XCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
@@ -382,7 +386,7 @@ export default function AdminNotificationsPage() {
               </div>
             </Card>
 
-            <Card className="p-6">
+            <Card className="p-6 glass hover-lift">
               <div className="flex items-center">
                 <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
                   <Users className="h-6 w-6 text-purple-600 dark:text-purple-400" />
@@ -399,8 +403,8 @@ export default function AdminNotificationsPage() {
         )}
 
         {/* Search and Filters */}
-        <Card className="p-6">
-          <div className="flex items-center space-x-4">
+        <Card className="p-6 glass">
+          <div className="flex flex-col md:flex-row md:items-center md:space-x-4 gap-4">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -412,7 +416,7 @@ export default function AdminNotificationsPage() {
                 />
               </div>
             </div>
-            <div className="flex space-x-2">
+            <div className="flex flex-wrap gap-2">
               <Select value={audienceFilter} onValueChange={setAudienceFilter}>
                 <SelectTrigger className="w-40">
                   <SelectValue placeholder="Audience" />
@@ -443,7 +447,7 @@ export default function AdminNotificationsPage() {
         </Card>
 
         {/* Notification History */}
-        <Card className="p-6">
+        <Card className="p-6 glass">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Notification History</h3>
@@ -464,7 +468,7 @@ export default function AdminNotificationsPage() {
                 </p>
               </div>
             ) : (
-              <div className="overflow-hidden border border-gray-200 dark:border-gray-700 rounded-lg">
+              <div className="overflow-hidden border border-white/30 dark:border-white/10 rounded-lg bg-white/70 dark:bg-slate-900/40 backdrop-blur">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-800">
                     <tr>

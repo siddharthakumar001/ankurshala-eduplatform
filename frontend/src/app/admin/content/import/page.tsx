@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -56,12 +56,7 @@ export default function AdminContentImportPage() {
   const [showUpdateConfirmation, setShowUpdateConfirmation] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    // Initial load only. Further refreshes are manual or triggered after actions
-    fetchImportJobs()
-  }, [])
-
-  const fetchImportJobs = async () => {
+  const fetchImportJobs = useCallback(async () => {
     // Back off if currently rate-limited
     if (rateLimitUntil && Date.now() < rateLimitUntil) {
       return
@@ -105,7 +100,12 @@ export default function AdminContentImportPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [rateLimitUntil])
+
+  useEffect(() => {
+    // Initial load only. Further refreshes are manual or triggered after actions
+    fetchImportJobs()
+  }, [fetchImportJobs])
 
   const handleFileSelect = (file: File) => {
     // Validate file type - CSV or XLSX
@@ -435,7 +435,7 @@ export default function AdminContentImportPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Content Import</h1>
-            <p className="text-gray-600 dark:text-gray-400">Import educational content from CSV files only</p>
+            <p className="text-gray-600 dark:text-gray-400">Import educational content from CSV or XLSX files</p>
           </div>
           <div className="flex space-x-3">
             <Button 
@@ -830,7 +830,7 @@ export default function AdminContentImportPage() {
                         <div key={index} className="text-sm text-orange-700 dark:text-orange-300 border-b border-orange-200 dark:border-orange-800 pb-2">
                           <div className="font-medium">{duplicate.topicTitle}</div>
                           <div className="text-xs text-orange-600 dark:text-orange-400">
-                            {duplicate.board} • Grade {duplicate.grade} • {duplicate.subject} • {duplicate.chapter}
+                            {duplicate.board} {' > '}Grade {duplicate.grade} {' > '}{duplicate.subject} {' > '}{duplicate.chapter}
                           </div>
                           <div className="text-xs text-orange-500 dark:text-orange-500">{duplicate.message}</div>
                         </div>
@@ -853,7 +853,7 @@ export default function AdminContentImportPage() {
                         <div key={index} className="text-sm border-b border-blue-200 dark:border-blue-800 pb-3">
                           <div className="font-medium text-blue-900 dark:text-blue-100">{update.topicTitle}</div>
                           <div className="text-xs text-blue-600 dark:text-blue-400 mb-2">
-                            {update.board} • Grade {update.grade} • {update.subject} • {update.chapter}
+                            {update.board} {' > '}Grade {update.grade} {' > '}{update.subject} {' > '}{update.chapter}
                           </div>
                           <div className="text-xs text-blue-700 dark:text-blue-300 mb-2">{update.message}</div>
                           <div className="space-y-1">
@@ -885,7 +885,7 @@ export default function AdminContentImportPage() {
                         <div key={index} className="text-sm text-green-700 dark:text-green-300 border-b border-green-200 dark:border-green-800 pb-2">
                           <div className="font-medium">{newItem.topicTitle}</div>
                           <div className="text-xs text-green-600 dark:text-green-400">
-                            {newItem.board} • Grade {newItem.grade} • {newItem.subject} • {newItem.chapter}
+                            {newItem.board} {' > '}Grade {newItem.grade} {' > '}{newItem.subject} {' > '}{newItem.chapter}
                           </div>
                           <div className="text-xs text-green-500 dark:text-green-500">{newItem.message}</div>
                         </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -138,11 +138,85 @@ export default function AdminPricingPage() {
     topicId: 'all'
   })
 
-  useEffect(() => {
-    fetchAllData()
+  const fetchPricingRules = useCallback(async () => {
+    try {
+      console.log('Fetching pricing rules...')
+      const response = await api.get('/admin/pricing')
+      const data = response.data as any
+      console.log('Pricing rules response:', data)
+      setPricingRules(data.content || data || [])
+    } catch (error) {
+      console.error('Error fetching pricing rules:', error)
+      throw error
+    }
   }, [])
 
-  const fetchAllData = async () => {
+  const fetchBoards = useCallback(async () => {
+    try {
+      console.log('Fetching boards...')
+      const response = await api.get('/admin/content/boards')
+      const data = response.data as any
+      console.log('Boards response:', data)
+      setBoards(data.content || data || [])
+    } catch (error) {
+      console.error('Error fetching boards:', error)
+      throw error
+    }
+  }, [])
+
+  const fetchGrades = useCallback(async () => {
+    try {
+      console.log('Fetching grades...')
+      const response = await api.get('/admin/content/grades/dropdown')
+      const data = response.data as any
+      console.log('Grades response:', data)
+      setGrades(data || [])
+    } catch (error) {
+      console.error('Error fetching grades:', error)
+      throw error
+    }
+  }, [])
+
+  const fetchSubjects = useCallback(async () => {
+    try {
+      console.log('Fetching subjects...')
+      const response = await api.get('/admin/content/subjects/dropdown')
+      const data = response.data as any
+      console.log('Subjects response:', data)
+      setSubjects(data || [])
+    } catch (error) {
+      console.error('Error fetching subjects:', error)
+      throw error
+    }
+  }, [])
+
+  const fetchChapters = useCallback(async () => {
+    try {
+      console.log('Fetching chapters...')
+      const response = await api.get('/admin/content/chapters/dropdown')
+      const data = response.data as any
+      console.log('Chapters response:', data)
+      setChapters(data || [])
+    } catch (error) {
+      console.error('Error fetching chapters:', error)
+      throw error
+    }
+  }, [])
+
+  const fetchTopics = useCallback(async () => {
+    try {
+      console.log('Fetching topics...')
+      const response = await api.get('/admin/content/topics/dropdown')
+      const data = response.data as any
+      console.log('Topics response:', data)
+      setTopics(data || [])
+    } catch (error) {
+      console.error('Error fetching topics:', error)
+      throw error
+    }
+  }, [])
+
+  const fetchAllData = useCallback(async () => {
     try {
       setLoading(true)
       setError('')
@@ -171,85 +245,11 @@ export default function AdminPricingPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [fetchPricingRules, fetchBoards, fetchGrades, fetchSubjects, fetchChapters, fetchTopics])
 
-  const fetchPricingRules = async () => {
-    try {
-      console.log('Fetching pricing rules...')
-      const response = await api.get('/admin/pricing')
-      const data = response.data as any
-      console.log('Pricing rules response:', data)
-      setPricingRules(data.content || data || [])
-    } catch (error) {
-      console.error('Error fetching pricing rules:', error)
-      throw error
-    }
-  }
-
-  const fetchBoards = async () => {
-    try {
-      console.log('Fetching boards...')
-      const response = await api.get('/admin/content/boards')
-      const data = response.data as any
-      console.log('Boards response:', data)
-      setBoards(data.content || data || [])
-    } catch (error) {
-      console.error('Error fetching boards:', error)
-      throw error
-    }
-  }
-
-  const fetchGrades = async () => {
-    try {
-      console.log('Fetching grades...')
-      const response = await api.get('/admin/content/grades/dropdown')
-      const data = response.data as any
-      console.log('Grades response:', data)
-      setGrades(data || [])
-    } catch (error) {
-      console.error('Error fetching grades:', error)
-      throw error
-    }
-  }
-
-  const fetchSubjects = async () => {
-    try {
-      console.log('Fetching subjects...')
-      const response = await api.get('/admin/content/subjects/dropdown')
-      const data = response.data as any
-      console.log('Subjects response:', data)
-      setSubjects(data || [])
-    } catch (error) {
-      console.error('Error fetching subjects:', error)
-      throw error
-    }
-  }
-
-  const fetchChapters = async () => {
-    try {
-      console.log('Fetching chapters...')
-      const response = await api.get('/admin/content/chapters/dropdown')
-      const data = response.data as any
-      console.log('Chapters response:', data)
-      setChapters(data || [])
-    } catch (error) {
-      console.error('Error fetching chapters:', error)
-      throw error
-    }
-  }
-
-  const fetchTopics = async () => {
-    try {
-      console.log('Fetching topics...')
-      const response = await api.get('/admin/content/topics/dropdown')
-      const data = response.data as any
-      console.log('Topics response:', data)
-      setTopics(data || [])
-    } catch (error) {
-      console.error('Error fetching topics:', error)
-      throw error
-    }
-  }
+  useEffect(() => {
+    fetchAllData()
+  }, [fetchAllData])
 
   const handleCreateRule = async () => {
     try {
@@ -465,14 +465,18 @@ export default function AdminPricingPage() {
 
   return (
     <DashboardLayout role="admin">
-      <div className="space-y-6">
+      <div className="space-y-6 relative">
+        <div className="pointer-events-none absolute inset-0 -z-10">
+          <div className="absolute -top-16 right-0 h-72 w-72 rounded-full bg-ankur-primary/10 blur-3xl" />
+          <div className="absolute bottom-10 left-8 h-64 w-64 rounded-full bg-ankur-accent/10 blur-3xl" />
+        </div>
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Pricing Management</h1>
             <p className="text-gray-600 dark:text-gray-400">Manage pricing rules and rates</p>
           </div>
-          <div className="flex space-x-2">
+          <div className="flex flex-wrap gap-2">
             <Button 
               variant="outline" 
               onClick={() => setShowTestDialog(true)}
@@ -492,8 +496,8 @@ export default function AdminPricingPage() {
         </div>
 
         {/* Search and Filters */}
-        <Card className="p-6">
-          <div className="flex items-center space-x-4">
+        <Card className="p-6 glass">
+          <div className="flex flex-col md:flex-row md:items-center md:space-x-4 gap-4">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -512,7 +516,7 @@ export default function AdminPricingPage() {
         </Card>
 
         {/* Pricing Rules Table */}
-        <Card className="p-6">
+        <Card className="p-6 glass">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Pricing Rules</h3>
@@ -530,7 +534,7 @@ export default function AdminPricingPage() {
                 </p>
               </div>
             ) : (
-              <div className="overflow-hidden border border-gray-200 dark:border-gray-700 rounded-lg">
+              <div className="overflow-hidden border border-white/30 dark:border-white/10 rounded-lg bg-white/70 dark:bg-slate-900/40 backdrop-blur">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-800">
                     <tr>

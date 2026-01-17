@@ -4,7 +4,9 @@ import com.ankurshala.backend.config.AIConfig;
 import com.ankurshala.backend.dto.ai.ChatDTO;
 import com.ankurshala.backend.entity.AIInteraction;
 import com.ankurshala.backend.entity.ContentChunk;
+import com.ankurshala.backend.entity.StudentProfile;
 import com.ankurshala.backend.repository.AIInteractionRepository;
+import com.ankurshala.backend.repository.StudentProfileRepository;
 import com.ankurshala.backend.util.TraceUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.model.ChatModel;
@@ -49,6 +51,9 @@ public class AITutorService {
     @Autowired
     private AIInteractionRepository aiInteractionRepository;
 
+    @Autowired
+    private StudentProfileRepository studentProfileRepository;
+
     @Autowired(required = false)
     private DevAIProvider devAIProvider;
 
@@ -57,16 +62,17 @@ public class AITutorService {
     @SuppressWarnings("unused")
     private static final double MIN_SIMILARITY_THRESHOLD = 0.7;
 
-    // System prompt for the AI Tutor
-    private static final String SYSTEM_PROMPT = """
-        You are Ankur, a friendly and patient AI tutor for Indian school students (Class 7-12).
+    // Base system prompt for the AI Tutor (will be personalized with student profile)
+    private static final String BASE_SYSTEM_PROMPT = """
+        You are Ankur, a friendly and patient AI tutor for Indian school students.
         
         Your role:
-        - Help students understand concepts from their curriculum (CBSE, Bihar Board, etc.)
+        - Help students understand concepts from their curriculum
         - Explain in simple terms appropriate for the student's grade level
         - Use examples relevant to Indian context when possible
         - Encourage learning and curiosity
-        - Support both English and Hindi (respond in the language the student uses)
+        - Support multiple Indian languages (Hindi, Tamil, Telugu, Bengali, Marathi, Gujarati, Kannada, Malayalam, Punjabi, and English)
+        - Respond in the language the student prefers
         
         Important guidelines:
         1. ONLY answer questions related to academics and school subjects
@@ -118,16 +124,22 @@ public class AITutorService {
             return buildUnavailableResponse(sessionId, startTime);
         }
 
-        // 3. Retrieve relevant context using RAG
+        // 3. Get student profile for personalization
+        StudentProfile studentProfile = studentProfileRepository.findByUserId(studentId).orElse(null);
+
+        // 4. Retrieve relevant context using RAG (with student profile context)
         ContentChunkService.RetrievalResult retrievalResult = retrieveContext(
                 request.getMessage(),
                 request.getTopicId(),
                 request.getSubjectId(),
-                request.getLanguage()
+                studentProfile != null && studentProfile.getLanguage() != null 
+                    ? studentProfile.getLanguage() 
+                    : request.getLanguage(),
+                studentProfile
         );
 
-        // 4. Build the prompt with context
-        List<Message> messages = buildMessages(request, retrievalResult);
+        // 5. Build the prompt with context and personalization
+        List<Message> messages = buildMessages(request, retrievalResult, studentProfile);
 
         try {
             // 5. Call the AI model
@@ -197,15 +209,21 @@ public class AITutorService {
                     .build());
         }
 
-        // Retrieve context
+        // Get student profile for personalization
+        StudentProfile studentProfile = studentProfileRepository.findByUserId(studentId).orElse(null);
+
+        // Retrieve context (with student profile context)
         ContentChunkService.RetrievalResult retrievalResult = retrieveContext(
                 request.getMessage(),
                 request.getTopicId(),
                 request.getSubjectId(),
-                request.getLanguage()
+                studentProfile != null && studentProfile.getLanguage() != null 
+                    ? studentProfile.getLanguage() 
+                    : request.getLanguage(),
+                studentProfile
         );
 
-        List<Message> messages = buildMessages(request, retrievalResult);
+        List<Message> messages = buildMessages(request, retrievalResult, studentProfile);
         Prompt prompt = new Prompt(messages);
 
         try {
@@ -239,32 +257,58 @@ public class AITutorService {
     }
 
     /**
-     * Retrieve relevant context chunks for RAG
+     * Retrieve relevant context chunks for RAG with student profile personalization
      */
     private ContentChunkService.RetrievalResult retrieveContext(
-            String query, Long topicId, Long subjectId, String language) {
+            String query, Long topicId, Long subjectId, String language, StudentProfile studentProfile) {
         
         String traceId = TraceUtil.getTraceId();
-        log.debug("Retrieving RAG context - TraceId: {}, TopicId: {}", traceId, topicId);
+        log.debug("Retrieving RAG context - TraceId: {}, TopicId: {}, StudentProfile: {}", 
+                traceId, topicId, studentProfile != null ? "present" : "null");
 
-        return contentChunkService.retrieveForRAG(
+        // Use student's preferred language if available
+        String effectiveLanguage = language;
+        if (studentProfile != null && studentProfile.getLanguage() != null && !studentProfile.getLanguage().isEmpty()) {
+            effectiveLanguage = studentProfile.getLanguage();
+        }
+
+        // Extract grade and board from student profile for personalized content retrieval
+        Long gradeId = null;
+        Long boardId = null;
+        if (studentProfile != null) {
+            // Try to get grade ID from profile
+            if (studentProfile.getGradeId() != null) {
+                gradeId = studentProfile.getGradeId();
+            }
+            // Try to get board ID from profile
+            if (studentProfile.getBoardId() != null) {
+                boardId = studentProfile.getBoardId();
+            }
+        }
+
+        // Use semantic search with student profile context for better personalization
+        return contentChunkService.retrieveForRAGWithProfile(
                 query,
                 topicId,
                 subjectId,
-                language,
+                gradeId,
+                boardId,
+                effectiveLanguage,
                 MAX_CONTEXT_CHUNKS
         );
     }
 
     /**
-     * Build the message list for the AI model
+     * Build the message list for the AI model with student profile personalization
      */
     private List<Message> buildMessages(ChatDTO.ChatRequest request, 
-                                        ContentChunkService.RetrievalResult retrievalResult) {
+                                        ContentChunkService.RetrievalResult retrievalResult,
+                                        StudentProfile studentProfile) {
         List<Message> messages = new ArrayList<>();
 
-        // System message with instructions
-        messages.add(new SystemMessage(SYSTEM_PROMPT));
+        // Build personalized system prompt
+        String personalizedPrompt = buildPersonalizedSystemPrompt(studentProfile);
+        messages.add(new SystemMessage(personalizedPrompt));
 
         // Add context from RAG if available
         if (retrievalResult.getRetrievalCount() > 0) {
@@ -273,7 +317,8 @@ public class AITutorService {
         }
 
         // Add conversation history if provided
-        if (request.getConversationHistory() != null) {
+        if (request.getConversationHistory() != null && !request.getConversationHistory().isEmpty()) {
+            log.debug("Adding conversation history - {} messages", request.getConversationHistory().size());
             for (ChatDTO.ChatMessage histMsg : request.getConversationHistory()) {
                 if ("USER".equals(histMsg.getRole())) {
                     messages.add(new UserMessage(histMsg.getContent()));
@@ -287,6 +332,45 @@ public class AITutorService {
         messages.add(new UserMessage(request.getMessage()));
 
         return messages;
+    }
+
+    /**
+     * Build personalized system prompt based on student profile
+     */
+    private String buildPersonalizedSystemPrompt(StudentProfile studentProfile) {
+        StringBuilder prompt = new StringBuilder(BASE_SYSTEM_PROMPT);
+        
+        if (studentProfile != null) {
+            prompt.append("\n\nSTUDENT CONTEXT:\n");
+            
+            // Add grade/class level
+            if (studentProfile.getClassLevel() != null) {
+                String gradeLevel = studentProfile.getClassLevel().name().replace("GRADE_", "Grade ");
+                prompt.append("- Student is in ").append(gradeLevel).append("\n");
+            } else if (studentProfile.getGradeLevel() != null) {
+                prompt.append("- Student is in ").append(studentProfile.getGradeLevel()).append("\n");
+            }
+            
+            // Add educational board
+            if (studentProfile.getEducationalBoard() != null) {
+                prompt.append("- Student follows ").append(studentProfile.getEducationalBoard().name()).append(" curriculum\n");
+            }
+            
+            // Add preferred language
+            if (studentProfile.getLanguage() != null && !studentProfile.getLanguage().isEmpty()) {
+                prompt.append("- Student prefers ").append(studentProfile.getLanguage()).append(" language\n");
+            }
+            
+            // Add learning goals if available
+            if (studentProfile.getGoals() != null && !studentProfile.getGoals().isEmpty()) {
+                prompt.append("- Student's learning goals: ").append(studentProfile.getGoals()).append("\n");
+            }
+            
+            prompt.append("\nUse this context to personalize your explanations. ");
+            prompt.append("Adjust the complexity and examples based on the student's grade level and curriculum.\n");
+        }
+        
+        return prompt.toString();
     }
 
     /**

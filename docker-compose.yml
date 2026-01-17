@@ -152,11 +152,26 @@ services:
       DEMO_SEED_ON_START: true
       DEMO_ENV: dev
       DEMO_FORCE: true
+      DEMO_BULK_SEED: true
       DEV_SEEDER_ENABLED: true
       
-      # AI Configuration (placeholder for local development)
-      OPENAI_API_KEY: sk-placeholder-for-local-development
-      AI_ENABLED: false
+      # AI Configuration
+      # Set these from .env file or environment
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-sk-placeholder-for-local-development}
+      AI_ENABLED: ${AI_ENABLED:-false}
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      AI_DEV_MODE: ${AI_DEV_MODE:-true}
+      
+      # Azure OpenAI Configuration (if using Azure)
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-}
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-}
+      AZURE_OPENAI_DEPLOYMENT_NAME: ${AZURE_OPENAI_DEPLOYMENT_NAME:-gpt-4o-mini}
+      AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME: ${AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME:-text-embedding-ada-002}
+      
+      # Azure Speech Configuration (for voice features)
+      AZURE_SPEECH_KEY: ${AZURE_SPEECH_KEY:-}
+      AZURE_SPEECH_REGION: ${AZURE_SPEECH_REGION:-}
+      AZURE_SPEECH_LANGUAGE: ${AZURE_SPEECH_LANGUAGE:-en-IN}
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/actuator/health"]
       interval: 30s

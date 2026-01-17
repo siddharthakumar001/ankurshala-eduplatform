@@ -61,6 +61,13 @@
 - `subjects` - Subjects per grade
 - `chapters` - Chapters per subject
 - `topics` - Topics per chapter
+  - **AI Integration Fields:**
+    - `description` (TEXT) - Detailed topic description for semantic search
+    - `summary` (TEXT) - Brief topic summary for quick reference
+    - `suggested_topics` (TEXT) - Comma-separated list of related topic codes for knowledge graph
+    - `expected_time_mins` (INTEGER) - Learning duration for personalized study plans
+- `topic_links` - Relationships between topics (PREREQUISITE, RELATED)
+- `topic_notes` - Additional notes for topics
 
 **Students:**
 - `students` - Student profiles

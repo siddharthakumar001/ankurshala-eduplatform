@@ -5,11 +5,21 @@ import { useRouter } from 'next/navigation'
 import { StudentRoute } from '@/components/route-guard'
 import { studentAPI } from '@/lib/apiClient'
 import { useToast } from '@/hooks/use-toast'
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
+import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis'
+import { getLanguageInfo, getSupportedLanguages, INDIAN_LANGUAGES } from '@/lib/indianLanguages'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { 
   Send, 
   Mic, 
@@ -20,7 +30,10 @@ import {
   Target, 
   Eye,
   Save,
-  Sparkles
+  Sparkles,
+  Volume2,
+  VolumeX,
+  Globe
 } from 'lucide-react'
 
 interface Message {
@@ -52,12 +65,86 @@ function AITutorPageContent() {
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
   const [voiceMode, setVoiceMode] = useState(false)
+  const [selectedLanguage, setSelectedLanguage] = useState('en')
+  const [studentProfile, setStudentProfile] = useState<any>(null)
   const [sessionId] = useState(`session-${Date.now()}`)
+  
+  // Speech recognition and synthesis hooks
+  const {
+    isListening,
+    transcript,
+    startListening,
+    stopListening,
+    resetTranscript,
+    error: speechError
+  } = useSpeechRecognition({
+    continuous: true,
+    language: getLanguageInfo(selectedLanguage).localeCode
+  })
+  
+  const {
+    isSpeaking,
+    speak,
+    stop: stopSpeaking,
+    error: synthesisError
+  } = useSpeechSynthesis()
+
+  // Load student profile on mount to get language preference and personalization data
+  useEffect(() => {
+    const loadStudentProfile = async () => {
+      try {
+        const profile = await studentAPI.getProfile()
+        setStudentProfile(profile)
+        
+        // Set language from profile if available
+        if (profile?.language) {
+          // Extract language code (e.g., 'hi-IN' -> 'hi')
+          const langCode = profile.language.split('-')[0]
+          if (getSupportedLanguages().some(l => l.code === langCode)) {
+            setSelectedLanguage(langCode)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load student profile:', error)
+        // Don't show error toast - profile might not be complete yet
+      }
+    }
+    loadStudentProfile()
+  }, [])
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // Update input when speech recognition transcript changes
+  useEffect(() => {
+    if (voiceMode && transcript) {
+      setInput(transcript)
+    }
+  }, [transcript, voiceMode])
+
+  // Handle speech recognition errors
+  useEffect(() => {
+    if (speechError) {
+      toast({
+        title: 'Speech Recognition Error',
+        description: speechError,
+        variant: 'destructive'
+      })
+    }
+  }, [speechError, toast])
+
+  // Handle speech synthesis errors
+  useEffect(() => {
+    if (synthesisError) {
+      toast({
+        title: 'Speech Synthesis Error',
+        description: synthesisError,
+        variant: 'destructive'
+      })
+    }
+  }, [synthesisError, toast])
 
   const handleSendMessage = async () => {
     if (!input.trim() || isStreaming) return
@@ -95,22 +182,41 @@ function AITutorPageContent() {
               : msg
           ))
         },
-        sessionId
+        sessionId,
+        undefined,
+        undefined,
+        getLanguageInfo(selectedLanguage).localeCode
       )
 
       // After streaming completes, fetch full response with actions/citations
-      const fullResponse = await studentAPI.sendChatMessage(userMessage.content, sessionId)
+      const fullResponse = await studentAPI.sendChatMessage(
+        userMessage.content, 
+        sessionId,
+        undefined,
+        undefined,
+        getLanguageInfo(selectedLanguage).localeCode
+      )
       
       setMessages(prev => prev.map(msg => 
         msg.id === assistantMessageId 
           ? {
               ...msg,
-              content: fullResponse.answer,
+              content: fullResponse.answer || fullResponse.message,
               suggestedActions: fullResponse.suggestedActions,
               citations: fullResponse.references
             }
           : msg
       ))
+
+      // Auto-speak assistant response in voice mode
+      if (voiceMode && (fullResponse?.message || fullContent)) {
+        const langInfo = getLanguageInfo(selectedLanguage)
+        speak(fullResponse?.message || fullContent, { 
+          rate: 0.9, 
+          pitch: 1.0,
+          voice: langInfo.femaleVoice
+        })
+      }
 
     } catch (error) {
       console.error('Chat error:', error)
@@ -176,13 +282,35 @@ function AITutorPageContent() {
   }
 
   const toggleVoiceMode = () => {
-    setVoiceMode(!voiceMode)
-    toast({
-      title: voiceMode ? 'Voice Mode Off' : 'Voice Mode On',
-      description: voiceMode 
-        ? 'Switched to text input'
-        : 'In DEV mode: Type your message to simulate voice input'
-    })
+    const newVoiceMode = !voiceMode
+    setVoiceMode(newVoiceMode)
+    
+    if (newVoiceMode) {
+      // Start listening when voice mode is enabled
+      try {
+        startListening()
+        toast({
+          title: 'Voice Mode On',
+          description: 'Listening... Speak your question'
+        })
+      } catch (error) {
+        toast({
+          title: 'Voice Mode Unavailable',
+          description: 'Speech recognition is not supported in your browser',
+          variant: 'destructive'
+        })
+        setVoiceMode(false)
+      }
+    } else {
+      // Stop listening and speaking when voice mode is disabled
+      stopListening()
+      stopSpeaking()
+      resetTranscript()
+      toast({
+        title: 'Voice Mode Off',
+        description: 'Switched to text input'
+      })
+    }
   }
 
   const getActionIcon = (type: string) => {
@@ -217,15 +345,32 @@ function AITutorPageContent() {
                   Ask about any topic, concept, or problem. I&apos;ll provide explanations with relevant examples.
                 </CardDescription>
               </div>
-              <Button
-                variant={voiceMode ? 'default' : 'outline'}
-                size="sm"
-                onClick={toggleVoiceMode}
-                data-testid="ai-tutor-voice-toggle"
-              >
-                {voiceMode ? <Mic className="h-4 w-4 mr-2" /> : <MicOff className="h-4 w-4 mr-2" />}
-                {voiceMode ? 'Voice On' : 'Voice Off'}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant={voiceMode ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={toggleVoiceMode}
+                  data-testid="ai-tutor-voice-toggle"
+                >
+                  {isListening ? (
+                    <Mic className="h-4 w-4 mr-2 animate-pulse" />
+                  ) : (
+                    <MicOff className="h-4 w-4 mr-2" />
+                  )}
+                  {voiceMode ? (isListening ? 'Listening...' : 'Voice On') : 'Voice Off'}
+                </Button>
+                {isSpeaking && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={stopSpeaking}
+                    data-testid="ai-tutor-stop-speaking"
+                  >
+                    <VolumeX className="h-4 w-4 mr-2" />
+                    Stop
+                  </Button>
+                )}
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -342,7 +487,7 @@ function AITutorPageContent() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={voiceMode ? "Type to simulate voice input (DEV mode)..." : "Ask a question..."}
+                placeholder={voiceMode ? (isListening ? "Listening... speak your question" : "Click mic to start listening") : "Ask a question..."}
                 className="min-h-[80px] resize-none"
                 disabled={isStreaming}
                 data-testid="ai-tutor-input"

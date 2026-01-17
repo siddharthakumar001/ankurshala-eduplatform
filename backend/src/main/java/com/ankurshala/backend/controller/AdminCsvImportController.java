@@ -3,6 +3,8 @@ package com.ankurshala.backend.controller;
 import com.ankurshala.backend.entity.ImportJob;
 import com.ankurshala.backend.service.CsvContentImportService;
 import com.ankurshala.backend.service.EnhancedCurriculumImportService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -12,6 +14,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -20,6 +23,8 @@ import java.util.Map;
 @CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3001", "http://localhost:3002"}, maxAge = 3600)
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminCsvImportController {
+    
+    private static final Logger logger = LoggerFactory.getLogger(AdminCsvImportController.class);
 
     @Autowired
     private CsvContentImportService csvImportService;
@@ -325,14 +330,33 @@ public class AdminCsvImportController {
             ));
             
         } catch (Exception e) {
-            return ResponseEntity.internalServerError()
-                .body(Map.of(
-                    "type", "https://ankurshala.com/problems/import-failed",
-                    "title", "Import Failed",
-                    "status", 500,
-                    "detail", "Failed to process file: " + e.getMessage(),
-                    "instance", "/admin/content/import/curriculum"
-                ));
+            logger.error("Curriculum import failed", e);
+            
+            // Build detailed error response
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("type", "https://ankurshala.com/problems/import-failed");
+            errorResponse.put("title", "Import Failed");
+            errorResponse.put("status", 500);
+            errorResponse.put("instance", "/admin/content/import/curriculum");
+            
+            // Provide helpful error detail based on exception type
+            String detail;
+            if (e instanceof IllegalArgumentException) {
+                detail = "Validation error: " + e.getMessage() + 
+                        ". Please check that all required columns are present (Board, Grade, Subject, Chapter, Topics) " +
+                        "and that data is in the correct format.";
+                errorResponse.put("status", 400);
+                return ResponseEntity.badRequest().body(errorResponse);
+            } else if (e instanceof IOException) {
+                detail = "File reading error: " + e.getMessage() + 
+                        ". Please ensure the file is not corrupted and is a valid CSV or XLSX file.";
+            } else {
+                detail = "Failed to process file: " + e.getMessage() + 
+                        ". Please check the file format and data integrity, then try again.";
+            }
+            
+            errorResponse.put("detail", detail);
+            return ResponseEntity.internalServerError().body(errorResponse);
         }
     }
 }

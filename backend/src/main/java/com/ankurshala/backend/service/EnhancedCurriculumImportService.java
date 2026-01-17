@@ -122,8 +122,22 @@ public class EnhancedCurriculumImportService {
         } catch (Exception e) {
             importJob.setStatus(ImportJobStatus.FAILED);
             importJob.setCompletedAt(LocalDateTime.now());
-            importJob.setErrorMessage(e.getMessage());
-            logger.error("Curriculum import failed: {}", e.getMessage(), e);
+            
+            // Provide detailed error message
+            String detailedError = String.format("Import failed: %s. File: %s, Type: %s", 
+                e.getMessage(), 
+                fileName,
+                fileName.toLowerCase().endsWith(".csv") ? "CSV" : "XLSX"
+            );
+            
+            if (e instanceof IllegalArgumentException) {
+                detailedError += " | This is likely a data validation error. Please check your file format and data.";
+            } else if (e instanceof IOException) {
+                detailedError += " | This is a file reading error. Please ensure the file is not corrupted and is in the correct format.";
+            }
+            
+            importJob.setErrorMessage(detailedError);
+            logger.error("Curriculum import failed: {}", detailedError, e);
         }
         
         return CompletableFuture.completedFuture(importJobRepository.save(importJob));
@@ -156,15 +170,24 @@ public class EnhancedCurriculumImportService {
             // Process data rows
             for (int i = 0; i < csvRecords.size(); i++) {
                 CSVRecord record = csvRecords.get(i);
+                int rowNumber = i + 2; // +2 because header is row 1
                 try {
-                    CurriculumRow curriculumRow = parseCsvRecord(record, columnMap, i + 2); // +2 because header is row 1
+                    CurriculumRow curriculumRow = parseCsvRecord(record, columnMap, rowNumber);
                     rows.add(curriculumRow);
                     successCount++;
                 } catch (Exception e) {
                     errorCount++;
-                    String error = String.format("Row %d: %s", i + 2, e.getMessage());
-                    errors.add(error);
-                    logger.warn(error);
+                    String errorDetail = String.format("Row %d Error: %s | Data: Board='%s', Grade='%s', Subject='%s', Chapter='%s', Topics='%s'", 
+                        rowNumber, 
+                        e.getMessage(),
+                        getCsvFieldValue(record, COL_BOARD),
+                        getCsvFieldValue(record, COL_GRADE),
+                        getCsvFieldValue(record, COL_SUBJECT),
+                        getCsvFieldValue(record, COL_CHAPTER),
+                        getCsvFieldValue(record, COL_TOPICS)
+                    );
+                    errors.add(errorDetail);
+                    logger.warn(errorDetail);
                     
                     if (errors.size() > 100) {
                         errors.add("... and more errors (limit reached)");
@@ -224,8 +247,18 @@ public class EnhancedCurriculumImportService {
         // Parse duration to minutes
         Integer durationMinutes = parseDurationToMinutes(duration);
         
-        // Build description from brief description and suggested topics
-        String description = buildDescription(briefDescription, suggestedTopics);
+        // Use brief description as summary (first 200 chars) and full description
+        String summary = briefDescription != null && !briefDescription.trim().isEmpty() 
+            ? (briefDescription.length() > 200 ? briefDescription.substring(0, 200) + "..." : briefDescription)
+            : null;
+        
+        // Full description includes brief description
+        String description = briefDescription != null && !briefDescription.trim().isEmpty() 
+            ? briefDescription : null;
+        
+        // Parse suggested topics (comma-separated list)
+        String parsedSuggestedTopics = suggestedTopics != null && !suggestedTopics.trim().isEmpty()
+            ? suggestedTopics.trim() : null;
         
         return new CurriculumRow(
             board.trim(),
@@ -235,8 +268,9 @@ public class EnhancedCurriculumImportService {
             topicList,
             relatedTopicLinks,
             description,
-            durationMinutes,
-            suggestedTopics
+            summary,
+            parsedSuggestedTopics,
+            durationMinutes
         );
     }
     
@@ -417,8 +451,18 @@ public class EnhancedCurriculumImportService {
         // Parse duration to minutes
         Integer durationMinutes = parseDurationToMinutes(duration);
         
-        // Build description from brief description and suggested topics
-        String description = buildDescription(briefDescription, suggestedTopics);
+        // Use brief description as summary (first 200 chars) and full description
+        String summary = briefDescription != null && !briefDescription.trim().isEmpty() 
+            ? (briefDescription.length() > 200 ? briefDescription.substring(0, 200) + "..." : briefDescription)
+            : null;
+        
+        // Full description includes brief description
+        String description = briefDescription != null && !briefDescription.trim().isEmpty() 
+            ? briefDescription : null;
+        
+        // Parse suggested topics (comma-separated list)
+        String parsedSuggestedTopics = suggestedTopics != null && !suggestedTopics.trim().isEmpty()
+            ? suggestedTopics.trim() : null;
         
         return new CurriculumRow(
             board.trim(),
@@ -428,8 +472,9 @@ public class EnhancedCurriculumImportService {
             topicList,
             relatedTopicLinks,
             description,
-            durationMinutes,
-            suggestedTopics
+            summary,
+            parsedSuggestedTopics,
+            durationMinutes
         );
     }
     
@@ -651,7 +696,7 @@ public class EnhancedCurriculumImportService {
                         for (CurriculumRow currRow : chapterRows) {
                             for (String topicTitle : currRow.topics) {
                                 Topic topic = getOrCreateTopic(topicTitle, chapter, subject, board,
-                                    currRow.description, currRow.durationMinutes);
+                                    currRow.description, currRow.summary, currRow.suggestedTopics, currRow.durationMinutes);
                                 topicsCreated++;
                                 
                                 // Store related topic links for later processing
@@ -778,11 +823,11 @@ public class EnhancedCurriculumImportService {
      * Get or create Topic entity
      */
     private Topic getOrCreateTopic(String title, Chapter chapter, Subject subject, Board board) {
-        return getOrCreateTopic(title, chapter, subject, board, null, null);
+        return getOrCreateTopic(title, chapter, subject, board, null, null, null, null);
     }
     
     private Topic getOrCreateTopic(String title, Chapter chapter, Subject subject, Board board,
-                                   String description, Integer durationMinutes) {
+                                   String description, String summary, String suggestedTopics, Integer durationMinutes) {
         return topicRepository.findByTitleAndChapterId(title, chapter.getId())
             .map(existingTopic -> {
                 // Update existing topic with new information if provided
@@ -790,6 +835,16 @@ public class EnhancedCurriculumImportService {
                 if (description != null && !description.trim().isEmpty() && 
                     (existingTopic.getDescription() == null || existingTopic.getDescription().trim().isEmpty())) {
                     existingTopic.setDescription(description);
+                    updated = true;
+                }
+                if (summary != null && !summary.trim().isEmpty() &&
+                    (existingTopic.getSummary() == null || existingTopic.getSummary().trim().isEmpty())) {
+                    existingTopic.setSummary(summary);
+                    updated = true;
+                }
+                if (suggestedTopics != null && !suggestedTopics.trim().isEmpty() &&
+                    (existingTopic.getSuggestedTopics() == null || existingTopic.getSuggestedTopics().trim().isEmpty())) {
+                    existingTopic.setSuggestedTopics(suggestedTopics);
                     updated = true;
                 }
                 if (durationMinutes != null && existingTopic.getExpectedTimeMins() == null) {
@@ -814,9 +869,15 @@ public class EnhancedCurriculumImportService {
                 String code = generateTopicCode(subject.getName(), chapter.getName(), title);
                 topic.setCode(code);
                 
-                // Set description if provided
+                // Set AI integration fields
                 if (description != null && !description.trim().isEmpty()) {
                     topic.setDescription(description);
+                }
+                if (summary != null && !summary.trim().isEmpty()) {
+                    topic.setSummary(summary);
+                }
+                if (suggestedTopics != null && !suggestedTopics.trim().isEmpty()) {
+                    topic.setSuggestedTopics(suggestedTopics);
                 }
                 
                 // Set expected time: use provided duration or default to 60 minutes
@@ -894,17 +955,18 @@ public class EnhancedCurriculumImportService {
         List<String> topics;
         List<RelatedTopicLink> relatedTopicLinks;
         String description;
-        Integer durationMinutes;
+        String summary;
         String suggestedTopics;
+        Integer durationMinutes;
 
         CurriculumRow(String board, String grade, String subject, String chapter,
                      List<String> topics, List<RelatedTopicLink> relatedTopicLinks) {
-            this(board, grade, subject, chapter, topics, relatedTopicLinks, null, null, null);
+            this(board, grade, subject, chapter, topics, relatedTopicLinks, null, null, null, null);
         }
         
         CurriculumRow(String board, String grade, String subject, String chapter,
                      List<String> topics, List<RelatedTopicLink> relatedTopicLinks,
-                     String description, Integer durationMinutes, String suggestedTopics) {
+                     String description, String summary, String suggestedTopics, Integer durationMinutes) {
             this.board = board;
             this.grade = grade;
             this.subject = subject;
@@ -912,8 +974,9 @@ public class EnhancedCurriculumImportService {
             this.topics = topics;
             this.relatedTopicLinks = relatedTopicLinks;
             this.description = description;
-            this.durationMinutes = durationMinutes;
+            this.summary = summary;
             this.suggestedTopics = suggestedTopics;
+            this.durationMinutes = durationMinutes;
         }
     }
 

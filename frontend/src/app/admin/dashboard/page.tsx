@@ -12,10 +12,7 @@ import {
   Users, 
   GraduationCap, 
   BookOpen,
-  Calendar,
   CreditCard,
-  Bell,
-  Settings,
   UserPlus,
   FileText,
   TrendingUp,
@@ -23,10 +20,7 @@ import {
   AlertCircle,
   RefreshCw,
   ChevronRight,
-  Activity,
   DollarSign,
-  CheckCircle,
-  BarChart3,
 } from 'lucide-react'
 import { api } from '@/utils/api'
 import { useAuthStore } from '@/store/auth'
@@ -137,13 +131,17 @@ export default function AdminDashboard() {
     <AuthGuard requiredRoles={['ADMIN']}>
       <SessionManager showSessionInfo={false}>
         <DashboardLayout role="admin">
-          <div className="space-y-6">
+          <div className="space-y-6 relative">
+            <div className="pointer-events-none absolute inset-0 -z-10">
+              <div className="absolute -top-24 -right-16 h-64 w-64 rounded-full bg-ankur-accent/10 blur-3xl" />
+              <div className="absolute bottom-10 left-6 h-72 w-72 rounded-full bg-ankur-primary/10 blur-3xl" />
+            </div>
             {/* Page Header */}
             <div className="bg-gradient-to-r from-ankur-secondary to-[#2a4a73] rounded-2xl p-8 text-white">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                   <h1 className="text-2xl md:text-3xl font-bold mb-2">
-                    Welcome back, {user?.name || 'Admin'}! 👋
+                    Welcome back, {user?.name || 'Admin'}!
                   </h1>
                   <p className="text-white/80">
                     Here&apos;s what&apos;s happening with your platform today.
@@ -211,7 +209,7 @@ export default function AdminDashboard() {
               />
               <MetricCard
                 title="Revenue"
-                value="₹4,52,000"
+                value="INR 4,52,000"
                 change={12.5}
                 changeLabel="vs last month"
                 icon={DollarSign}
@@ -224,50 +222,50 @@ export default function AdminDashboard() {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
-                <a href="/admin/settings" className="text-sm text-ankur-primary hover:underline flex items-center gap-1">
-                  View all settings <ChevronRight className="w-4 h-4" />
+                <a href="/admin/profile" className="text-sm text-ankur-primary hover:underline flex items-center gap-1">
+                  View profile <ChevronRight className="w-4 h-4" />
                 </a>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 <QuickActionCard
-                  title="Add Student"
+                  title="Manage Students"
                   icon={UserPlus}
-                  href="/admin/students/new"
+                  href="/admin/users/students"
                   iconBgColor="bg-blue-50"
                   iconColor="text-blue-600"
                 />
                 <QuickActionCard
-                  title="Add Teacher"
+                  title="Manage Teachers"
                   icon={Users}
-                  href="/admin/teachers/new"
+                  href="/admin/users/teachers"
                   iconBgColor="bg-green-50"
                   iconColor="text-green-600"
                 />
                 <QuickActionCard
-                  title="Manage Subjects"
+                  title="Content Structure"
                   icon={BookOpen}
-                  href="/admin/subjects"
+                  href="/admin/content/manage"
                   iconBgColor="bg-purple-50"
                   iconColor="text-purple-600"
                 />
                 <QuickActionCard
-                  title="View Bookings"
-                  icon={Calendar}
-                  href="/admin/bookings"
+                  title="Content Import"
+                  icon={FileText}
+                  href="/admin/content/import"
                   iconBgColor="bg-orange-50"
                   iconColor="text-orange-600"
                 />
                 <QuickActionCard
-                  title="Payments"
-                  icon={CreditCard}
-                  href="/admin/payments"
+                  title="Pricing"
+                  icon={DollarSign}
+                  href="/admin/pricing"
                   iconBgColor="bg-emerald-50"
                   iconColor="text-emerald-600"
                 />
                 <QuickActionCard
-                  title="Reports"
-                  icon={BarChart3}
-                  href="/admin/reports"
+                  title="Fee Waivers"
+                  icon={CreditCard}
+                  href="/admin/fees"
                   iconBgColor="bg-indigo-50"
                   iconColor="text-indigo-600"
                 />
@@ -281,7 +279,7 @@ export default function AdminDashboard() {
                 <ActivityFeed
                   items={recentActivity}
                   maxItems={5}
-                  onViewAll={() => window.location.href = '/admin/activity'}
+                  onViewAll={() => window.location.href = '/admin/content/analytics'}
                 />
               </div>
 
@@ -294,7 +292,7 @@ export default function AdminDashboard() {
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Content Statistics */}
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+              <div className="glass rounded-xl border border-white/30 dark:border-white/10 shadow-sm p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="font-semibold text-gray-900">Content Statistics</h3>
                   <FileText className="w-5 h-5 text-gray-400" />
@@ -319,7 +317,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* User Growth */}
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+              <div className="glass rounded-xl border border-white/30 dark:border-white/10 shadow-sm p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="font-semibold text-gray-900">User Growth</h3>
                   <TrendingUp className="w-5 h-5 text-green-500" />
