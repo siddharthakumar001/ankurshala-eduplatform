@@ -1,10 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { studentAPI } from '@/lib/apiClient'
-import { useAuthStore } from '@/stores/authStore'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -30,7 +28,6 @@ import {
   History,
   TrendingUp,
   Bell,
-  Languages
 } from 'lucide-react'
 import { StudentRoute } from '@/components/route-guard'
 
@@ -117,7 +114,6 @@ interface PracticeStats {
 }
 
 function PracticePageContent() {
-  const router = useRouter()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState('today')
   const [activePractice, setActivePractice] = useState<StartPracticeResponse | null>(null)
@@ -229,14 +225,14 @@ function PracticePageContent() {
     const allAnswered = activePractice.questions.every(q => answers[q.id])
     
     return (
-      <div className="container mx-auto px-4 py-8 max-w-3xl">
-        <Card className="border-0 shadow-xl bg-gradient-to-br from-slate-50 to-white">
-          <CardHeader className="border-b bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-t-lg">
-            <CardTitle className="flex items-center gap-2">
-              <BookOpen className="w-5 h-5" />
+      <div className="max-w-3xl mx-auto px-4 py-8">
+        <Card className="glass-panel border border-white/40">
+          <CardHeader className="border-b border-white/20">
+            <CardTitle className="flex items-center gap-2 text-slate-900 dark:text-white">
+              <BookOpen className="w-5 h-5 text-emerald-500" />
               {activePractice.topicName}
             </CardTitle>
-            <CardDescription className="text-indigo-100">
+            <CardDescription className="text-slate-500 dark:text-slate-300">
               Answer all questions to complete this practice
             </CardDescription>
           </CardHeader>
@@ -245,18 +241,18 @@ function PracticePageContent() {
               value={(Object.keys(answers).length / activePractice.questions.length) * 100} 
               className="h-2"
             />
-            <p className="text-sm text-gray-500 text-center">
+            <p className="text-sm text-slate-500 dark:text-slate-300 text-center">
               {Object.keys(answers).length} of {activePractice.questions.length} answered
             </p>
 
             {activePractice.questions.map((question, index) => (
-              <Card key={question.id} className="border shadow-sm">
+              <Card key={question.id} className="glass-panel border border-white/40">
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3 mb-4">
-                    <span className="flex-shrink-0 w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-semibold text-sm">
+                    <span className="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-semibold text-sm">
                       {index + 1}
                     </span>
-                    <p className="font-medium text-gray-800 pt-1">{question.questionText}</p>
+                    <p className="font-medium text-slate-800 dark:text-slate-100 pt-1">{question.questionText}</p>
                   </div>
                   
                   <RadioGroup
@@ -269,8 +265,8 @@ function PracticePageContent() {
                         key={optIndex} 
                         className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors cursor-pointer
                           ${answers[question.id] === String(optIndex) 
-                            ? 'border-indigo-500 bg-indigo-50' 
-                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}
+                            ? 'border-emerald-400 bg-white/80' 
+                            : 'border-white/30 bg-white/50 hover:border-white/60'}`}
                       >
                         <RadioGroupItem value={String(optIndex)} id={`q${question.id}-opt${optIndex}`} />
                         <Label htmlFor={`q${question.id}-opt${optIndex}`} className="flex-1 cursor-pointer">
@@ -288,13 +284,14 @@ function PracticePageContent() {
                 variant="outline" 
                 onClick={() => setActivePractice(null)}
                 disabled={submitPracticeMutation.isPending}
+                className="btn-outline"
               >
                 Cancel
               </Button>
               <Button 
                 onClick={handleSubmitPractice}
                 disabled={!allAnswered || submitPracticeMutation.isPending}
-                className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700"
+                className="btn-primary"
                 data-testid="submit-practice-btn"
               >
                 {submitPracticeMutation.isPending ? (
@@ -322,26 +319,26 @@ function PracticePageContent() {
     const isGood = percentage >= 70
     
     return (
-      <div className="container mx-auto px-4 py-8 max-w-3xl">
-        <Card className="border-0 shadow-xl overflow-hidden">
-          <CardHeader className={`${isGood ? 'bg-gradient-to-r from-green-500 to-emerald-600' : 'bg-gradient-to-r from-orange-500 to-amber-600'} text-white`} data-testid="practice-result">
+      <div className="max-w-3xl mx-auto px-4 py-8">
+        <Card className="glass-panel border border-white/40 overflow-hidden">
+          <CardHeader className="border-b border-white/20 text-center" data-testid="practice-result">
             <div className="flex items-center justify-center mb-4">
               {isGood ? (
-                <Trophy className="w-16 h-16 text-yellow-300" />
+                <Trophy className="w-16 h-16 text-amber-500" />
               ) : (
-                <Target className="w-16 h-16 text-white" />
+                <Target className="w-16 h-16 text-emerald-500" />
               )}
             </div>
-            <CardTitle className="text-center text-3xl" data-testid="practice-score">
+            <CardTitle className="text-center text-3xl text-slate-900 dark:text-white" data-testid="practice-score">
               {percentage.toFixed(0)}% Score
             </CardTitle>
-            <CardDescription className="text-center text-white/90">
+            <CardDescription className="text-center text-slate-500 dark:text-slate-300">
               {submittedResult.questionsCorrect} of {submittedResult.questionsAnswered} correct
             </CardDescription>
           </CardHeader>
           <CardContent className="p-6 space-y-6">
             {/* Mastery Update */}
-            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg">
+            <div className="flex items-center justify-between p-4 glass rounded-lg">
               <div className="flex items-center gap-3">
                 <TrendingUp className={`w-5 h-5 ${(submittedResult.masteryDelta || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`} />
                 <span className="font-medium">Mastery Update</span>
@@ -350,33 +347,33 @@ function PracticePageContent() {
                 <span className={`font-bold ${(submittedResult.masteryDelta || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {(submittedResult.masteryDelta || 0) >= 0 ? '+' : ''}{((submittedResult.masteryDelta || 0) * 100).toFixed(1)}%
                 </span>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-slate-500 dark:text-slate-300">
                   New: {((submittedResult.newMasteryScore || 0) * 100).toFixed(0)}%
                 </p>
               </div>
             </div>
 
             {/* Feedback */}
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <p className="text-gray-700">{submittedResult.feedback}</p>
+            <div className="p-4 glass rounded-lg">
+              <p className="text-slate-700 dark:text-slate-200">{submittedResult.feedback}</p>
             </div>
 
             {/* Question Results */}
             <div className="space-y-3">
-              <h3 className="font-semibold text-gray-800">Question Review</h3>
+              <h3 className="font-semibold text-slate-800 dark:text-slate-100">Question Review</h3>
               {submittedResult.questionResults.map((result, index) => (
                 <div 
                   key={result.questionId}
-                  className={`p-4 rounded-lg border ${result.correct ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}
+                  className={`p-4 rounded-lg border ${result.correct ? 'border-emerald-200/60 bg-emerald-500/5' : 'border-red-200/60 bg-red-500/5'}`}
                 >
                   <div className="flex items-start gap-3">
                     {result.correct ? (
-                      <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                      <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
                     ) : (
                       <XCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                     )}
                     <div className="flex-1">
-                      <p className="font-medium text-gray-800">{result.questionText}</p>
+                      <p className="font-medium text-slate-800 dark:text-slate-100">{result.questionText}</p>
                       {!result.correct && (
                         <div className="mt-2 space-y-1 text-sm">
                           <p className="text-red-600">Your answer: Option {String.fromCharCode(65 + parseInt(result.selectedAnswer))}</p>
@@ -384,7 +381,7 @@ function PracticePageContent() {
                         </div>
                       )}
                       {result.explanation && (
-                        <p className="mt-2 text-sm text-gray-600 bg-white/50 p-2 rounded">
+                        <p className="mt-2 text-sm text-slate-600 dark:text-slate-200 bg-white/50 p-2 rounded">
                           {result.explanation}
                         </p>
                       )}
@@ -396,8 +393,8 @@ function PracticePageContent() {
 
             {/* Next Recommendation */}
             {submittedResult.nextRecommendation && (
-              <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg">
-                <p className="text-gray-700">{submittedResult.nextRecommendation.message}</p>
+              <div className="p-4 glass rounded-lg">
+                <p className="text-slate-700 dark:text-slate-200">{submittedResult.nextRecommendation.message}</p>
               </div>
             )}
 
@@ -406,7 +403,7 @@ function PracticePageContent() {
                 setSubmittedResult(null)
                 refetchToday()
               }}
-              className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700"
+              className="btn-primary w-full"
             >
               Continue
               <ArrowRight className="w-4 h-4 ml-2" />
@@ -419,40 +416,43 @@ function PracticePageContent() {
 
   // Main view
   return (
-    <div className="container mx-auto px-4 py-8" data-testid="practice-page">
+    <div className="space-y-6" data-testid="practice-page">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            Daily Practice
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Strengthen your weak topics with daily micro-quizzes
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="practice-enabled" className="text-sm">Practice Enabled</Label>
-            <Switch
-              id="practice-enabled"
-              checked={preferences?.enabled}
-              onCheckedChange={togglePracticeEnabled}
-              disabled={updatePrefsMutation.isPending}
-            />
+      <div className="page-header">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-white">
+              Daily Practice
+            </h1>
+            <p className="text-white/80 mt-1">
+              Strengthen your weak topics with daily micro-quizzes
+            </p>
           </div>
-          <Button 
-            variant="outline" 
-            size="icon"
-            onClick={() => setShowSettings(!showSettings)}
-          >
-            <Settings2 className="w-4 h-4" />
-          </Button>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-white/90">
+              <Label htmlFor="practice-enabled" className="text-sm">Practice Enabled</Label>
+              <Switch
+                id="practice-enabled"
+                checked={preferences?.enabled}
+                onCheckedChange={togglePracticeEnabled}
+                disabled={updatePrefsMutation.isPending}
+              />
+            </div>
+            <Button 
+              variant="outline" 
+              size="icon"
+              className="btn-outline border-white/40 bg-white/10 text-white hover:bg-white/20"
+              onClick={() => setShowSettings(!showSettings)}
+            >
+              <Settings2 className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Settings Panel */}
       {showSettings && preferences && (
-        <Card className="mb-6 border-indigo-200 bg-indigo-50/50">
+        <Card className="glass-panel border border-white/40">
           <CardHeader>
             <CardTitle className="text-lg">Practice Settings</CardTitle>
           </CardHeader>
@@ -463,7 +463,7 @@ function PracticePageContent() {
                 value={String(preferences.dailyQuestionCount)}
                 onValueChange={(value) => updatePrefsMutation.mutate({ dailyQuestionCount: parseInt(value) })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="input-modern">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -479,7 +479,7 @@ function PracticePageContent() {
                 value={preferences.preferredTimeLocal}
                 onValueChange={(value) => updatePrefsMutation.mutate({ preferredTimeLocal: value })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="input-modern">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -498,7 +498,7 @@ function PracticePageContent() {
                 value={preferences.language}
                 onValueChange={(value) => updatePrefsMutation.mutate({ language: value })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="input-modern">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -513,39 +513,47 @@ function PracticePageContent() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-orange-500 to-amber-500 text-white">
+        <Card className="glass-panel">
           <CardContent className="p-4 flex items-center gap-3">
-            <Flame className="w-8 h-8" />
+            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
+              <Flame className="w-6 h-6 text-amber-500" />
+            </div>
             <div>
-              <p className="text-2xl font-bold">{stats.currentStreak}</p>
-              <p className="text-xs opacity-90">Day Streak</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.currentStreak}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-300">Day Streak</p>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-green-500 to-emerald-500 text-white">
+        <Card className="glass-panel">
           <CardContent className="p-4 flex items-center gap-3">
-            <CheckCircle2 className="w-8 h-8" />
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+              <CheckCircle2 className="w-6 h-6 text-emerald-500" />
+            </div>
             <div>
-              <p className="text-2xl font-bold">{stats.totalQuestionsCorrect}</p>
-              <p className="text-xs opacity-90">Questions Correct</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.totalQuestionsCorrect}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-300">Questions Correct</p>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-500 to-cyan-500 text-white">
+        <Card className="glass-panel">
           <CardContent className="p-4 flex items-center gap-3">
-            <Target className="w-8 h-8" />
+            <div className="w-10 h-10 rounded-xl bg-sky-500/10 flex items-center justify-center">
+              <Target className="w-6 h-6 text-sky-500" />
+            </div>
             <div>
-              <p className="text-2xl font-bold">{stats.averageAccuracy?.toFixed(0) || 0}%</p>
-              <p className="text-xs opacity-90">Accuracy</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.averageAccuracy?.toFixed(0) || 0}%</p>
+              <p className="text-xs text-slate-500 dark:text-slate-300">Accuracy</p>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-500 to-pink-500 text-white">
+        <Card className="glass-panel">
           <CardContent className="p-4 flex items-center gap-3">
-            <Trophy className="w-8 h-8" />
+            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center">
+              <Trophy className="w-6 h-6 text-indigo-500" />
+            </div>
             <div>
-              <p className="text-2xl font-bold">{stats.longestStreak}</p>
-              <p className="text-xs opacity-90">Best Streak</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.longestStreak}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-300">Best Streak</p>
             </div>
           </CardContent>
         </Card>
@@ -553,12 +561,18 @@ function PracticePageContent() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-2 w-full max-w-md mb-6">
-          <TabsTrigger value="today" className="flex items-center gap-2">
+        <TabsList className="glass-panel grid grid-cols-2 w-full max-w-md p-1 mb-6">
+          <TabsTrigger
+            value="today"
+            className="flex items-center gap-2 data-[state=active]:bg-white/70 data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-900/80 dark:data-[state=active]:text-white"
+          >
             <BookOpen className="w-4 h-4" />
             Today's Practice
           </TabsTrigger>
-          <TabsTrigger value="history" className="flex items-center gap-2">
+          <TabsTrigger
+            value="history"
+            className="flex items-center gap-2 data-[state=active]:bg-white/70 data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-900/80 dark:data-[state=active]:text-white"
+          >
             <History className="w-4 h-4" />
             History
           </TabsTrigger>
@@ -567,36 +581,36 @@ function PracticePageContent() {
         <TabsContent value="today">
           {todayLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+              <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
             </div>
           ) : !preferences?.enabled ? (
-            <Card className="border-dashed border-2 border-gray-300">
+            <Card className="glass-panel border border-white/40">
               <CardContent className="p-12 text-center">
-                <Bell className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-                <h3 className="text-lg font-semibold text-gray-700 mb-2">Daily Practice is Disabled</h3>
-                <p className="text-gray-500 mb-4">Enable daily practice to get personalized micro-quizzes based on your weak topics.</p>
-                <Button onClick={togglePracticeEnabled}>
+                <Bell className="w-12 h-12 mx-auto text-slate-400 mb-4" />
+                <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-2">Daily Practice is Disabled</h3>
+                <p className="text-slate-500 dark:text-slate-300 mb-4">Enable daily practice to get personalized micro-quizzes based on your weak topics.</p>
+                <Button className="btn-primary" onClick={togglePracticeEnabled}>
                   Enable Daily Practice
                 </Button>
               </CardContent>
             </Card>
           ) : todayPractice?.items.length === 0 ? (
-            <Card className="border-dashed border-2 border-gray-300">
+            <Card className="glass-panel border border-white/40">
               <CardContent className="p-12 text-center">
-                <CheckCircle2 className="w-12 h-12 mx-auto text-green-500 mb-4" />
-                <h3 className="text-lg font-semibold text-gray-700 mb-2">No Practice Items Today</h3>
-                <p className="text-gray-500">Great job! You've mastered your topics or practice items will be generated soon.</p>
+                <CheckCircle2 className="w-12 h-12 mx-auto text-emerald-500 mb-4" />
+                <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-2">No Practice Items Today</h3>
+                <p className="text-slate-500 dark:text-slate-300">Great job! You've mastered your topics or practice items will be generated soon.</p>
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-4">
               {/* Progress Summary */}
               {todayPractice && (
-                <Card className="bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-200">
+                <Card className="glass-panel border border-white/40">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium text-indigo-800">Today's Progress</span>
-                      <span className="text-sm text-indigo-600">
+                      <span className="font-medium text-slate-800 dark:text-white">Today's Progress</span>
+                      <span className="text-sm text-slate-500 dark:text-slate-300">
                         {todayPractice.completedItems} / {todayPractice.totalItems} completed
                       </span>
                     </div>
@@ -612,12 +626,12 @@ function PracticePageContent() {
               {todayPractice?.items.map((item) => (
                 <Card 
                   key={item.id} 
-                  className={`transition-all ${
+                  className={`glass-panel border border-white/40 transition-all ${
                     item.status === 'COMPLETED' 
-                      ? 'bg-green-50 border-green-200' 
+                      ? 'border-emerald-200/60 bg-emerald-500/5' 
                       : item.status === 'SKIPPED'
-                        ? 'bg-gray-50 border-gray-200 opacity-60'
-                        : 'hover:shadow-md'
+                        ? 'opacity-70'
+                        : 'hover-lift'
                   }`}
                 >
                   <CardContent className="p-4">
@@ -625,35 +639,36 @@ function PracticePageContent() {
                       <div className="flex items-center gap-4">
                         <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
                           item.status === 'COMPLETED' 
-                            ? 'bg-green-100' 
+                            ? 'bg-emerald-500/10' 
                             : item.status === 'SKIPPED'
-                              ? 'bg-gray-100'
-                              : 'bg-indigo-100'
+                              ? 'bg-slate-500/10'
+                              : 'bg-emerald-500/10'
                         }`}>
                           {item.status === 'COMPLETED' ? (
-                            <CheckCircle2 className="w-6 h-6 text-green-600" />
+                            <CheckCircle2 className="w-6 h-6 text-emerald-500" />
                           ) : item.status === 'SKIPPED' ? (
-                            <SkipForward className="w-6 h-6 text-gray-400" />
+                            <SkipForward className="w-6 h-6 text-slate-400" />
                           ) : (
-                            <BookOpen className="w-6 h-6 text-indigo-600" />
+                            <BookOpen className="w-6 h-6 text-emerald-500" />
                           )}
                         </div>
                         <div>
-                          <h3 className="font-semibold text-gray-800">{item.topicName}</h3>
-                          <p className="text-sm text-gray-500">{item.subjectName}</p>
+                          <h3 className="font-semibold text-slate-900 dark:text-white">{item.topicName}</h3>
+                          <p className="text-sm text-slate-500 dark:text-slate-300">{item.subjectName}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
                         {item.status === 'COMPLETED' && item.score !== undefined && (
-                          <Badge variant="secondary" className="bg-green-100 text-green-700">
+                          <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">
                             {item.score.toFixed(0)}%
                           </Badge>
                         )}
                         {item.status === 'PENDING' && (
                           <div className="flex gap-2">
                             <Button
-                              variant="ghost"
+                              variant="outline"
                               size="sm"
+                              className="btn-outline h-9 px-3"
                               onClick={() => handleSkipPractice(item.id)}
                               disabled={skipPracticeMutation.isPending}
                             >
@@ -662,7 +677,7 @@ function PracticePageContent() {
                           <Button
                             onClick={() => handleStartPractice(item.id)}
                             disabled={startPracticeMutation.isPending}
-                            className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700"
+                            className="btn-primary h-9 px-4 text-sm"
                             data-testid="start-practice-btn"
                           >
                             <Play className="w-4 h-4 mr-2" />
@@ -674,6 +689,7 @@ function PracticePageContent() {
                           <Button
                             onClick={() => handleStartPractice(item.id)}
                             variant="outline"
+                            className="btn-outline h-9 px-4 text-sm"
                           >
                             Continue
                             <ArrowRight className="w-4 h-4 ml-2" />
@@ -691,21 +707,21 @@ function PracticePageContent() {
         <TabsContent value="history">
           {historyLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+              <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
             </div>
           ) : !history?.days?.length ? (
-            <Card className="border-dashed border-2 border-gray-300">
+            <Card className="glass-panel border border-white/40">
               <CardContent className="p-12 text-center">
-                <History className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-                <h3 className="text-lg font-semibold text-gray-700 mb-2">No Practice History</h3>
-                <p className="text-gray-500">Complete some daily practice sessions to see your history here.</p>
+                <History className="w-12 h-12 mx-auto text-slate-400 mb-4" />
+                <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-2">No Practice History</h3>
+                <p className="text-slate-500 dark:text-slate-300">Complete some daily practice sessions to see your history here.</p>
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-6">
               {history.days.map((day: any) => (
-                <Card key={day.date} className="overflow-hidden">
-                  <CardHeader className="bg-gray-50 py-3">
+                <Card key={day.date} className="glass-panel border border-white/40 overflow-hidden">
+                  <CardHeader className="border-b border-white/20 py-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-base font-medium">
                         {new Date(day.date).toLocaleDateString('en-US', { 
@@ -719,7 +735,7 @@ function PracticePageContent() {
                           {day.completedItems}/{day.totalItems} completed
                         </Badge>
                         {day.averageScore && (
-                          <Badge className="bg-indigo-100 text-indigo-700">
+                          <Badge className="bg-emerald-100 text-emerald-700">
                             {day.averageScore.toFixed(0)}% avg
                           </Badge>
                         )}
@@ -731,18 +747,18 @@ function PracticePageContent() {
                       {day.items.map((item: PracticeItem) => (
                         <div 
                           key={item.id}
-                          className="flex items-center justify-between py-2 border-b last:border-0"
+                          className="flex items-center justify-between py-2 border-b border-white/10 last:border-0"
                         >
                           <div className="flex items-center gap-3">
                             {item.status === 'COMPLETED' ? (
                               <CheckCircle2 className="w-4 h-4 text-green-500" />
                             ) : (
-                              <XCircle className="w-4 h-4 text-gray-400" />
+                              <XCircle className="w-4 h-4 text-slate-400" />
                             )}
                             <span className="text-sm">{item.topicName}</span>
                           </div>
                           {item.score !== undefined && (
-                            <span className="text-sm font-medium text-gray-600">
+                            <span className="text-sm font-medium text-slate-600 dark:text-slate-200">
                               {item.score.toFixed(0)}%
                             </span>
                           )}

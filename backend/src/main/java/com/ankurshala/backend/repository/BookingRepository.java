@@ -35,7 +35,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     /**
      * Find pending bookings for teachers
      */
-    @Query("SELECT b FROM Booking b WHERE b.state = 'REQUESTED' ORDER BY b.startTs ASC")
+    @Query("SELECT b FROM Booking b WHERE b.status = com.ankurshala.backend.entity.BookingStatus.PENDING ORDER BY b.startTs ASC")
     List<Booking> findPendingBookings();
 
     /**
@@ -43,7 +43,10 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
      */
     @Query("SELECT b FROM Booking b WHERE " +
            "(b.startTs < :endTime AND b.endTs > :startTime) AND " +
-           "b.state IN ('REQUESTED', 'ACCEPTED')")
+           "b.status IN (com.ankurshala.backend.entity.BookingStatus.PENDING, " +
+           "com.ankurshala.backend.entity.BookingStatus.ACCEPTED, " +
+           "com.ankurshala.backend.entity.BookingStatus.CONFIRMED, " +
+           "com.ankurshala.backend.entity.BookingStatus.IN_PROGRESS)")
     List<Booking> findConflictingBookings(@Param("startTime") ZonedDateTime startTime, 
                                         @Param("endTime") ZonedDateTime endTime);
 
@@ -52,7 +55,10 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
      */
     @Query("SELECT b FROM Booking b WHERE b.teacherId = :teacherId AND " +
            "(b.startTs < :endTime AND b.endTs > :startTime) AND " +
-           "b.state IN ('REQUESTED', 'ACCEPTED')")
+           "b.status IN (com.ankurshala.backend.entity.BookingStatus.PENDING, " +
+           "com.ankurshala.backend.entity.BookingStatus.ACCEPTED, " +
+           "com.ankurshala.backend.entity.BookingStatus.CONFIRMED, " +
+           "com.ankurshala.backend.entity.BookingStatus.IN_PROGRESS)")
     List<Booking> findConflictingBookingsForTeacher(@Param("teacherId") Long teacherId,
                                                      @Param("startTime") ZonedDateTime startTime, 
                                                      @Param("endTime") ZonedDateTime endTime);
@@ -68,27 +74,34 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     /**
      * Find upcoming bookings for student
      */
-    @Query("SELECT b FROM Booking b WHERE b.studentId = :studentId AND b.startTs > :now AND b.state IN ('ACCEPTED', 'REQUESTED') ORDER BY b.startTs ASC")
+    @Query("SELECT b FROM Booking b WHERE b.studentId = :studentId AND b.startTs > :now AND b.status IN (" +
+           "com.ankurshala.backend.entity.BookingStatus.PENDING, " +
+           "com.ankurshala.backend.entity.BookingStatus.ACCEPTED, " +
+           "com.ankurshala.backend.entity.BookingStatus.CONFIRMED, " +
+           "com.ankurshala.backend.entity.BookingStatus.IN_PROGRESS) ORDER BY b.startTs ASC")
     List<Booking> findUpcomingBookingsForStudent(@Param("studentId") Long studentId, 
                                                @Param("now") ZonedDateTime now);
 
     /**
      * Find upcoming bookings for teacher
      */
-    @Query("SELECT b FROM Booking b WHERE b.teacherId = :teacherId AND b.startTs > :now AND b.state IN ('ACCEPTED', 'REQUESTED') ORDER BY b.startTs ASC")
+    @Query("SELECT b FROM Booking b WHERE b.teacherId = :teacherId AND b.startTs > :now AND b.status IN (" +
+           "com.ankurshala.backend.entity.BookingStatus.ACCEPTED, " +
+           "com.ankurshala.backend.entity.BookingStatus.CONFIRMED, " +
+           "com.ankurshala.backend.entity.BookingStatus.IN_PROGRESS) ORDER BY b.startTs ASC")
     List<Booking> findUpcomingBookingsForTeacher(@Param("teacherId") Long teacherId, 
                                                @Param("now") ZonedDateTime now);
 
     /**
      * Find completed bookings for student
      */
-    @Query("SELECT b FROM Booking b WHERE b.studentId = :studentId AND b.state = 'COMPLETED' ORDER BY b.startTs DESC")
+    @Query("SELECT b FROM Booking b WHERE b.studentId = :studentId AND b.status = com.ankurshala.backend.entity.BookingStatus.COMPLETED ORDER BY b.startTs DESC")
     List<Booking> findCompletedBookingsForStudent(@Param("studentId") Long studentId);
 
     /**
      * Find completed bookings for teacher
      */
-    @Query("SELECT b FROM Booking b WHERE b.teacherId = :teacherId AND b.state = 'COMPLETED' ORDER BY b.startTs DESC")
+    @Query("SELECT b FROM Booking b WHERE b.teacherId = :teacherId AND b.status = com.ankurshala.backend.entity.BookingStatus.COMPLETED ORDER BY b.startTs DESC")
     List<Booking> findCompletedBookingsForTeacher(@Param("teacherId") Long teacherId);
 
     /**
@@ -96,8 +109,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
      * Uses optimistic locking with version check for concurrency control
      */
     @Modifying
-    @Query("UPDATE Booking b SET b.state = 'ACCEPTED', b.teacherId = :teacherId, b.acceptedAt = CURRENT_TIMESTAMP, b.updatedAt = CURRENT_TIMESTAMP " +
-           "WHERE b.id = :bookingId AND b.state = 'REQUESTED' AND b.teacherId IS NULL")
+    @Query("UPDATE Booking b SET b.status = com.ankurshala.backend.entity.BookingStatus.ACCEPTED, b.state = 'ACCEPTED', b.teacherId = :teacherId, b.acceptedAt = CURRENT_TIMESTAMP, b.updatedAt = CURRENT_TIMESTAMP " +
+           "WHERE b.id = :bookingId AND b.status = com.ankurshala.backend.entity.BookingStatus.PENDING AND b.teacherId IS NULL")
     int acceptBooking(@Param("bookingId") Long bookingId, @Param("teacherId") Long teacherId);
 
     /**
@@ -142,8 +155,18 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
      * Find bookings for calendar view
      */
     @Query("SELECT b FROM Booking b WHERE " +
-           "((b.studentId = :userId AND b.state IN ('ACCEPTED', 'REQUESTED', 'COMPLETED')) OR " +
-           "(b.teacherId = :userId AND b.state IN ('ACCEPTED', 'REQUESTED', 'COMPLETED'))) AND " +
+           "((b.studentId = :userId AND b.status IN (" +
+           "com.ankurshala.backend.entity.BookingStatus.PENDING, " +
+           "com.ankurshala.backend.entity.BookingStatus.ACCEPTED, " +
+           "com.ankurshala.backend.entity.BookingStatus.CONFIRMED, " +
+           "com.ankurshala.backend.entity.BookingStatus.IN_PROGRESS, " +
+           "com.ankurshala.backend.entity.BookingStatus.COMPLETED)) OR " +
+           "(b.teacherId = :userId AND b.status IN (" +
+           "com.ankurshala.backend.entity.BookingStatus.PENDING, " +
+           "com.ankurshala.backend.entity.BookingStatus.ACCEPTED, " +
+           "com.ankurshala.backend.entity.BookingStatus.CONFIRMED, " +
+           "com.ankurshala.backend.entity.BookingStatus.IN_PROGRESS, " +
+           "com.ankurshala.backend.entity.BookingStatus.COMPLETED))) AND " +
            "b.startTs >= :fromTime AND b.startTs <= :toTime " +
            "ORDER BY b.startTs ASC")
     List<Booking> findCalendarBookings(@Param("userId") Long userId, 
@@ -182,4 +205,9 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
      * Find bookings by teacher ID and status
      */
     List<Booking> findByTeacherIdAndStatus(Long teacherId, com.ankurshala.backend.entity.BookingStatus status);
+
+    /**
+     * Find bookings by student ID and status
+     */
+    List<Booking> findByStudentIdAndStatus(Long studentId, com.ankurshala.backend.entity.BookingStatus status);
 }

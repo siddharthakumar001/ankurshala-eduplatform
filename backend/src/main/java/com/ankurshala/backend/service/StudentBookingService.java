@@ -35,6 +35,8 @@ public class StudentBookingService {
     private final TopicRepository topicRepository;
     private final UserRepository userRepository;
     private final FeeWaiverRepository feeWaiverRepository;
+    private final PaymentIntentRepository paymentIntentRepository;
+    private final WalletTransactionRepository walletTransactionRepository;
     
     @Autowired
     private AdminPricingService pricingService;
@@ -63,16 +65,21 @@ public class StudentBookingService {
         // Check for conflicts
         User student = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Student not found"));
-        
+
+        ensureNoOutstandingDues(student);
+
         List<BookingStatus> conflictingStatuses = Arrays.asList(
                 BookingStatus.PENDING,
                 BookingStatus.ACCEPTED,
-                BookingStatus.CONFIRMED
+                BookingStatus.CONFIRMED,
+                BookingStatus.IN_PROGRESS
         );
-        
-        List<Booking> conflictingBookings = bookingRepository.findConflictingBookings(
-                startTime.atZone(ZoneId.systemDefault()), endTime.atZone(ZoneId.systemDefault()));
-        
+
+        List<Booking> conflictingBookings = bookingRepository.findByStudentAndTimeRange(student, startTime, endTime)
+                .stream()
+                .filter(booking -> conflictingStatuses.contains(booking.getStatus()))
+                .collect(Collectors.toList());
+
         boolean bufferOk = conflictingBookings.isEmpty();
         
         // Get pricing
@@ -127,12 +134,15 @@ public class StudentBookingService {
         List<BookingStatus> conflictingStatuses = Arrays.asList(
                 BookingStatus.PENDING,
                 BookingStatus.ACCEPTED,
-                BookingStatus.CONFIRMED
+                BookingStatus.CONFIRMED,
+                BookingStatus.IN_PROGRESS
         );
-        
-        List<Booking> conflictingBookings = bookingRepository.findConflictingBookings(
-                startTime.atZone(ZoneId.systemDefault()), endTime.atZone(ZoneId.systemDefault()));
-        
+
+        List<Booking> conflictingBookings = bookingRepository.findByStudentAndTimeRange(student, startTime, endTime)
+                .stream()
+                .filter(booking -> conflictingStatuses.contains(booking.getStatus()))
+                .collect(Collectors.toList());
+
         if (!conflictingBookings.isEmpty()) {
             throw new IllegalArgumentException("Time slot conflicts with existing booking");
         }
@@ -213,11 +223,14 @@ public class StudentBookingService {
         List<BookingStatus> conflictingStatuses = Arrays.asList(
                 BookingStatus.PENDING,
                 BookingStatus.ACCEPTED,
-                BookingStatus.CONFIRMED
+                BookingStatus.CONFIRMED,
+                BookingStatus.IN_PROGRESS
         );
-        
-        List<Booking> conflictingBookings = bookingRepository.findConflictingBookings(
-                newStartTime.atZone(ZoneId.systemDefault()), newEndTime.atZone(ZoneId.systemDefault()));
+
+        List<Booking> conflictingBookings = bookingRepository.findByStudentAndTimeRange(student, newStartTime, newEndTime)
+                .stream()
+                .filter(conflict -> conflictingStatuses.contains(conflict.getStatus()))
+                .collect(Collectors.toList());
         
         // Remove current booking from conflicts
         conflictingBookings.removeIf(b -> b.getId().equals(bookingId));
@@ -226,14 +239,20 @@ public class StudentBookingService {
             throw new IllegalArgumentException("New time slot conflicts with existing booking");
         }
         
-        // Update booking
+        // Update booking and re-open for matching
         booking.setStartTs(newStartTime.atZone(ZoneId.systemDefault()));
         booking.setEndTs(newEndTime.atZone(ZoneId.systemDefault()));
         booking.setDurationMinutes(request.getNewDurationMinutes());
-        booking.setStatus(BookingStatus.CANCELLED);
+        booking.setStatus(BookingStatus.PENDING);
+        booking.setTeacherId(null);
+        booking.setTeacher(null);
+        booking.setAcceptedAt(null);
         
         Booking savedBooking = bookingRepository.save(booking);
         
+        publishBookingRequestedEvent(savedBooking);
+        webSocketService.broadcastBookingRequest(savedBooking);
+
         log.info("Rescheduled booking {} for student {}", savedBooking.getId(), student.getId());
         
         return convertToBookingResponse(savedBooking);
@@ -265,6 +284,8 @@ public class StudentBookingService {
         booking.setCancellationReason(request.getReason());
         
         Booking savedBooking = bookingRepository.save(booking);
+
+        webSocketService.notifyBookingCancelled(savedBooking);
         
         log.info("Cancelled booking {} for student {}", savedBooking.getId(), booking.getStudent().getId());
         
@@ -443,16 +464,25 @@ public class StudentBookingService {
         BookingResponse response = new BookingResponse();
         response.setId(booking.getId());
         response.setStudentId(booking.getStudent().getId());
+        response.setStudentName(booking.getStudent() != null ? booking.getStudent().getName() : null);
         response.setTeacherId(booking.getTeacher() != null ? booking.getTeacher().getId() : null);
         response.setTopicId(booking.getTopic().getId());
         response.setTopicTitle(booking.getTopic().getTitle());
         response.setTeacherName(booking.getTeacher() != null ? booking.getTeacher().getName() : null);
-        // response.setStartTime(booking.getStartTs());
-        // response.setEndTime(booking.getEndTs());
+        if (booking.getStartTs() != null) {
+            response.setStartTime(booking.getStartTs().toLocalDateTime());
+        }
+        if (booking.getEndTs() != null) {
+            response.setEndTime(booking.getEndTs().toLocalDateTime());
+        }
         response.setDurationMinutes(booking.getDurationMinutes());
         response.setStatus(booking.getStatus().toString());
-        // response.setAcceptedAt(booking.getAcceptedAt());
-        // response.setCancelledAt(booking.getCancelledAt());
+        if (booking.getAcceptedAt() != null) {
+            response.setAcceptedAt(booking.getAcceptedAt().toLocalDateTime());
+        }
+        if (booking.getCancelledAt() != null) {
+            response.setCancelledAt(booking.getCancelledAt().toLocalDateTime());
+        }
         response.setCancellationReason(booking.getCancellationReason());
         response.setPriceMin(booking.getPriceMin());
         response.setPriceMax(booking.getPriceMax());
@@ -464,8 +494,12 @@ public class StudentBookingService {
         response.setStudentFeedback(booking.getStudentFeedback());
         response.setTeacherFeedback(booking.getTeacherFeedback());
         response.setRating(booking.getRating());
-        // response.setCreatedAt(booking.getCreatedAt());
-        // response.setUpdatedAt(booking.getUpdatedAt());
+        if (booking.getCreatedAt() != null) {
+            response.setCreatedAt(booking.getCreatedAt().toLocalDateTime());
+        }
+        if (booking.getUpdatedAt() != null) {
+            response.setUpdatedAt(booking.getUpdatedAt().toLocalDateTime());
+        }
         
         // Convert notes (not implemented yet)
         // List<BookingNoteResponse> noteResponses = booking.getNotes().stream()
@@ -532,5 +566,41 @@ public class StudentBookingService {
                            booking.getStartTs().isAfter(now.minusMinutes(30)));
         
         return response;
+    }
+
+    private void ensureNoOutstandingDues(User student) {
+        List<Booking> completedBookings = bookingRepository.findCompletedBookingsForStudent(student.getId());
+        for (Booking booking : completedBookings) {
+            Integer amountCents = booking.getPriceMinCents();
+            if (amountCents != null && amountCents <= 0) {
+                continue;
+            }
+            if (!isBookingPaid(booking, student.getId())) {
+                throw new IllegalArgumentException("Please clear your outstanding dues before booking a new class");
+            }
+        }
+    }
+
+    private boolean isBookingPaid(Booking booking, Long studentId) {
+        List<PaymentIntent> intents = paymentIntentRepository
+                .findByBookingIdOrderByCreatedAtDesc(booking.getId());
+        for (PaymentIntent intent : intents) {
+            if (intent.getUserId() != null && !intent.getUserId().equals(studentId)) {
+                continue;
+            }
+            if (intent.getStatus() == PaymentIntentStatus.COMPLETED) {
+                return true;
+            }
+        }
+
+        return !walletTransactionRepository
+                .findByOwnerTypeAndOwnerIdAndBookingIdAndSourceAndType(
+                        WalletOwnerType.STUDENT,
+                        studentId,
+                        booking.getId(),
+                        WalletTransactionSource.BOOKING_PAYMENT,
+                        WalletTransactionType.DEBIT
+                )
+                .isEmpty();
     }
 }

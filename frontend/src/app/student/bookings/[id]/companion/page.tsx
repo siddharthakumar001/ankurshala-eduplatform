@@ -4,7 +4,6 @@ import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { studentAPI } from '@/lib/apiClient'
-import { useAuthStore } from '@/stores/authStore'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -13,7 +12,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { 
   BookOpen, 
-  Clock, 
   CheckCircle2, 
   Loader2,
   Play,
@@ -147,19 +145,19 @@ function CompanionPageContent({ bookingId }: { bookingId: number }) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
       </div>
     )
   }
 
   if (!companion) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <Card className="border-dashed border-2 border-gray-300">
+      <div className="max-w-3xl mx-auto px-4 py-8">
+        <Card className="glass-panel border border-white/40">
           <CardContent className="p-12 text-center">
-            <FileText className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">Companion Not Found</h3>
-            <p className="text-gray-500">This booking doesn't have a session companion yet.</p>
+            <FileText className="w-12 h-12 mx-auto text-slate-400 mb-4" />
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-2">Companion Not Found</h3>
+            <p className="text-slate-500 dark:text-slate-300">This booking doesn't have a session companion yet.</p>
           </CardContent>
         </Card>
       </div>
@@ -171,55 +169,65 @@ function CompanionPageContent({ bookingId }: { bookingId: number }) {
       case 'QUESTION': return <MessageSquare className="w-4 h-4 text-blue-500" />
       case 'HIGHLIGHT': return <Lightbulb className="w-4 h-4 text-yellow-500" />
       case 'ACTION_ITEM': return <ListChecks className="w-4 h-4 text-green-500" />
-      default: return <PenLine className="w-4 h-4 text-gray-500" />
+      default: return <PenLine className="w-4 h-4 text-slate-400 dark:text-slate-300" />
     }
   }
 
+  const statusBadgeClass = companion.bookingStatus === 'CONFIRMED'
+    ? 'border-sky-200/40 bg-sky-500/20 text-white'
+    : companion.bookingStatus === 'IN_PROGRESS'
+      ? 'border-emerald-200/40 bg-emerald-500/20 text-white'
+      : companion.bookingStatus === 'COMPLETED'
+        ? 'border-slate-200/40 bg-slate-500/20 text-white'
+        : 'border-white/40 bg-white/10 text-white'
+
   return (
-    <div className="container mx-auto px-4 py-8 max-w-5xl" data-testid="companion-page">
+    <div className="space-y-6 max-w-5xl mx-auto px-4" data-testid="companion-page">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            Session Companion
-          </h1>
-          <p className="text-gray-600">
-            {companion.topicName && `${companion.topicName} • `}
-            {companion.teacherName && `with ${companion.teacherName}`}
-          </p>
+      <div className="page-header">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => router.back()}
+              className="text-white/90 hover:text-white hover:bg-white/10"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-white">
+                Session Companion
+              </h1>
+              <p className="text-white/80">
+                {companion.topicName ? `${companion.topicName} - ` : ''}
+                {companion.teacherName ? `with ${companion.teacherName}` : 'Your learning plan'}
+              </p>
+            </div>
+          </div>
+          <Badge variant="outline" className={`border ${statusBadgeClass}`}>
+            {companion.bookingStatus}
+          </Badge>
         </div>
-        <Badge 
-          variant="outline" 
-          className={`
-            ${companion.bookingStatus === 'CONFIRMED' ? 'border-blue-500 text-blue-700 bg-blue-50' : ''}
-            ${companion.bookingStatus === 'IN_PROGRESS' ? 'border-green-500 text-green-700 bg-green-50' : ''}
-            ${companion.bookingStatus === 'COMPLETED' ? 'border-gray-500 text-gray-700 bg-gray-50' : ''}
-          `}
-        >
-          {companion.bookingStatus}
-        </Badge>
       </div>
 
       {/* Session Info Card */}
-      <Card className="mb-6 bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-200">
+      <Card className="glass-panel border border-white/40">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-white shadow flex items-center justify-center">
-                <GraduationCap className="w-6 h-6 text-indigo-600" />
+              <div className="w-12 h-12 rounded-full bg-white/70 dark:bg-slate-900/70 shadow flex items-center justify-center">
+                <GraduationCap className="w-6 h-6 text-emerald-500" />
               </div>
               <div>
-                <p className="font-medium text-gray-800">{companion.subjectName}</p>
-                <p className="text-sm text-gray-600">{companion.topicName}</p>
+                <p className="font-medium text-slate-800 dark:text-slate-100">{companion.subjectName}</p>
+                <p className="text-sm text-slate-500 dark:text-slate-300">{companion.topicName}</p>
               </div>
             </div>
             {companion.scheduledStartTime && (
               <div className="text-right">
-                <p className="text-sm text-gray-500">Scheduled</p>
-                <p className="font-medium text-gray-800">
+                <p className="text-sm text-slate-500 dark:text-slate-300">Scheduled</p>
+                <p className="font-medium text-slate-800 dark:text-slate-100">
                   {new Date(companion.scheduledStartTime).toLocaleDateString('en-US', {
                     weekday: 'short',
                     month: 'short',
@@ -236,16 +244,25 @@ function CompanionPageContent({ bookingId }: { bookingId: number }) {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-3 w-full mb-6">
-          <TabsTrigger value="before" className="flex items-center gap-2">
+        <TabsList className="glass-panel grid grid-cols-3 w-full p-1">
+          <TabsTrigger
+            value="before"
+            className="flex items-center gap-2 data-[state=active]:bg-white/70 data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-900/80 dark:data-[state=active]:text-white"
+          >
             <BookOpen className="w-4 h-4" />
             Before Class
           </TabsTrigger>
-          <TabsTrigger value="during" className="flex items-center gap-2">
+          <TabsTrigger
+            value="during"
+            className="flex items-center gap-2 data-[state=active]:bg-white/70 data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-900/80 dark:data-[state=active]:text-white"
+          >
             <PenLine className="w-4 h-4" />
             During Class
           </TabsTrigger>
-          <TabsTrigger value="after" className="flex items-center gap-2">
+          <TabsTrigger
+            value="after"
+            className="flex items-center gap-2 data-[state=active]:bg-white/70 data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-900/80 dark:data-[state=active]:text-white"
+          >
             <ClipboardList className="w-4 h-4" />
             After Class
           </TabsTrigger>
@@ -254,18 +271,18 @@ function CompanionPageContent({ bookingId }: { bookingId: number }) {
         {/* BEFORE CLASS TAB */}
         <TabsContent value="before" className="space-y-6">
           {/* Pre-session Plan */}
-          <Card>
+          <Card className="glass-panel border border-white/40">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
-                  <Brain className="w-5 h-5 text-indigo-600" />
+                  <Brain className="w-5 h-5 text-emerald-500" />
                   Pre-Session Preparation
                 </CardTitle>
                 {!companion.preSessionPlanMd && (
                   <Button
                     onClick={() => generatePrepMutation.mutate()}
                     disabled={generatePrepMutation.isPending}
-                    className="bg-gradient-to-r from-indigo-500 to-purple-600"
+                    className="btn-primary"
                     data-testid="generate-prep-btn"
                   >
                     {generatePrepMutation.isPending ? (
@@ -285,12 +302,12 @@ function CompanionPageContent({ bookingId }: { bookingId: number }) {
             </CardHeader>
             <CardContent>
               {companion.preSessionPlanMd ? (
-                <div className="prose prose-sm max-w-none" data-testid="prep-plan-content">
+                <div className="prose prose-sm max-w-none dark:prose-invert" data-testid="prep-plan-content">
                   <ReactMarkdown>{companion.preSessionPlanMd}</ReactMarkdown>
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <BookOpen className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <div className="text-center py-8 text-slate-500 dark:text-slate-300">
+                  <BookOpen className="w-12 h-12 mx-auto mb-4 text-slate-300" />
                   <p>Generate a prep plan to prepare for your upcoming session.</p>
                 </div>
               )}
@@ -298,59 +315,59 @@ function CompanionPageContent({ bookingId }: { bookingId: number }) {
           </Card>
 
           {/* Warmup Quiz */}
-          {companion.warmupQuizId && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Play className="w-5 h-5 text-green-600" />
-                  Warmup Quiz
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <p className="text-gray-600">
-                    {companion.warmupCompleted 
-                      ? "You've completed the warmup quiz!" 
-                      : "Complete a quick warmup quiz to refresh your memory."}
-                  </p>
-                  {companion.warmupCompleted ? (
-                    <Badge className="bg-green-100 text-green-700">
-                      <CheckCircle2 className="w-4 h-4 mr-1" />
-                      Completed
-                    </Badge>
-                  ) : (
-                    <Button variant="outline">
-                      Start Quiz
-                      <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+            {companion.warmupQuizId && (
+              <Card className="glass-panel border border-white/40">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Play className="w-5 h-5 text-emerald-500" />
+                    Warmup Quiz
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="text-slate-600 dark:text-slate-200">
+                      {companion.warmupCompleted 
+                        ? "You've completed the warmup quiz!" 
+                        : "Complete a quick warmup quiz to refresh your memory."}
+                    </p>
+                    {companion.warmupCompleted ? (
+                      <Badge className="badge-success">
+                        <CheckCircle2 className="w-4 h-4 mr-1" />
+                        Completed
+                      </Badge>
+                    ) : (
+                      <Button variant="outline" className="btn-outline">
+                        Start Quiz
+                        <ChevronRight className="w-4 h-4 ml-1" />
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
         </TabsContent>
 
         {/* DURING CLASS TAB */}
         <TabsContent value="during" className="space-y-6">
           {/* Add Note */}
-          <Card>
+          <Card className="glass-panel border border-white/40">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <PenLine className="w-5 h-5 text-indigo-600" />
+                <PenLine className="w-5 h-5 text-emerald-500" />
                 Add Note
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex gap-4">
+              <div className="flex flex-col md:flex-row gap-4">
                 <Select value={noteType} onValueChange={setNoteType}>
-                  <SelectTrigger className="w-40">
+                  <SelectTrigger className="input-modern w-full md:w-40">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="NOTE">📝 Note</SelectItem>
-                    <SelectItem value="QUESTION">❓ Question</SelectItem>
-                    <SelectItem value="HIGHLIGHT">💡 Highlight</SelectItem>
-                    <SelectItem value="ACTION_ITEM">✅ Action Item</SelectItem>
+                    <SelectItem value="NOTE">Note</SelectItem>
+                    <SelectItem value="QUESTION">Question</SelectItem>
+                    <SelectItem value="HIGHLIGHT">Highlight</SelectItem>
+                    <SelectItem value="ACTION_ITEM">Action Item</SelectItem>
                   </SelectContent>
                 </Select>
                 <Textarea
@@ -362,14 +379,14 @@ function CompanionPageContent({ bookingId }: { bookingId: number }) {
                     noteType === 'ACTION_ITEM' ? "What do you need to do?" :
                     "Take a note..."
                   }
-                  className="flex-1 min-h-[80px]"
+                  className="input-modern flex-1 min-h-[80px]"
                 />
               </div>
               <div className="flex justify-end">
                 <Button
                   onClick={() => addNoteMutation.mutate()}
                   disabled={!noteContent.trim() || addNoteMutation.isPending}
-                  className="bg-gradient-to-r from-indigo-500 to-purple-600"
+                  className="btn-primary"
                   data-testid="save-note-btn"
                 >
                   {addNoteMutation.isPending ? (
@@ -386,7 +403,7 @@ function CompanionPageContent({ bookingId }: { bookingId: number }) {
           </Card>
 
           {/* Session Notes */}
-          <Card>
+          <Card className="glass-panel border border-white/40">
             <CardHeader>
               <CardTitle>Session Notes</CardTitle>
               <CardDescription>
@@ -395,8 +412,8 @@ function CompanionPageContent({ bookingId }: { bookingId: number }) {
             </CardHeader>
             <CardContent>
               {!companion.notes?.length ? (
-                <div className="text-center py-8 text-gray-500">
-                  <PenLine className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <div className="text-center py-8 text-slate-500 dark:text-slate-300">
+                  <PenLine className="w-12 h-12 mx-auto mb-4 text-slate-300" />
                   <p>No notes yet. Start capturing your thoughts!</p>
                 </div>
               ) : (
@@ -404,24 +421,24 @@ function CompanionPageContent({ bookingId }: { bookingId: number }) {
                   {companion.notes.map((note) => (
                     <div 
                       key={note.id}
-                      className={`p-4 rounded-lg border ${
-                        note.noteType === 'QUESTION' ? 'bg-blue-50 border-blue-200' :
-                        note.noteType === 'HIGHLIGHT' ? 'bg-yellow-50 border-yellow-200' :
-                        note.noteType === 'ACTION_ITEM' ? 'bg-green-50 border-green-200' :
-                        'bg-gray-50 border-gray-200'
+                      className={`glass rounded-lg border ${
+                        note.noteType === 'QUESTION' ? 'border-blue-200/60' :
+                        note.noteType === 'HIGHLIGHT' ? 'border-yellow-200/60' :
+                        note.noteType === 'ACTION_ITEM' ? 'border-emerald-200/60' :
+                        'border-white/30'
                       }`}
                     >
-                      <div className="flex items-start gap-3">
+                      <div className="flex items-start gap-3 p-4">
                         {getNoteTypeIcon(note.noteType)}
                         <div className="flex-1">
-                          <p className="text-gray-800">{note.content}</p>
+                          <p className="text-slate-800 dark:text-slate-100">{note.content}</p>
                           {note.aiResponse && (
-                            <div className="mt-2 p-3 bg-white rounded border text-sm">
-                              <p className="text-xs text-indigo-600 font-medium mb-1">AI Response:</p>
-                              <p className="text-gray-700">{note.aiResponse}</p>
+                            <div className="mt-2 p-3 glass rounded border border-white/40 text-sm">
+                              <p className="text-xs text-emerald-600 font-medium mb-1">AI Response:</p>
+                              <p className="text-slate-700 dark:text-slate-200">{note.aiResponse}</p>
                             </div>
                           )}
-                          <p className="text-xs text-gray-500 mt-2">
+                          <p className="text-xs text-slate-500 dark:text-slate-300 mt-2">
                             {new Date(note.createdAt).toLocaleTimeString()}
                           </p>
                         </div>
@@ -437,18 +454,18 @@ function CompanionPageContent({ bookingId }: { bookingId: number }) {
         {/* AFTER CLASS TAB */}
         <TabsContent value="after" className="space-y-6">
           {/* Session Summary */}
-          <Card>
+          <Card className="glass-panel border border-white/40">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
-                  <ClipboardList className="w-5 h-5 text-indigo-600" />
+                  <ClipboardList className="w-5 h-5 text-emerald-500" />
                   Session Summary
                 </CardTitle>
                 {!companion.postSessionSummaryMd && (
                   <Button
                     onClick={() => generatePostMutation.mutate()}
                     disabled={generatePostMutation.isPending}
-                    className="bg-gradient-to-r from-indigo-500 to-purple-600"
+                    className="btn-primary"
                     data-testid="generate-summary-btn"
                   >
                     {generatePostMutation.isPending ? (
@@ -468,12 +485,12 @@ function CompanionPageContent({ bookingId }: { bookingId: number }) {
             </CardHeader>
             <CardContent>
               {companion.postSessionSummaryMd ? (
-                <div className="prose prose-sm max-w-none" data-testid="post-summary-content">
+                <div className="prose prose-sm max-w-none dark:prose-invert" data-testid="post-summary-content">
                   <ReactMarkdown>{companion.postSessionSummaryMd}</ReactMarkdown>
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <ClipboardList className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <div className="text-center py-8 text-slate-500 dark:text-slate-300">
+                  <ClipboardList className="w-12 h-12 mx-auto mb-4 text-slate-300" />
                   <p>Generate a summary after your session is completed.</p>
                 </div>
               )}
@@ -482,15 +499,15 @@ function CompanionPageContent({ bookingId }: { bookingId: number }) {
 
           {/* Homework */}
           {companion.homeworkPlanMd && (
-            <Card>
+            <Card className="glass-panel border border-white/40">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-purple-600" />
+                  <FileText className="w-5 h-5 text-emerald-500" />
                   Homework Plan
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="prose prose-sm max-w-none">
+                <div className="prose prose-sm max-w-none dark:prose-invert">
                   <ReactMarkdown>{companion.homeworkPlanMd}</ReactMarkdown>
                 </div>
               </CardContent>
@@ -499,10 +516,10 @@ function CompanionPageContent({ bookingId }: { bookingId: number }) {
 
           {/* Session Highlights */}
           {companion.sessionHighlights && companion.sessionHighlights.length > 0 && (
-            <Card>
+            <Card className="glass-panel border border-white/40">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Lightbulb className="w-5 h-5 text-yellow-500" />
+                  <Lightbulb className="w-5 h-5 text-amber-500" />
                   Key Highlights
                 </CardTitle>
               </CardHeader>
@@ -510,7 +527,7 @@ function CompanionPageContent({ bookingId }: { bookingId: number }) {
                 <ul className="space-y-2">
                   {companion.sessionHighlights.map((highlight, index) => (
                     <li key={index} className="flex items-start gap-2">
-                      <span className="text-yellow-500 mt-1">•</span>
+                      <span className="text-amber-500 mt-1">-</span>
                       <span>{highlight}</span>
                     </li>
                   ))}
@@ -521,7 +538,7 @@ function CompanionPageContent({ bookingId }: { bookingId: number }) {
 
           {/* Questions Discussed */}
           {companion.questionsAsked && companion.questionsAsked.length > 0 && (
-            <Card>
+            <Card className="glass-panel border border-white/40">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <MessageSquare className="w-5 h-5 text-blue-500" />
@@ -532,7 +549,7 @@ function CompanionPageContent({ bookingId }: { bookingId: number }) {
                 <ul className="space-y-2">
                   {companion.questionsAsked.map((question, index) => (
                     <li key={index} className="flex items-start gap-2">
-                      <span className="text-blue-500 mt-1">?</span>
+                      <span className="text-blue-500 mt-1">-</span>
                       <span>{question}</span>
                     </li>
                   ))}

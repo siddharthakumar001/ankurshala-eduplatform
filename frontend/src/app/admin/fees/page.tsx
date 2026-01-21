@@ -227,9 +227,9 @@ export default function AdminFeesPage() {
     return (
       <DashboardLayout role="admin">
         <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
-            <p className="text-gray-600 dark:text-gray-400">Loading fee waivers...</p>
+          <div className="text-center glass-panel rounded-2xl border border-white/40 px-8 py-6">
+            <Loader2 className="h-8 w-8 animate-spin text-ankur-primary mx-auto mb-2" />
+            <p className="text-gray-600 dark:text-gray-300">Loading fee waivers...</p>
           </div>
         </div>
       </DashboardLayout>
@@ -244,14 +244,14 @@ export default function AdminFeesPage() {
           <div className="absolute bottom-0 left-8 h-64 w-64 rounded-full bg-ankur-accent/10 blur-3xl" />
         </div>
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="page-header flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Fee Waivers</h1>
-            <p className="text-gray-600 dark:text-gray-400">Manage fee waivers and exemptions</p>
+            <h1 className="text-2xl font-bold text-white">Fee Waivers</h1>
+            <p className="text-white/80">Manage fee waivers and exemptions</p>
           </div>
           <Button 
             onClick={() => setShowCreateForm(!showCreateForm)}
-            className="flex items-center space-x-2"
+            className="flex items-center space-x-2 btn-primary"
           >
             <Plus className="h-4 w-4" />
             <span>Create Waiver</span>
@@ -313,20 +313,21 @@ export default function AdminFeesPage() {
 
         {/* Create Waiver Form */}
         {showCreateForm && (
-          <Card className="p-6 glass">
+          <Card className="p-6 glass-panel border border-white/30 dark:border-white/10">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Create Fee Waiver</h3>
+                <h3 className="text-lg font-semibold text-ankur-secondary dark:text-white">Create Fee Waiver</h3>
                 <Button 
                   variant="ghost" 
                   size="sm"
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-300"
                   onClick={() => {
                     setShowCreateForm(false)
                     setFormData({ userId: '', reason: '', amount: '', notes: '' })
                     setStudentSearchTerm('')
                   }}
                 >
-                  ×
+                  X
                 </Button>
               </div>
               
@@ -348,7 +349,7 @@ export default function AdminFeesPage() {
                           className="absolute right-1 top-1 h-6 w-6 p-0"
                           onClick={() => setStudentSearchTerm('')}
                         >
-                          ×
+                          X
                         </Button>
                       )}
                     </div>
@@ -367,7 +368,7 @@ export default function AdminFeesPage() {
                         ) : (
                           <>
                             {studentSearchTerm && (
-                              <div className="p-2 text-xs text-gray-500 border-b">
+                              <div className="p-2 text-xs text-gray-500 dark:text-gray-300 border-b border-white/30 dark:border-white/10">
                                 {filteredStudents.length} student{filteredStudents.length !== 1 ? 's' : ''} found
                               </div>
                             )}
@@ -379,9 +380,9 @@ export default function AdminFeesPage() {
                                   </span>
                                   <span className="text-xs text-gray-500">
                                     {user.email}
-                                    {user.mobileNumber && ` • ${user.mobileNumber}`}
-                                    {user.educationalBoard && ` • ${user.educationalBoard}`}
-                                    {user.classLevel && ` • ${user.classLevel}`}
+                                    {user.mobileNumber && ` | ${user.mobileNumber}`}
+                                    {user.educationalBoard && ` | ${user.educationalBoard}`}
+                                    {user.classLevel && ` | ${user.classLevel}`}
                                   </span>
                                 </div>
                               </SelectItem>
@@ -393,7 +394,7 @@ export default function AdminFeesPage() {
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="amount">Waiver Amount (₹)</Label>
+                  <Label htmlFor="amount">Waiver Amount (INR)</Label>
                   <Input
                     id="amount"
                     type="number"
@@ -442,7 +443,7 @@ export default function AdminFeesPage() {
                 <Button 
                   onClick={handleCreateWaiver}
                   disabled={!formData.userId || !formData.reason || !formData.amount || creating}
-                  className="flex items-center space-x-2"
+                  className="flex items-center space-x-2 btn-primary"
                 >
                   {creating ? (
                     <>
@@ -486,7 +487,7 @@ export default function AdminFeesPage() {
         <Card className="p-6 glass">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Fee Waivers</h3>
+              <h3 className="text-lg font-semibold text-ankur-secondary dark:text-white">Fee Waivers</h3>
               <Badge variant="secondary" className="flex items-center space-x-1">
                 <CheckCircle className="h-3 w-3" />
                 <span>{filteredWaivers.length} waivers</span>
@@ -508,34 +509,34 @@ export default function AdminFeesPage() {
                 )}
               </div>
             ) : (
-              <div className="overflow-hidden border border-white/30 dark:border-white/10 rounded-lg bg-white/70 dark:bg-slate-900/40 backdrop-blur">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-800">
+              <div className="overflow-x-auto">
+                <table className="data-table">
+                  <thead>
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Student
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Amount
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Reason
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Created
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Status
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                  <tbody className="divide-y divide-white/40 dark:divide-white/10">
                     {filteredWaivers.map((waiver) => (
-                      <tr key={waiver.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                      <tr key={waiver.id} className="hover:bg-white/60 dark:hover:bg-slate-900/60">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="flex-shrink-0 h-8 w-8">
-                              <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                              <div className="h-8 w-8 rounded-full bg-blue-100/80 dark:bg-blue-900/40 flex items-center justify-center">
                                 <User className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                               </div>
                             </div>
@@ -543,7 +544,7 @@ export default function AdminFeesPage() {
                               <div className="text-sm font-medium text-gray-900 dark:text-white">
                                 {waiver.userEmail}
                               </div>
-                              <div className="text-sm text-gray-500 dark:text-gray-400">
+                              <div className="text-sm text-gray-500 dark:text-gray-300">
                                 ID: {waiver.userId}
                               </div>
                             </div>

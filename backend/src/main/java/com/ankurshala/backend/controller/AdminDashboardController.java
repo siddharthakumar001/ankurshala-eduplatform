@@ -1,7 +1,9 @@
 package com.ankurshala.backend.controller;
 
+import com.ankurshala.backend.dto.admin.DashboardActivityDto;
 import com.ankurshala.backend.dto.admin.DashboardMetricsDto;
 import com.ankurshala.backend.dto.admin.DashboardSeriesDto;
+import com.ankurshala.backend.dto.admin.SystemStatusDto;
 import com.ankurshala.backend.service.AdminDashboardService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -32,5 +34,21 @@ public class AdminDashboardController {
     public ResponseEntity<List<DashboardSeriesDto>> getSeries() {
         List<DashboardSeriesDto> series = dashboardService.getDashboardSeries();
         return ResponseEntity.ok(series);
+    }
+
+    @GetMapping("/activity")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<DashboardActivityDto>> getRecentActivity(
+        @RequestParam(value = "limit", defaultValue = "10") int limit
+    ) {
+        List<DashboardActivityDto> activity = dashboardService.getRecentActivity(limit);
+        return ResponseEntity.ok(activity);
+    }
+
+    @GetMapping("/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<SystemStatusDto>> getSystemStatus() {
+        List<SystemStatusDto> status = dashboardService.getSystemStatus();
+        return ResponseEntity.ok(status);
     }
 }

@@ -12,7 +12,6 @@ import {
   Send, 
   Plus, 
   Download, 
-  Filter, 
   Search,
   Eye,
   CheckCircle,
@@ -68,7 +67,6 @@ export default function AdminNotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [stats, setStats] = useState<NotificationStats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [audienceFilter, setAudienceFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -77,6 +75,9 @@ export default function AdminNotificationsPage() {
   const [sending, setSending] = useState(false)
   const [broadcastResult, setBroadcastResult] = useState<any>(null)
   const [error, setError] = useState('')
+  const [targetMode, setTargetMode] = useState<'broadcast' | 'specific'>('broadcast')
+  const [targetType, setTargetType] = useState<'email' | 'userId'>('email')
+  const [targetValue, setTargetValue] = useState('')
   
   // Form states
   const [formData, setFormData] = useState({
@@ -88,14 +89,12 @@ export default function AdminNotificationsPage() {
 
   const fetchNotifications = useCallback(async () => {
     try {
-      console.log('Fetching notifications...')
       const params = new URLSearchParams()
       if (audienceFilter && audienceFilter !== 'all') params.append('audience', audienceFilter)
       if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter)
       
       const response = await api.get(`/admin/notifications?${params}`)
       const data = response.data as any
-      console.log('Notifications response:', data)
       setNotifications(data.content || data || [])
     } catch (error) {
       console.error('Error fetching notifications:', error)
@@ -106,10 +105,8 @@ export default function AdminNotificationsPage() {
 
   const fetchStats = useCallback(async () => {
     try {
-      console.log('Fetching notification stats...')
       const response = await api.get('/admin/notifications/statistics')
       const data = response.data as any
-      console.log('Stats response:', data)
       setStats(data)
     } catch (error) {
       console.error('Error fetching notification stats:', error)
@@ -149,13 +146,30 @@ export default function AdminNotificationsPage() {
 
   const handleSendNotification = async () => {
     try {
+      if (targetMode === 'specific') {
+        const trimmed = targetValue.trim()
+        if (!trimmed) {
+          setError('Please provide a target email or user ID.')
+          return
+        }
+        if (targetType === 'userId' && Number.isNaN(Number(trimmed))) {
+          setError('Please provide a valid numeric user ID.')
+          return
+        }
+      }
+
       setSending(true)
       setError('')
-      
-      console.log('Sending notification:', formData)
-      const response = await api.post('/admin/notifications/broadcast', formData)
+
+      const payload = {
+        ...formData,
+        audience: targetMode === 'specific' ? 'ALL' : formData.audience,
+        targetUserId: targetMode === 'specific' && targetType === 'userId' ? Number(targetValue.trim()) : undefined,
+        targetEmail: targetMode === 'specific' && targetType === 'email' ? targetValue.trim() : undefined
+      }
+
+      const response = await api.post('/admin/notifications/broadcast', payload)
       const result = response.data as any
-      console.log('Broadcast result:', result)
       
       setBroadcastResult(result)
       setShowComposeDialog(false)
@@ -165,6 +179,9 @@ export default function AdminNotificationsPage() {
         audience: 'STUDENT',
         delivery: 'IN_APP'
       })
+      setTargetMode('broadcast')
+      setTargetType('email')
+      setTargetValue('')
       
       toast.success('Notification sent successfully!')
       await fetchNotifications()
@@ -199,8 +216,11 @@ export default function AdminNotificationsPage() {
         return <CheckCircle className="h-4 w-4 text-green-500" />
       case 'FAILED':
         return <XCircle className="h-4 w-4 text-red-500" />
-      case 'QUEUED':
+      case 'PENDING':
         return <Clock className="h-4 w-4 text-yellow-500" />
+      case 'DELIVERED':
+      case 'READ':
+        return <CheckCircle className="h-4 w-4 text-blue-500" />
       default:
         return <AlertCircle className="h-4 w-4 text-gray-500" />
     }
@@ -213,8 +233,11 @@ export default function AdminNotificationsPage() {
         return `${baseClasses} bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200`
       case 'FAILED':
         return `${baseClasses} bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200`
-      case 'QUEUED':
+      case 'PENDING':
         return `${baseClasses} bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200`
+      case 'DELIVERED':
+      case 'READ':
+        return `${baseClasses} bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200`
       default:
         return `${baseClasses} bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200`
     }
@@ -227,8 +250,10 @@ export default function AdminNotificationsPage() {
         return `${baseClasses} bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200`
       case 'TEACHER':
         return `${baseClasses} bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200`
-      case 'BOTH':
+      case 'ALL':
         return `${baseClasses} bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200`
+      case 'ADMIN':
+        return `${baseClasses} bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200`
       default:
         return `${baseClasses} bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200`
     }
@@ -240,7 +265,7 @@ export default function AdminNotificationsPage() {
         return <Mail className="h-4 w-4 text-blue-500" />
       case 'IN_APP':
         return <Smartphone className="h-4 w-4 text-green-500" />
-      case 'BOTH':
+      case 'IN_APP_EMAIL':
         return (
           <div className="flex space-x-1">
             <Mail className="h-3 w-3 text-blue-500" />
@@ -249,6 +274,19 @@ export default function AdminNotificationsPage() {
         )
       default:
         return <Bell className="h-4 w-4 text-gray-500" />
+    }
+  }
+
+  const getDeliveryLabel = (delivery: string) => {
+    switch (delivery) {
+      case 'IN_APP':
+        return 'In-app'
+      case 'EMAIL':
+        return 'Email'
+      case 'IN_APP_EMAIL':
+        return 'In-app + Email'
+      default:
+        return delivery.replace(/_/g, ' ').toLowerCase()
     }
   }
 
@@ -268,21 +306,26 @@ export default function AdminNotificationsPage() {
   }
 
   const filteredNotifications = notifications.filter(notification => {
-    const matchesSearch = notification.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         notification.body.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesAudience = !audienceFilter || notification.audience === audienceFilter
-    const matchesStatus = !statusFilter || notification.status === statusFilter
+    const matchesSearch = (notification.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (notification.body || '').toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesAudience = audienceFilter === 'all' || notification.audience === audienceFilter
+    const matchesStatus = statusFilter === 'all' || notification.status === statusFilter
     
     return matchesSearch && matchesAudience && matchesStatus
   })
+
+  const targetInvalid = targetMode === 'specific' && (
+    !targetValue.trim() ||
+    (targetType === 'userId' && Number.isNaN(Number(targetValue.trim())))
+  )
 
   if (loading) {
     return (
       <DashboardLayout role="admin">
         <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
-            <p className="text-gray-600 dark:text-gray-400">Loading notifications...</p>
+          <div className="text-center glass-panel rounded-2xl border border-white/40 px-8 py-6">
+            <Loader2 className="h-8 w-8 animate-spin text-ankur-primary mx-auto mb-2" />
+            <p className="text-gray-600 dark:text-gray-300">Loading notifications...</p>
           </div>
         </div>
       </DashboardLayout>
@@ -293,9 +336,9 @@ export default function AdminNotificationsPage() {
     return (
       <DashboardLayout role="admin">
         <div className="flex items-center justify-center h-64">
-          <div className="text-center">
+          <div className="text-center glass-panel rounded-2xl border border-red-200/60 dark:border-red-500/30 px-8 py-6 bg-red-50/70 dark:bg-red-500/10">
             <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
+            <p className="text-red-600 dark:text-red-200 mb-4">{error}</p>
             <Button onClick={fetchAllData} variant="outline">
               Try Again
             </Button>
@@ -313,14 +356,14 @@ export default function AdminNotificationsPage() {
           <div className="absolute bottom-0 left-6 h-72 w-72 rounded-full bg-ankur-accent/10 blur-3xl" />
         </div>
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="page-header flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Notifications</h1>
-            <p className="text-gray-600 dark:text-gray-400">Send notifications to students and teachers</p>
+            <h1 className="text-2xl font-bold text-white">Notifications</h1>
+            <p className="text-white/80">Send notifications to students and teachers</p>
           </div>
           <Button 
             onClick={openComposeDialog}
-            className="flex items-center space-x-2"
+            className="flex items-center space-x-2 btn-primary"
           >
             <Plus className="h-4 w-4" />
             <span>Compose</span>
@@ -425,7 +468,7 @@ export default function AdminNotificationsPage() {
                   <SelectItem value="all">All Audiences</SelectItem>
                   <SelectItem value="STUDENT">Students</SelectItem>
                   <SelectItem value="TEACHER">Teachers</SelectItem>
-                  <SelectItem value="BOTH">Both</SelectItem>
+                  <SelectItem value="ALL">All Users</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -435,12 +478,12 @@ export default function AdminNotificationsPage() {
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="SENT">Sent</SelectItem>
-                  <SelectItem value="QUEUED">Queued</SelectItem>
+                  <SelectItem value="PENDING">Queued</SelectItem>
                   <SelectItem value="FAILED">Failed</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="text-sm text-gray-500 dark:text-gray-400">
+            <div className="text-sm text-gray-500 dark:text-gray-300">
               {filteredNotifications.length} notifications
             </div>
           </div>
@@ -450,7 +493,7 @@ export default function AdminNotificationsPage() {
         <Card className="p-6 glass">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Notification History</h3>
+              <h3 className="text-lg font-semibold text-ankur-secondary dark:text-white">Notification History</h3>
               <div className="flex space-x-2">
                 <Button variant="outline" size="sm" className="flex items-center space-x-2">
                   <Download className="h-4 w-4" />
@@ -468,30 +511,30 @@ export default function AdminNotificationsPage() {
                 </p>
               </div>
             ) : (
-              <div className="overflow-hidden border border-white/30 dark:border-white/10 rounded-lg bg-white/70 dark:bg-slate-900/40 backdrop-blur">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-800">
+              <div className="overflow-x-auto">
+                <table className="data-table">
+                  <thead>
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Notification
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Audience
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Delivery
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Sent
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Status
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                  <tbody className="divide-y divide-white/40 dark:divide-white/10">
                     {filteredNotifications.map((notification) => (
-                      <tr key={notification.id}>
+                      <tr key={notification.id} className="hover:bg-white/60 dark:hover:bg-slate-900/60">
                         <td className="px-6 py-4">
                           <div className="flex items-start">
                             <Bell className="h-5 w-5 text-blue-500 mr-3 mt-0.5" />
@@ -521,7 +564,7 @@ export default function AdminNotificationsPage() {
                           <div className="flex items-center space-x-2">
                             {getDeliveryIcon(notification.delivery)}
                             <span className="text-sm text-gray-900 dark:text-white">
-                              {notification.delivery.replace('_', ' ')}
+                              {getDeliveryLabel(notification.delivery)}
                             </span>
                           </div>
                         </td>
@@ -547,7 +590,7 @@ export default function AdminNotificationsPage() {
 
         {/* Compose Notification Dialog */}
         <Dialog open={showComposeDialog} onOpenChange={closeComposeDialog}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl glass-panel border border-white/30 dark:border-white/10">
             <DialogHeader>
               <DialogTitle>Compose Notification</DialogTitle>
               <DialogDescription>
@@ -556,24 +599,28 @@ export default function AdminNotificationsPage() {
             </DialogHeader>
             <div className="space-y-4">
               {error && (
-                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+                <div className="p-3 bg-red-50/70 dark:bg-red-500/10 border border-red-200/60 dark:border-red-500/30 rounded-md">
                   <div className="flex">
                     <AlertCircle className="h-5 w-5 text-red-400 mr-2" />
-                    <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                    <p className="text-sm text-red-600 dark:text-red-200">{error}</p>
                   </div>
                 </div>
               )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="audience">Target Audience</Label>
-                  <Select value={formData.audience} onValueChange={(value) => setFormData({...formData, audience: value})}>
+                  <Label htmlFor="recipient">Recipient</Label>
+                  <Select value={targetMode} onValueChange={(value: 'broadcast' | 'specific') => {
+                    setTargetMode(value)
+                    if (value === 'specific') {
+                      setFormData({ ...formData, audience: 'ALL' })
+                    }
+                  }}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select audience" />
+                      <SelectValue placeholder="Select recipient" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="STUDENT">Students Only</SelectItem>
-                      <SelectItem value="TEACHER">Teachers Only</SelectItem>
-                      <SelectItem value="BOTH">Students & Teachers</SelectItem>
+                      <SelectItem value="broadcast">Broadcast</SelectItem>
+                      <SelectItem value="specific">Specific User</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -586,9 +633,54 @@ export default function AdminNotificationsPage() {
                     <SelectContent>
                       <SelectItem value="IN_APP">In-App Only</SelectItem>
                       <SelectItem value="EMAIL">Email Only</SelectItem>
-                      <SelectItem value="BOTH">In-App & Email</SelectItem>
+                      <SelectItem value="IN_APP_EMAIL">In-App & Email</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="audience">Target Audience</Label>
+                  <Select
+                    value={formData.audience}
+                    onValueChange={(value) => setFormData({ ...formData, audience: value })}
+                    disabled={targetMode === 'specific'}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select audience" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="STUDENT">Students Only</SelectItem>
+                      <SelectItem value="TEACHER">Teachers Only</SelectItem>
+                      <SelectItem value="ALL">Students & Teachers</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="target">
+                    {targetType === 'userId' ? 'User ID' : 'User Email'}
+                  </Label>
+                  <div className="flex gap-2">
+                    <Select value={targetType} onValueChange={(value: 'email' | 'userId') => setTargetType(value)}>
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="email">Email</SelectItem>
+                        <SelectItem value="userId">User ID</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      id="target"
+                      value={targetValue}
+                      onChange={(e) => setTargetValue(e.target.value)}
+                      placeholder={targetType === 'userId' ? 'Enter user ID' : 'Enter email'}
+                      disabled={targetMode !== 'specific'}
+                    />
+                  </div>
+                  {targetMode === 'broadcast' && (
+                    <p className="text-xs text-gray-500 mt-1">Switch to specific user to enable this field.</p>
+                  )}
                 </div>
               </div>
               <div>
@@ -618,7 +710,7 @@ export default function AdminNotificationsPage() {
               </Button>
               <Button 
                 onClick={handleSendNotification} 
-                disabled={!formData.title || !formData.body || sending}
+                disabled={!formData.title || !formData.body || sending || targetInvalid}
               >
                 {sending ? (
                   <>
@@ -638,7 +730,7 @@ export default function AdminNotificationsPage() {
 
         {/* Preview Dialog */}
         <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-lg glass-panel border border-white/30 dark:border-white/10">
             <DialogHeader>
               <DialogTitle>Notification Preview</DialogTitle>
               <DialogDescription>
@@ -646,7 +738,7 @@ export default function AdminNotificationsPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
-              <div className="border rounded-lg p-4 bg-gray-50 dark:bg-gray-800">
+              <div className="border border-white/30 dark:border-white/10 rounded-lg p-4 bg-white/70 dark:bg-slate-900/60">
                 <div className="flex items-start space-x-3">
                   <Bell className="h-5 w-5 text-blue-500 mt-0.5" />
                   <div className="flex-1">
@@ -657,8 +749,13 @@ export default function AdminNotificationsPage() {
                       {formData.body || 'Notification message content...'}
                     </p>
                     <div className="flex items-center space-x-4 mt-3 text-xs text-gray-500">
-                      <span>Audience: {formData.audience}</span>
-                      <span>Delivery: {formData.delivery.replace('_', ' ')}</span>
+                      <span>
+                        Audience: {targetMode === 'specific' ? 'Specific user' : formData.audience}
+                      </span>
+                      {targetMode === 'specific' && targetValue.trim() && (
+                        <span>Target: {targetValue.trim()}</span>
+                      )}
+                      <span>Delivery: {getDeliveryLabel(formData.delivery)}</span>
                     </div>
                   </div>
                 </div>
@@ -675,38 +772,38 @@ export default function AdminNotificationsPage() {
         {/* Broadcast Result Dialog */}
         {broadcastResult && (
           <Dialog open={!!broadcastResult} onOpenChange={() => setBroadcastResult(null)}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Notification Sent Successfully</DialogTitle>
-                <DialogDescription>
-                  Your notification has been broadcast to the target audience
+          <DialogContent className="glass-panel border border-white/30 dark:border-white/10">
+            <DialogHeader>
+              <DialogTitle>Notification Sent Successfully</DialogTitle>
+              <DialogDescription>
+                Your notification has been broadcast to the target audience
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                  <div className="text-center p-4 bg-green-50/70 dark:bg-green-900/20 rounded-lg">
                     <Users className="h-8 w-8 text-green-600 mx-auto mb-2" />
                     <p className="text-2xl font-bold text-green-600">{broadcastResult.totalUsers}</p>
-                    <p className="text-sm text-gray-600">Total Users</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">Total Users</p>
                   </div>
-                  <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <div className="text-center p-4 bg-blue-50/70 dark:bg-blue-900/20 rounded-lg">
                     <Smartphone className="h-8 w-8 text-blue-600 mx-auto mb-2" />
                     <p className="text-2xl font-bold text-blue-600">{broadcastResult.inAppSent}</p>
-                    <p className="text-sm text-gray-600">In-App Sent</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">In-App Sent</p>
                   </div>
                 </div>
                 {broadcastResult.emailSent > 0 && (
-                  <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                  <div className="text-center p-4 bg-purple-50/70 dark:bg-purple-900/20 rounded-lg">
                     <Mail className="h-8 w-8 text-purple-600 mx-auto mb-2" />
                     <p className="text-2xl font-bold text-purple-600">{broadcastResult.emailSent}</p>
-                    <p className="text-sm text-gray-600">Emails Sent</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">Emails Sent</p>
                   </div>
                 )}
                 {broadcastResult.failed > 0 && (
-                  <div className="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                  <div className="text-center p-4 bg-red-50/70 dark:bg-red-900/20 rounded-lg">
                     <XCircle className="h-8 w-8 text-red-600 mx-auto mb-2" />
                     <p className="text-2xl font-bold text-red-600">{broadcastResult.failed}</p>
-                    <p className="text-sm text-gray-600">Failed</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">Failed</p>
                   </div>
                 )}
               </div>

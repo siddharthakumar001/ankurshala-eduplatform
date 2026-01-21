@@ -165,20 +165,17 @@ export default function AdminStudentsPage() {
       if (boardFilter && boardFilter !== 'all') params.append('educationalBoard', boardFilter)
       if (classFilter && classFilter !== 'all') params.append('classLevel', classFilter)
 
-      console.log('Fetching students with params:', params.toString())
       const response = await api.get(`/admin/students?${params}`)
 
       // Our API client unwraps standardized ApiResponse and returns the inner data directly
       // So response.data is the paginated Page object with content/totalPages/totalElements
       const paginatedData = response.data as any
-      console.log('Students Page Data:', paginatedData)
 
       if (paginatedData && paginatedData.content) {
         const studentsData = paginatedData.content || []
         setStudents(studentsData)
         setTotalPages(paginatedData.totalPages || 0)
         setTotalElements(paginatedData.totalElements || 0)
-        console.log('Students loaded:', studentsData.length, 'Total:', paginatedData.totalElements)
       } else {
         const errorMsg = 'Invalid response format'
         setError(errorMsg)
@@ -374,8 +371,8 @@ export default function AdminStudentsPage() {
           </div>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Manage Students</h1>
-                  <p className="text-gray-600 dark:text-gray-400">View and manage student accounts</p>
+                  <h1 className="text-2xl font-bold text-ankur-secondary dark:text-white">Manage Students</h1>
+                  <p className="text-gray-600 dark:text-gray-300">View and manage student accounts</p>
                 </div>
               </div>
               <Card className="p-6 glass">
@@ -404,8 +401,8 @@ export default function AdminStudentsPage() {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Manage Students</h1>
-                <p className="text-gray-600 dark:text-gray-400">View and manage student accounts</p>
+                <h1 className="text-2xl font-bold text-ankur-secondary dark:text-white">Manage Students</h1>
+                <p className="text-gray-600 dark:text-gray-300">View and manage student accounts</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button 
@@ -434,12 +431,12 @@ export default function AdminStudentsPage() {
 
             {/* Error Display */}
             {error && (
-              <Card className="p-6 border-red-200 bg-red-50 dark:bg-red-900/20">
-                <div className="flex items-center space-x-2 text-red-600 dark:text-red-400">
+              <Card className="p-6 glass border border-red-200/60 dark:border-red-500/30 bg-red-50/70 dark:bg-red-500/10">
+                <div className="flex items-center space-x-2 text-red-600 dark:text-red-200">
                   <AlertCircle className="h-5 w-5" />
                   <span className="font-medium">Error loading students</span>
                 </div>
-                <p className="text-red-600 dark:text-red-400 mt-2">{error}</p>
+                <p className="text-red-600 dark:text-red-200 mt-2">{error}</p>
                 <Button 
                   onClick={fetchStudents} 
                   variant="outline" 
@@ -532,47 +529,47 @@ export default function AdminStudentsPage() {
               </div>
             ) : (
               <>
-                <div className="overflow-hidden border border-gray-200 dark:border-gray-700 rounded-lg">
-                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-800">
+                <div className="overflow-x-auto">
+                  <table className="data-table">
+                    <thead>
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                           Student
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                           School
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                           Class/Board
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                           Status
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                           Joined
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                           Actions
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody className="divide-y divide-white/40 dark:divide-white/10">
                       {students.map((student) => (
-                        <tr key={student.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                        <tr key={student.id} className="hover:bg-white/60 dark:hover:bg-slate-900/60">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
-                              <div className="h-10 w-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                              <div className="h-10 w-10 bg-blue-100/80 dark:bg-blue-900/40 rounded-full flex items-center justify-center">
                                 <GraduationCap className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                               </div>
                               <div className="ml-4">
                                 <div className="text-sm font-medium text-gray-900 dark:text-white">
                                   {formatDisplayName(student)}
                                 </div>
-                                <div className="text-sm text-gray-500 dark:text-gray-400">
+                                <div className="text-sm text-gray-500 dark:text-gray-300">
                                   {student.email}
                                 </div>
                                 {student.mobileNumber && (
-                                  <div className="text-xs text-gray-400">
+                                  <div className="text-xs text-gray-400 dark:text-gray-300">
                                     {student.mobileNumber}
                                   </div>
                                 )}
@@ -595,7 +592,7 @@ export default function AdminStudentsPage() {
                               {student.enabled ? 'Active' : 'Inactive'}
                             </Badge>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
                             {formatDate(student.createdAt)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -683,7 +680,7 @@ export default function AdminStudentsPage() {
 
         {/* View Student Dialog */}
         <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl glass-panel border border-white/30 dark:border-white/10">
             <DialogHeader>
               <DialogTitle>Student Details</DialogTitle>
             </DialogHeader>
@@ -789,7 +786,7 @@ export default function AdminStudentsPage() {
 
         {/* Edit Student Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto glass-panel border border-white/30 dark:border-white/10">
             <DialogHeader>
               <DialogTitle>Edit Student</DialogTitle>
             </DialogHeader>
@@ -805,7 +802,7 @@ export default function AdminStudentsPage() {
 
         {/* Create Student Dialog */}
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto glass-panel border border-white/30 dark:border-white/10">
             <DialogHeader>
               <DialogTitle>Add New Student</DialogTitle>
             </DialogHeader>
@@ -818,7 +815,7 @@ export default function AdminStudentsPage() {
 
         {/* Delete Confirmation Dialog */}
         <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-          <DialogContent>
+          <DialogContent className="glass-panel border border-white/30 dark:border-white/10">
             <DialogHeader>
               <DialogTitle>Delete Student</DialogTitle>
             </DialogHeader>

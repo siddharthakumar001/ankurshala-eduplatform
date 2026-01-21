@@ -55,8 +55,8 @@ function CalendarContent() {
       const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
       const endOfMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0);
       
-      const fromDate = startOfMonth.toISOString().split('T')[0];
-      const toDate = endOfMonth.toISOString().split('T')[0];
+      const fromDate = `${startOfMonth.toISOString().split('T')[0]}T00:00:00`;
+      const toDate = `${endOfMonth.toISOString().split('T')[0]}T23:59:59`;
       
       const events = await bookingService.getCalendarEvents(fromDate, toDate);
       setBookings(events);
@@ -72,8 +72,12 @@ function CalendarContent() {
     switch (status) {
       case 'ACCEPTED':
         return 'bg-green-100 text-green-800 border-green-200';
-      case 'REQUESTED':
+      case 'PENDING':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'CONFIRMED':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'IN_PROGRESS':
+        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
       case 'COMPLETED':
         return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'DECLINED':
@@ -89,8 +93,12 @@ function CalendarContent() {
     switch (status) {
       case 'ACCEPTED':
         return <CheckCircle className="h-4 w-4" />;
-      case 'REQUESTED':
+      case 'PENDING':
         return <Clock className="h-4 w-4" />;
+      case 'CONFIRMED':
+        return <CheckCircle className="h-4 w-4" />;
+      case 'IN_PROGRESS':
+        return <Video className="h-4 w-4" />;
       case 'COMPLETED':
         return <CheckCircle className="h-4 w-4" />;
       case 'DECLINED':
@@ -151,26 +159,28 @@ function CalendarContent() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Calendar</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">VIEW AND MANAGE YOUR SCHEDULED CLASSES</p>
+    <div className="space-y-6">
+        <div className="page-header">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-white">My Calendar</h1>
+              <p className="text-sm text-white/80 mt-1">View and manage your scheduled classes</p>
+            </div>
+            <Button 
+              onClick={() => router.push('/student/booking')}
+              className="btn-primary"
+            >
+              <BookOpen className="h-4 w-4 mr-2" />
+              Book New Class
+            </Button>
           </div>
-          <Button 
-            onClick={() => router.push('/student/booking')}
-            className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-md"
-          >
-            <BookOpen className="h-4 w-4 mr-2" />
-            Book New Class
-          </Button>
         </div>
 
       {/* Calendar Navigation */}
-      <Card className="rounded-2xl border-gray-100 dark:border-gray-800 shadow-sm">
-        <CardHeader className="border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50">
+      <Card className="glass-panel border border-white/40">
+        <CardHeader className="border-b border-white/20">
           <CardTitle className="flex items-center text-base">
-            <Calendar className="h-5 w-5 mr-2 text-emerald-600" />
+            <Calendar className="h-5 w-5 mr-2 text-emerald-500" />
             Calendar View
           </CardTitle>
           <CardDescription>Select a date to view your classes</CardDescription>
@@ -181,9 +191,9 @@ function CalendarContent() {
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-gray-800 dark:text-white"
+              className="input-modern"
             />
-            <div className="text-sm text-gray-600 dark:text-gray-400">
+            <div className="text-sm text-slate-600 dark:text-slate-300">
               {selectedDateBookings.length} class{selectedDateBookings.length !== 1 ? 'es' : ''} on{' '}
               {new Date(selectedDate).toLocaleDateString('en-US', { 
                 weekday: 'long', 
@@ -198,18 +208,18 @@ function CalendarContent() {
 
       {/* Bookings for Selected Date */}
       {selectedDateBookings.length === 0 ? (
-        <Card className="rounded-2xl border-gray-100 dark:border-gray-800 shadow-sm">
+        <Card className="glass-panel border border-white/40">
           <CardContent className="p-12 text-center">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-              <Calendar className="h-8 w-8 text-gray-400" />
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-500/10 flex items-center justify-center">
+              <Calendar className="h-8 w-8 text-slate-400" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No Classes Scheduled</h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">No Classes Scheduled</h3>
+            <p className="text-slate-600 dark:text-slate-300 mb-4">
               You don&apos;t have any classes scheduled for this date.
             </p>
             <Button 
               onClick={() => router.push('/student/booking')}
-              className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600"
+              className="btn-primary"
             >
               Book a Class
             </Button>
@@ -218,7 +228,7 @@ function CalendarContent() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {selectedDateBookings.map((booking) => (
-            <Card key={booking.id} className="rounded-2xl border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md transition-shadow">
+            <Card key={booking.id} className="glass-panel border border-white/40 hover-lift transition-shadow">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg">{booking.topicTitle || booking.title}</CardTitle>
@@ -235,8 +245,8 @@ function CalendarContent() {
                           View Details
                         </DropdownMenuItem>
                       )}
-                      {(booking.status === 'REQUESTED' || booking.status === 'ACCEPTED') && (
-                        <>
+      {(booking.status === 'PENDING' || booking.status === 'ACCEPTED' || booking.status === 'CONFIRMED') && (
+        <>
                           <DropdownMenuItem onClick={() => handleReschedule(booking)}>
                             <Calendar className="h-4 w-4 mr-2" />
                             Reschedule
@@ -260,7 +270,7 @@ function CalendarContent() {
                 {booking.teacherName && (
                   <CardDescription>
                     <div className="flex items-center space-x-2">
-                      <User className="h-4 w-4 text-gray-500" />
+                      <User className="h-4 w-4 text-slate-400" />
                       <span>{booking.teacherName}</span>
                     </div>
                   </CardDescription>
@@ -269,7 +279,7 @@ function CalendarContent() {
               <CardContent>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                    <div className="flex items-center space-x-2 text-sm text-slate-600 dark:text-slate-300">
                       <Clock className="h-4 w-4" />
                       <span>
                         {new Date(booking.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} -{' '}
@@ -284,25 +294,25 @@ function CalendarContent() {
                     </Badge>
                   </div>
 
-                  <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                  <div className="flex items-center space-x-2 text-sm text-slate-600 dark:text-slate-300">
                     <span>
                       {Math.round((new Date(booking.end).getTime() - new Date(booking.start).getTime()) / 60000)} minutes
                     </span>
                   </div>
 
                   {booking.status === 'ACCEPTED' && (
-                    <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3 flex items-start space-x-2">
-                      <Video className="h-4 w-4 text-emerald-600 mt-0.5" />
-                      <p className="text-sm text-emerald-800 dark:text-emerald-300">
+                    <div className="glass border border-emerald-200/40 rounded-lg p-3 flex items-start space-x-2">
+                      <Video className="h-4 w-4 text-emerald-500 mt-0.5" />
+                      <p className="text-sm text-emerald-700 dark:text-emerald-300">
                         Your class is confirmed! Click &quot;View Details&quot; to join when it&apos;s time.
                       </p>
                     </div>
                   )}
 
-                  {booking.status === 'REQUESTED' && (
-                    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 flex items-start space-x-2">
-                      <Clock className="h-4 w-4 text-amber-600 mt-0.5" />
-                      <p className="text-sm text-amber-800 dark:text-amber-300">
+                  {booking.status === 'PENDING' && (
+                    <div className="glass border border-amber-200/40 rounded-lg p-3 flex items-start space-x-2">
+                      <Clock className="h-4 w-4 text-amber-500 mt-0.5" />
+                      <p className="text-sm text-amber-700 dark:text-amber-300">
                         Your booking request has been sent to the teacher. You&apos;ll be notified once they respond.
                       </p>
                     </div>
@@ -310,10 +320,10 @@ function CalendarContent() {
 
                   {booking.status === 'COMPLETED' && (
                     <div className="flex space-x-2">
-                      <Button size="sm" variant="outline" onClick={() => router.push(`/student/bookings/${booking.id}`)}>
+                      <Button size="sm" variant="outline" className="btn-outline h-9 px-4 text-sm" onClick={() => router.push(`/student/bookings/${booking.id}`)}>
                         View Details
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => router.push(`/student/history`)}>
+                      <Button size="sm" variant="outline" className="btn-outline h-9 px-4 text-sm" onClick={() => router.push(`/student/history`)}>
                         Rate & Review
                       </Button>
                     </div>
@@ -326,30 +336,30 @@ function CalendarContent() {
       )}
 
       {/* Upcoming Classes Summary */}
-      <Card className="rounded-2xl border-gray-100 dark:border-gray-800 shadow-sm">
-        <CardHeader className="border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50">
+      <Card className="glass-panel border border-white/40">
+        <CardHeader className="border-b border-white/20">
           <CardTitle className="text-base">Upcoming Classes</CardTitle>
           <CardDescription>Your next scheduled sessions</CardDescription>
         </CardHeader>
         <CardContent className="p-6">
           <div className="space-y-3">
-            {bookings
+                  {bookings
               .filter(booking => 
-                booking.status === 'ACCEPTED' && 
+                (booking.status === 'ACCEPTED' || booking.status === 'CONFIRMED') && 
                 new Date(booking.start) > new Date()
               )
               .slice(0, 3)
               .map((booking) => (
-                <div key={booking.id} className="flex items-center justify-between p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
+                <div key={booking.id} className="flex items-center justify-between p-3 glass rounded-lg border border-white/30">
                   <div>
-                    <h4 className="font-medium text-gray-900 dark:text-white">{booking.topicTitle || booking.title}</h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{booking.teacherName}</p>
+                    <h4 className="font-medium text-slate-900 dark:text-white">{booking.topicTitle || booking.title}</h4>
+                    <p className="text-sm text-slate-600 dark:text-slate-300">{booking.teacherName}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                    <p className="text-sm font-medium text-slate-900 dark:text-white">
                       {new Date(booking.start).toLocaleDateString()}
                     </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-sm text-slate-600 dark:text-slate-300">
                       {new Date(booking.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>

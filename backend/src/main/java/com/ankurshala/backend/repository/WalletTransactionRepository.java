@@ -2,6 +2,8 @@ package com.ankurshala.backend.repository;
 
 import com.ankurshala.backend.entity.WalletTransaction;
 import com.ankurshala.backend.entity.WalletOwnerType;
+import com.ankurshala.backend.entity.WalletTransactionSource;
+import com.ankurshala.backend.entity.WalletTransactionType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -26,4 +28,10 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
     List<WalletTransaction> findByOwnerTypeAndOwnerIdAndCreatedAtBetweenOrderByCreatedAtDesc(
             WalletOwnerType ownerType, Long ownerId,
             LocalDateTime startDate, LocalDateTime endDate);
+
+    List<WalletTransaction> findByOwnerTypeAndOwnerIdAndBookingIdAndSourceAndType(
+            WalletOwnerType ownerType, Long ownerId, Long bookingId,
+            WalletTransactionSource source, WalletTransactionType type);
+
+    List<WalletTransaction> findByBookingId(Long bookingId);
 }

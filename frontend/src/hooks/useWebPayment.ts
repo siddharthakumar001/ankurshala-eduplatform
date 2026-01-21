@@ -31,7 +31,7 @@ export const useWebPayment = (): WebPaymentResult => {
       const paymentRequest = new PaymentRequest(methodData, {
         total: {
           label: 'Total',
-          amount: { currency: 'USD', value: '0' }
+          amount: { currency: 'INR', value: '0' }
         }
       });
 
@@ -107,7 +107,7 @@ export const useWebPayment = (): WebPaymentResult => {
             merchantIdentifier: 'merchant.com.example',
             merchantCapabilities: ['supports3DS'],
             supportedNetworks: ['visa', 'mastercard', 'amex'],
-            countryCode: 'US'
+            countryCode: 'IN'
           }
         },
         {

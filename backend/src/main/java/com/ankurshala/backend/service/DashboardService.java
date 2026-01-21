@@ -38,6 +38,8 @@ public class DashboardService {
     @Autowired
     private TeacherRepository teacherRepository;
     @Autowired
+    private TeacherSubjectExpertiseRepository teacherSubjectExpertiseRepository;
+    @Autowired
     private WalletTransactionRepository walletTransactionRepository;
 
     public StudentDashboardStats getStudentDashboardStats(Long studentId) {
@@ -48,14 +50,19 @@ public class DashboardService {
             StudentDashboardStats stats = new StudentDashboardStats();
 
             // Get upcoming bookings count
-            List<Booking> upcomingBookings = bookingRepository.findByStudentIdAndStateOrderByStartTsAsc(studentId, BookingState.ACCEPTED);
-            upcomingBookings = upcomingBookings.stream()
+            List<Booking> upcomingBookings = bookingRepository.findByStudentIdOrderByStartTsDesc(studentId).stream()
                     .filter(b -> b.getStartTs().isAfter(ZonedDateTime.now()))
+                    .filter(b -> EnumSet.of(
+                            BookingStatus.PENDING,
+                            BookingStatus.ACCEPTED,
+                            BookingStatus.CONFIRMED,
+                            BookingStatus.IN_PROGRESS
+                    ).contains(b.getStatus()))
                     .collect(Collectors.toList());
             stats.setUpcomingBookings((long) upcomingBookings.size());
 
             // Get completed bookings count
-            List<Booking> completedBookings = bookingRepository.findByStudentIdAndStateOrderByStartTsAsc(studentId, BookingState.COMPLETED);
+            List<Booking> completedBookings = bookingRepository.findByStudentIdAndStatus(studentId, BookingStatus.COMPLETED);
             stats.setCompletedBookings((long) completedBookings.size());
 
             // Calculate total hours spent
@@ -95,12 +102,24 @@ public class DashboardService {
         try {
             TeacherDashboardStats stats = new TeacherDashboardStats();
 
-            // Get pending requests count
-            List<Booking> pendingBookings = bookingRepository.findByTeacherIdAndStateOrderByStartTsAsc(teacherId, BookingState.REQUESTED);
+            Teacher teacher = teacherRepository.findByUserId(teacherId)
+                    .orElseThrow(() -> new BusinessException("Teacher not found", HttpStatus.NOT_FOUND, "TEACHER_NOT_FOUND"));
+
+            // Get pending requests count (only matching teacher expertise)
+            List<Booking> pendingBookings = bookingRepository.findByStatus(BookingStatus.PENDING)
+                    .stream()
+                    .filter(booking -> {
+                        if (booking.getTopic() == null) return false;
+                        Long subjectId = booking.getTopic().getSubjectId();
+                        Long gradeId = booking.getTopic().getGradeId();
+                        Long boardId = booking.getTopic().getBoardId();
+                        return teacherSubjectExpertiseRepository.hasExpertise(teacher.getId(), subjectId, gradeId, boardId);
+                    })
+                    .collect(Collectors.toList());
             stats.setPendingRequests((long) pendingBookings.size());
 
             // Get upcoming classes count
-            List<Booking> upcomingBookings = bookingRepository.findByTeacherIdAndStateOrderByStartTsAsc(teacherId, BookingState.ACCEPTED);
+            List<Booking> upcomingBookings = bookingRepository.findByTeacherIdAndStatus(teacherId, BookingStatus.ACCEPTED);
             upcomingBookings = upcomingBookings.stream()
                     .filter(b -> b.getStartTs().isAfter(ZonedDateTime.now()))
                     .collect(Collectors.toList());
@@ -113,11 +132,8 @@ public class DashboardService {
             BigDecimal totalEarnings = getTotalEarnings(teacherId);
             stats.setTotalEarnings(totalEarnings);
 
-            // Get rating stats
-            Teacher teacher = teacherRepository.findByUserId(teacherId)
-                    .orElseThrow(() -> new BusinessException("Teacher not found", HttpStatus.NOT_FOUND, "TEACHER_NOT_FOUND"));
             stats.setAverageRating(teacher.getRatingAvg() != null ? teacher.getRatingAvg().doubleValue() : 0.0);
-            stats.setTotalRatings((long) teacher.getRatingCount());
+            stats.setTotalRatings(teacher.getRatingCount() != null ? teacher.getRatingCount().longValue() : 0L);
 
             // Get pending bookings details
             List<PendingBooking> pendingBookingsList = pendingBookings.stream()
@@ -258,7 +274,7 @@ public class DashboardService {
         
         upcomingClass.setStartTime(booking.getStartTs().toLocalDateTime());
         upcomingClass.setEndTime(booking.getEndTs().toLocalDateTime());
-        upcomingClass.setStatus(booking.getState());
+        upcomingClass.setStatus(booking.getStatus() != null ? booking.getStatus().name() : null);
         
         return upcomingClass;
     }
@@ -293,7 +309,7 @@ public class DashboardService {
         
         upcomingClass.setStartTime(booking.getStartTs().toLocalDateTime());
         upcomingClass.setEndTime(booking.getEndTs().toLocalDateTime());
-        upcomingClass.setStatus(booking.getState());
+        upcomingClass.setStatus(booking.getStatus() != null ? booking.getStatus().name() : null);
         
         return upcomingClass;
     }
@@ -340,7 +356,7 @@ public class DashboardService {
         breakdown.setThisYear(getEarningsInPeriod(teacherId, startOfYear, endOfMonth));
         
         // Calculate total classes and average
-        List<Booking> completedBookings = bookingRepository.findByTeacherIdAndStateOrderByStartTsAsc(teacherId, BookingState.COMPLETED);
+        List<Booking> completedBookings = bookingRepository.findByTeacherIdAndStatus(teacherId, BookingStatus.COMPLETED);
         breakdown.setTotalClasses((long) completedBookings.size());
         breakdown.setAveragePerClass(completedBookings.size() > 0 ? 
                 breakdown.getThisYear().divide(BigDecimal.valueOf(completedBookings.size()), 2, RoundingMode.HALF_UP) : BigDecimal.ZERO);

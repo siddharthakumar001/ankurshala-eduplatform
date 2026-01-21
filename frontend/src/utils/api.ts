@@ -154,7 +154,7 @@ class SecureApiClient {
       const jsonResponse = await response.json()
       
       // Check if it's a standardized API response
-      if (jsonResponse && typeof jsonResponse === 'object' && 'success' in jsonResponse) {
+      if (jsonResponse && typeof jsonResponse === 'object' && 'success' in jsonResponse && 'data' in jsonResponse) {
         const apiResponse: ApiResponse<T> = jsonResponse
         
         // Handle standardized API responses

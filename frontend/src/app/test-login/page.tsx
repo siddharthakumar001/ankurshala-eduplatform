@@ -43,25 +43,25 @@ export default function TestLoginPage() {
           userData
         )
 
-        addResult(`✅ Login successful! Role: ${responseData.role}, Expected: ${expectedRole}`)
+        addResult(`OK Login successful! Role: ${responseData.role}, Expected: ${expectedRole}`)
         
         if (responseData.role === expectedRole) {
-          addResult(`✅ Role matches expected: ${expectedRole}`)
+          addResult(`OK Role matches expected: ${expectedRole}`)
         } else {
-          addResult(`❌ Role mismatch! Got: ${responseData.role}, Expected: ${expectedRole}`)
+          addResult(`ERROR Role mismatch! Got: ${responseData.role}, Expected: ${expectedRole}`)
         }
 
         // Test token validation
         const userResponse = await api.get('/user/me')
-        addResult(`✅ Token validation successful: ${JSON.stringify(userResponse.data)}`)
+        addResult(`OK Token validation successful: ${JSON.stringify(userResponse.data)}`)
 
         // Logout for next test
         authManager.logout()
-        addResult(`✅ Logout successful`)
+        addResult(`OK Logout successful`)
         
       }
     } catch (error: any) {
-      addResult(`❌ Login failed: ${error.message || error}`)
+      addResult(`ERROR Login failed: ${error.message || error}`)
       console.error('Login test error:', error)
     }
   }
@@ -83,9 +83,9 @@ export default function TestLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-8">
+    <div className="min-h-screen bg-transparent p-8">
       <div className="max-w-4xl mx-auto">
-        <Card>
+        <Card className="glass-panel border border-white/40">
           <CardHeader>
             <CardTitle>Login Flow Test Dashboard</CardTitle>
             <CardDescription>
@@ -94,7 +94,7 @@ export default function TestLoginPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex gap-4">
-              <Button onClick={testAllCredentials}>
+              <Button onClick={testAllCredentials} className="btn-primary">
                 Test All Login Credentials
               </Button>
               <Button variant="outline" onClick={clearResults}>
@@ -104,7 +104,7 @@ export default function TestLoginPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {testCredentials.map((cred, index) => (
-                <Card key={index}>
+                <Card key={index} className="glass border border-white/40">
                   <CardHeader>
                     <CardTitle className="text-sm">{cred.expectedRole}</CardTitle>
                   </CardHeader>
@@ -122,10 +122,10 @@ export default function TestLoginPage() {
               ))}
             </div>
 
-            <div className="bg-black text-green-400 p-4 rounded-lg font-mono text-sm max-h-96 overflow-y-auto">
+            <div className="bg-slate-950/90 text-emerald-200 p-4 rounded-2xl font-mono text-sm max-h-96 overflow-y-auto border border-white/10 backdrop-blur">
               <div className="mb-2 text-white">Test Results:</div>
               {results.length === 0 ? (
-                <div className="text-gray-500">No tests run yet...</div>
+                <div className="text-slate-400">No tests run yet...</div>
               ) : (
                 results.map((result, index) => (
                   <div key={index} className="mb-1">
@@ -135,16 +135,16 @@ export default function TestLoginPage() {
               )}
             </div>
 
-            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-              <h3 className="font-semibold mb-2">Security Improvements Made:</h3>
-              <ul className="space-y-1 text-sm">
-                <li>✅ Removed credential exposure from URL parameters</li>
-                <li>✅ Added role-based dashboard redirects</li>
-                <li>✅ Enhanced form validation and error handling</li>
-                <li>✅ Improved responsive design with company logo</li>
-                <li>✅ Added comprehensive security headers</li>
-                <li>✅ Implemented proper route guards</li>
-                <li>✅ Added automatic redirect for authenticated users on homepage</li>
+            <div className="glass rounded-2xl border border-white/40 p-4">
+              <h3 className="font-semibold mb-2 text-ankur-secondary dark:text-white">Security Improvements Made:</h3>
+              <ul className="space-y-1 text-sm text-gray-600 dark:text-gray-300">
+                <li>OK Removed credential exposure from URL parameters</li>
+                <li>OK Added role-based dashboard redirects</li>
+                <li>OK Enhanced form validation and error handling</li>
+                <li>OK Improved responsive design with company logo</li>
+                <li>OK Added comprehensive security headers</li>
+                <li>OK Implemented proper route guards</li>
+                <li>OK Added automatic redirect for authenticated users on homepage</li>
               </ul>
             </div>
           </CardContent>

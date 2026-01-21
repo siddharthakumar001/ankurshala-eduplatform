@@ -90,4 +90,34 @@ public class StudentPaymentController {
         VerifyPaymentResponse response = paymentService.verifyPayment(request, userPrincipal);
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/wallet/topup/order")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<WalletTopupOrderResponse> createWalletTopupOrder(
+            @Valid @RequestBody WalletTopupOrderRequest request,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        log.info("Creating wallet top-up order for student {}", userPrincipal.getId());
+        WalletTopupOrderResponse response = paymentService.createWalletTopupOrder(request, userPrincipal);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/wallet/topup/verify")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<WalletTopupVerifyResponse> verifyWalletTopup(
+            @Valid @RequestBody WalletTopupVerifyRequest request,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        log.info("Verifying wallet top-up for student {}", userPrincipal.getId());
+        WalletTopupVerifyResponse response = paymentService.verifyWalletTopup(request, userPrincipal);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/wallet/pay")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<WalletPaymentResponse> payWithWallet(
+            @Valid @RequestBody WalletPaymentRequest request,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        log.info("Processing wallet payment for student {}", userPrincipal.getId());
+        WalletPaymentResponse response = paymentService.payBookingWithWallet(request, userPrincipal);
+        return ResponseEntity.ok(response);
+    }
 }

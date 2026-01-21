@@ -8,15 +8,17 @@ import {
   BookOpen, 
   Play, 
   User, 
-  Settings,
   LogOut,
   Bell,
   CreditCard,
-  BarChart3
+  Sparkles,
+  Moon,
+  Sun
 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import { useState, useEffect } from 'react'
 import { api } from '@/utils/api'
+import { useTheme } from '@/components/theme-provider'
 
 const studentNavigation = [
   {
@@ -50,6 +52,12 @@ const studentNavigation = [
     description: 'Session history'
   },
   {
+    name: 'AI Companion',
+    href: '/student/ai-tutor',
+    icon: Sparkles,
+    description: 'Study with AI support'
+  },
+  {
     name: 'Payments',
     href: '/student/payments',
     icon: CreditCard,
@@ -62,6 +70,7 @@ export default function StudentNavigation() {
   const pathname = usePathname()
   const { logout } = useAuthStore()
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0)
+  const { theme, setTheme } = useTheme()
 
   useEffect(() => {
     fetchUnreadNotificationCount()
@@ -81,8 +90,12 @@ export default function StudentNavigation() {
     router.push('/')
   }
 
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark')
+  }
+
   return (
-    <nav className="bg-white shadow-sm border-b">
+    <nav className="bg-white/70 backdrop-blur-2xl border-b border-white/40 shadow-sm dark:bg-slate-900/70 dark:border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center space-x-8">
@@ -94,7 +107,7 @@ export default function StudentNavigation() {
                 className="rounded-lg" 
                 src="/ankurshala-logo-small.png"
               />
-              <span className="text-xl font-bold text-gray-900">AnkurShala</span>
+              <span className="text-xl font-display font-semibold text-gray-900 dark:text-gray-100">AnkurShala</span>
             </div>
             
             <div className="hidden md:flex space-x-1">
@@ -109,8 +122,8 @@ export default function StudentNavigation() {
                     onClick={() => router.push(item.href)}
                     className={`flex items-center gap-2 ${
                       isActive 
-                        ? 'bg-blue-600 text-white' 
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                        ? 'bg-ankur-primary text-white shadow-sm' 
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-white/70 dark:text-gray-200 dark:hover:bg-slate-800/60'
                     }`}
                   >
                     <Icon className="h-4 w-4" />
@@ -121,11 +134,11 @@ export default function StudentNavigation() {
             </div>
           </div>
           
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3">
             <Button
               variant="outline"
               onClick={() => router.push('/student/notifications')}
-              className="text-gray-600 hover:text-gray-900 relative"
+              className="text-gray-700 hover:text-gray-900 relative dark:text-gray-200"
             >
               <Bell className="h-4 w-4 mr-2" />
               Notifications
@@ -136,9 +149,16 @@ export default function StudentNavigation() {
               )}
             </Button>
             <Button
+              variant="ghost"
+              onClick={toggleTheme}
+              className="text-gray-600 hover:text-gray-900 hover:bg-white/70 dark:text-gray-200 dark:hover:bg-slate-800/60"
+            >
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
+            <Button
               variant="outline"
               onClick={handleLogout}
-              className="text-gray-600 hover:text-gray-900"
+              className="text-gray-700 hover:text-gray-900 dark:text-gray-200"
             >
               <LogOut className="h-4 w-4 mr-2" />
               Logout

@@ -17,10 +17,13 @@ import {
   BookOpen,
   Trophy,
   Target,
-  Sparkles
+  Sparkles,
+  Moon,
+  Sun
 } from 'lucide-react'
 import { authManager } from '@/utils/auth'
 import { api } from '@/utils/api'
+import { useTheme } from '@/components/theme-provider'
 
 const USER_DASHBOARD_ROUTES = {
   ADMIN: '/admin/dashboard',
@@ -30,6 +33,7 @@ const USER_DASHBOARD_ROUTES = {
 
 export default function Home() {
   const router = useRouter()
+  const { theme, setTheme } = useTheme()
 
   useEffect(() => {
     // Check if user is authenticated and redirect to appropriate dashboard
@@ -60,6 +64,10 @@ export default function Home() {
     checkAuthAndRedirect()
   }, [router])
 
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark')
+  }
+
   const stats = [
     { label: 'Active Students', value: '5,000+', icon: GraduationCap },
     { label: 'Expert Teachers', value: '500+', icon: Users },
@@ -71,7 +79,7 @@ export default function Home() {
     {
       icon: CalendarDays,
       title: 'Book by Topic & Time',
-      description: 'Pick a subject, choose a topic, select your slot. Teachers accept in real time—Uber-style.',
+      description: 'Pick a subject, choose a topic, select your slot. Teachers accept in real time.',
       color: 'bg-ankur-primary/10 text-ankur-primary'
     },
     {
@@ -83,14 +91,14 @@ export default function Home() {
     {
       icon: Brain,
       title: 'AI-Enabled Learning',
-      description: 'Personalized prep lists, weak-area insights, and after-class summaries—powered by AI.',
+      description: 'Personalized prep lists, weak-area insights, and after-class summaries powered by AI.',
       color: 'bg-ankur-accent/10 text-ankur-accent'
     },
     {
       icon: Target,
       title: 'Goal-Oriented',
       description: 'Track progress with personalized learning paths designed to meet your academic goals.',
-      color: 'bg-purple-100 text-purple-600'
+      color: 'bg-emerald-100 text-emerald-600'
     },
     {
       icon: Trophy,
@@ -102,39 +110,42 @@ export default function Home() {
       icon: Sparkles,
       title: 'Interactive Sessions',
       description: 'Engage with live whiteboard, screen sharing, and real-time problem solving.',
-      color: 'bg-pink-100 text-pink-600'
+      color: 'bg-rose-100 text-rose-600'
     }
   ]
 
   const subjects = [
-    { name: 'Mathematics', icon: '📐' },
-    { name: 'Physics', icon: '⚛️' },
-    { name: 'Chemistry', icon: '🧪' },
-    { name: 'Biology', icon: '🧬' },
-    { name: 'English', icon: '📚' },
-    { name: 'Computer Science', icon: '💻' },
-    { name: 'Economics', icon: '📊' },
-    { name: 'Social Science', icon: '🌍' },
+    { name: 'Mathematics', code: 'M' },
+    { name: 'Physics', code: 'P' },
+    { name: 'Chemistry', code: 'C' },
+    { name: 'Biology', code: 'B' },
+    { name: 'English', code: 'E' },
+    { name: 'Computer Science', code: 'CS' },
+    { name: 'Economics', code: 'Ec' },
+    { name: 'Social Science', code: 'SS' },
   ]
 
   const boards = ['CBSE', 'ICSE', 'IB', 'Cambridge', 'State Boards']
 
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen bg-transparent text-foreground">
       {/* TOP NAV */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+      <header className="sticky top-0 z-50 bg-white/70 backdrop-blur-2xl border-b border-white/40 dark:bg-slate-900/70 dark:border-white/10">
         <div className="container mx-auto flex items-center justify-between px-6 py-4">
           <Link href="/" className="flex items-center gap-3">
             <Image src="/ankurshala-logo-small.png" width={48} height={48} alt="Ankurshala" priority className="rounded-lg" />
-            <span className="text-2xl font-bold text-ankur-secondary">Ankurshala</span>
+            <span className="text-2xl font-display font-semibold text-ankur-secondary dark:text-white">Ankurshala</span>
           </Link>
           <nav className="hidden md:flex items-center gap-8">
-            <Link href="#features" className="text-gray-600 hover:text-ankur-primary transition-colors">Features</Link>
-            <Link href="#subjects" className="text-gray-600 hover:text-ankur-primary transition-colors">Subjects</Link>
-            <Link href="#boards" className="text-gray-600 hover:text-ankur-primary transition-colors">Boards</Link>
+            <Link href="#features" className="text-gray-600 hover:text-ankur-primary transition-colors dark:text-gray-200">Features</Link>
+            <Link href="#subjects" className="text-gray-600 hover:text-ankur-primary transition-colors dark:text-gray-200">Subjects</Link>
+            <Link href="#boards" className="text-gray-600 hover:text-ankur-primary transition-colors dark:text-gray-200">Boards</Link>
           </nav>
           <div className="hidden md:flex items-center gap-3">
-            <Button variant="ghost" asChild className="text-gray-600 hover:text-ankur-primary">
+            <Button variant="ghost" onClick={toggleTheme} className="text-gray-600 hover:text-ankur-primary dark:text-gray-200">
+              {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </Button>
+            <Button variant="ghost" asChild className="text-gray-600 hover:text-ankur-primary dark:text-gray-200">
               <Link href="/login">Login</Link>
             </Button>
             <Button className="btn-primary" asChild>
@@ -153,7 +164,7 @@ export default function Home() {
       {/* HERO SECTION */}
       <section className="relative overflow-hidden">
         {/* Background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-ankur-secondary via-ankur-secondary/90 to-ankur-primary/80" />
+        <div className="absolute inset-0 brand-gradient" />
         <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
         
         <div className="relative container mx-auto px-6 py-20 md:py-28">
@@ -165,7 +176,7 @@ export default function Home() {
                 <span>India's Most Trusted Learning Platform</span>
               </div>
               
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-semibold text-white leading-tight mb-6">
                 On Demand Learning
                 <br />
                 <span className="bg-gradient-to-r from-ankur-primary to-ankur-accent bg-clip-text text-transparent">
@@ -192,7 +203,7 @@ export default function Home() {
               {/* Stats */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {stats.map((stat) => (
-                  <div key={stat.label} className="bg-white/10 backdrop-blur rounded-xl p-4 text-center">
+                  <div key={stat.label} className="bg-white/10 backdrop-blur rounded-2xl p-4 text-center border border-white/20">
                     <stat.icon className="h-6 w-6 text-ankur-accent mx-auto mb-2" />
                     <div className="text-2xl font-bold text-white">{stat.value}</div>
                     <div className="text-xs text-white/70">{stat.label}</div>
@@ -238,13 +249,13 @@ export default function Home() {
       </section>
 
       {/* FEATURES SECTION */}
-      <section id="features" className="py-20 bg-white">
+      <section id="features" className="py-20 bg-transparent">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-ankur-secondary mb-4">
+            <h2 className="text-3xl md:text-4xl font-display font-semibold text-ankur-secondary dark:text-white mb-4">
               Why Choose Ankurshala?
             </h2>
-            <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+            <p className="text-gray-600 text-lg max-w-2xl mx-auto dark:text-gray-300">
               Experience personalized learning with cutting-edge technology and expert educators
             </p>
           </div>
@@ -253,13 +264,13 @@ export default function Home() {
             {features.map((feature) => (
               <div 
                 key={feature.title}
-                className="group p-6 rounded-2xl border border-gray-100 hover:border-ankur-primary/20 hover:shadow-lg transition-all duration-300 bg-white"
+                className="group p-6 rounded-3xl border border-white/40 hover:border-ankur-primary/20 hover:shadow-lg transition-all duration-300 bg-white/80 backdrop-blur dark:bg-slate-900/70 dark:border-white/10"
               >
                 <div className={`w-14 h-14 rounded-xl ${feature.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
                   <feature.icon className="h-7 w-7" />
                 </div>
-                <h3 className="text-xl font-semibold text-ankur-secondary mb-2">{feature.title}</h3>
-                <p className="text-gray-600">{feature.description}</p>
+                <h3 className="text-xl font-semibold text-ankur-secondary dark:text-white mb-2">{feature.title}</h3>
+                <p className="text-gray-600 dark:text-gray-300">{feature.description}</p>
               </div>
             ))}
           </div>
@@ -267,13 +278,13 @@ export default function Home() {
       </section>
 
       {/* SUBJECTS SECTION */}
-      <section id="subjects" className="py-20 bg-gray-50">
+      <section id="subjects" className="py-20 bg-transparent">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-ankur-secondary mb-4">
+            <h2 className="text-3xl md:text-4xl font-display font-semibold text-ankur-secondary dark:text-white mb-4">
               Popular Subjects
             </h2>
-            <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+            <p className="text-gray-600 text-lg max-w-2xl mx-auto dark:text-gray-300">
               Master any subject with expert guidance from our verified teachers
             </p>
           </div>
@@ -282,10 +293,12 @@ export default function Home() {
             {subjects.map((subject) => (
               <div 
                 key={subject.name}
-                className="group bg-white rounded-xl p-6 text-center hover:shadow-lg hover:border-ankur-primary/20 border border-gray-100 transition-all duration-300 cursor-pointer"
+                className="group bg-white/80 rounded-2xl p-6 text-center hover:shadow-lg hover:border-ankur-primary/20 border border-white/50 transition-all duration-300 cursor-pointer backdrop-blur dark:bg-slate-900/70 dark:border-white/10"
               >
-                <span className="text-4xl mb-3 block group-hover:scale-110 transition-transform">{subject.icon}</span>
-                <span className="font-medium text-ankur-secondary">{subject.name}</span>
+                <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-ankur-primary/10 text-ankur-primary font-semibold group-hover:scale-110 transition-transform">
+                  {subject.code}
+                </span>
+                <span className="font-medium text-ankur-secondary dark:text-white">{subject.name}</span>
               </div>
             ))}
           </div>
@@ -293,9 +306,9 @@ export default function Home() {
       </section>
 
       {/* BOARDS SECTION */}
-      <section id="boards" className="py-20 bg-white">
+      <section id="boards" className="py-20 bg-transparent">
         <div className="container mx-auto px-6">
-          <div className="bg-gradient-to-r from-ankur-secondary to-ankur-primary rounded-3xl p-8 md:p-12 text-center">
+          <div className="brand-gradient rounded-3xl p-8 md:p-12 text-center">
             <BookOpen className="h-12 w-12 text-white/80 mx-auto mb-6" />
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
               All Major Boards Covered
@@ -318,13 +331,13 @@ export default function Home() {
       </section>
 
       {/* CTA SECTION */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-transparent">
         <div className="container mx-auto px-6">
           <div className="max-w-4xl mx-auto text-center">
-            <h2 className="text-3xl md:text-4xl font-bold text-ankur-secondary mb-4">
+            <h2 className="text-3xl md:text-4xl font-display font-semibold text-ankur-secondary dark:text-white mb-4">
               Ready to Transform Your Learning?
             </h2>
-            <p className="text-gray-600 text-lg mb-8">
+            <p className="text-gray-600 text-lg mb-8 dark:text-gray-300">
               Join thousands of students achieving their academic goals with Ankurshala
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -334,7 +347,7 @@ export default function Home() {
                   Start as Student
                 </Link>
               </Button>
-              <Button size="lg" variant="outline" className="border-ankur-secondary text-ankur-secondary hover:bg-ankur-secondary/5 text-base px-8" asChild>
+              <Button size="lg" variant="outline" className="border-ankur-secondary text-ankur-secondary hover:bg-ankur-secondary/5 text-base px-8 dark:text-white dark:border-white/20" asChild>
                 <Link href="/register-teacher">
                   <Users className="mr-2 h-5 w-5" />
                   Become a Teacher
@@ -363,7 +376,7 @@ export default function Home() {
             </div>
           </div>
           <div className="border-t border-white/10 mt-8 pt-8 text-center text-white/60 text-sm">
-            © {new Date().getFullYear()} Ankurshala. All rights reserved.
+            Copyright {new Date().getFullYear()} Ankurshala. All rights reserved.
           </div>
         </div>
       </footer>

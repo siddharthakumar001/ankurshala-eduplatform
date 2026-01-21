@@ -38,7 +38,7 @@ public class WalletService {
         log.info("Fetching student wallet - TraceId: {}, StudentId: {}", traceId, studentId);
 
         return studentWalletRepository.findByStudentId(studentId)
-                .orElseThrow(() -> new BusinessException("Student wallet not found", HttpStatus.NOT_FOUND, "WALLET_NOT_FOUND"));
+                .orElseGet(() -> createStudentWallet(studentId));
     }
 
     public TeacherWallet getTeacherWallet(Long teacherId) {
@@ -46,7 +46,7 @@ public class WalletService {
         log.info("Fetching teacher wallet - TraceId: {}, TeacherId: {}", traceId, teacherId);
 
         return teacherWalletRepository.findByTeacherId(teacherId)
-                .orElseThrow(() -> new BusinessException("Teacher wallet not found", HttpStatus.NOT_FOUND, "WALLET_NOT_FOUND"));
+                .orElseGet(() -> createTeacherWallet(teacherId));
     }
 
     public WalletTransaction creditStudentWallet(Long studentId, Long amountCents, WalletTransactionSource source, Long bookingId, String description) {
@@ -205,8 +205,23 @@ public class WalletService {
         String traceId = TraceUtil.getTraceId();
         log.info("Fetching wallet transactions by booking - TraceId: {}, BookingId: {}", traceId, bookingId);
 
-        // Note: Booking-based transactions not implemented in current repository
-        return walletTransactionRepository.findAll();
+        return walletTransactionRepository.findByBookingId(bookingId);
+    }
+
+    private StudentWallet createStudentWallet(Long studentId) {
+        StudentWallet wallet = new StudentWallet();
+        wallet.setStudentId(studentId);
+        wallet.setBalanceCents(0L);
+        wallet.setUpdatedAt(LocalDateTime.now());
+        return studentWalletRepository.save(wallet);
+    }
+
+    private TeacherWallet createTeacherWallet(Long teacherId) {
+        TeacherWallet wallet = new TeacherWallet();
+        wallet.setTeacherId(teacherId);
+        wallet.setBalanceCents(0L);
+        wallet.setUpdatedAt(LocalDateTime.now());
+        return teacherWalletRepository.save(wallet);
     }
 
     public WalletTransaction transferBetweenWallets(Long fromUserId, Long toUserId, Long amountCents, String fromUserType, String toUserType, String description) {

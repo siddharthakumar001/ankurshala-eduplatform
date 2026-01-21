@@ -34,7 +34,7 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="bg-white dark:bg-gray-900 shadow-sm border-b dark:border-gray-700">
+    <nav className="bg-white/70 dark:bg-slate-900/70 shadow-sm border-b border-white/40 dark:border-white/10 backdrop-blur-2xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo and Brand */}
@@ -47,7 +47,7 @@ export default function Navbar() {
                 height={32}
                 className="rounded-lg"
               />
-              <span className="text-xl font-bold text-gray-900 dark:text-white">AnkurShala</span>
+              <span className="text-xl font-display font-semibold text-gray-900 dark:text-white">AnkurShala</span>
             </Link>
           </div>
 
@@ -71,12 +71,12 @@ export default function Navbar() {
                     <p className="text-sm font-medium text-gray-900 dark:text-white">{user.name}</p>
                     <div className="flex items-center space-x-2">
                       <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
                           user.role === 'STUDENT'
-                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200'
                             : user.role === 'TEACHER'
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                            : 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+                            ? 'bg-sky-100 text-sky-800 dark:bg-sky-900/60 dark:text-sky-200'
+                            : 'bg-violet-100 text-violet-800 dark:bg-violet-900/60 dark:text-violet-200'
                         }`}
                       >
                         {user.role?.toLowerCase()}

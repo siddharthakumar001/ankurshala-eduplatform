@@ -18,9 +18,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -128,11 +126,23 @@ public class TeacherBookingController {
         log.info("Found {} matching pending bookings for teacher {}", matchingBookings.size(), teacher.getId());
         return ResponseEntity.ok(matchingBookings);
     }
+
+    @GetMapping
+    @PreAuthorize("hasRole('TEACHER')")
+    public ResponseEntity<List<BookingResponse>> getTeacherBookings(
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        List<Booking> bookings = bookingRepository.findByTeacherIdOrderByStartTsDesc(userPrincipal.getId());
+        List<BookingResponse> responses = bookings.stream()
+            .map(this::convertToBookingResponse)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(responses);
+    }
     
     private BookingResponse convertToBookingResponse(Booking booking) {
         BookingResponse response = new BookingResponse();
         response.setId(booking.getId());
         response.setStudentId(booking.getStudentId());
+        response.setStudentName(booking.getStudent() != null ? booking.getStudent().getName() : null);
         response.setTeacherId(booking.getTeacherId());
         response.setTopicId(booking.getTopicId());
         response.setTopicTitle(booking.getTopic() != null ? booking.getTopic().getTitle() : "Unknown");
@@ -179,6 +189,23 @@ public class TeacherBookingController {
         return ResponseEntity.ok(responses);
     }
 
+    @GetMapping("/completed")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ResponseEntity<List<BookingResponse>> getCompletedBookings(
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        log.info("Getting completed bookings for teacher {}", userPrincipal.getId());
+
+        List<Booking> completedBookings = bookingRepository.findByTeacherIdAndStatus(
+            userPrincipal.getId(), BookingStatus.COMPLETED);
+
+        List<BookingResponse> responses = completedBookings.stream()
+            .map(this::convertToBookingResponse)
+            .collect(Collectors.toList());
+
+        log.info("Found {} completed bookings for teacher {}", responses.size(), userPrincipal.getId());
+        return ResponseEntity.ok(responses);
+    }
+
     @PostMapping("/{bookingId}/notes")
     @PreAuthorize("hasRole('TEACHER')")
     public ResponseEntity<Map<String, String>> addTeacherNote(
@@ -211,5 +238,61 @@ public class TeacherBookingController {
         // 2. Adding feedback to the booking
         
         return ResponseEntity.ok(Map.of("message", "Feedback added successfully"));
+    }
+
+    @PostMapping("/{bookingId}/decline")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ResponseEntity<Map<String, Object>> declineBooking(
+            @PathVariable Long bookingId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        log.info("Teacher {} declining booking {}", userPrincipal.getId(), bookingId);
+
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+
+        if (booking.getStatus() != BookingStatus.PENDING) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Only pending bookings can be declined"));
+        }
+
+        booking.setStatus(BookingStatus.CANCELLED);
+        booking.setCancellationReason("Declined by teacher");
+        booking.setCancelledAt(ZonedDateTime.now());
+
+        Booking savedBooking = bookingRepository.save(booking);
+        webSocketService.notifyBookingCancelled(savedBooking);
+
+        return ResponseEntity.ok(Map.of(
+            "message", "Booking declined",
+            "bookingId", savedBooking.getId()
+        ));
+    }
+
+    @PostMapping("/{bookingId}/complete")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ResponseEntity<Map<String, Object>> completeBooking(
+            @PathVariable Long bookingId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        log.info("Teacher {} completing booking {}", userPrincipal.getId(), bookingId);
+
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+
+        if (booking.getTeacherId() == null || !booking.getTeacherId().equals(userPrincipal.getId())) {
+            return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+        }
+
+        if (booking.getStatus() != BookingStatus.ACCEPTED && booking.getStatus() != BookingStatus.IN_PROGRESS) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Only accepted bookings can be completed"));
+        }
+
+        booking.setStatus(BookingStatus.COMPLETED);
+
+        Booking savedBooking = bookingRepository.save(booking);
+        webSocketService.notifyBookingCompleted(savedBooking);
+
+        return ResponseEntity.ok(Map.of(
+            "message", "Booking completed",
+            "bookingId", savedBooking.getId()
+        ));
     }
 }

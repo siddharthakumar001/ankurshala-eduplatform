@@ -2,14 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import { useAuthStore } from '@/store/auth'
 import { StudentRoute } from '@/components/route-guard'
 import { BookOpen, Clock, Plus, CheckCircle, Circle, Trash2, Edit, BookmarkPlus, ListTodo, Loader2 } from 'lucide-react'
 import { studentAPI } from '@/lib/apiClient'
@@ -47,8 +46,6 @@ function StudyListContent() {
   const [submitting, setSubmitting] = useState(false)
   
   const router = useRouter()
-  const { user } = useAuthStore()
-
   // Load study list on mount - auth already verified by StudentRoute
   useEffect(() => {
     loadStudyList()
@@ -71,7 +68,7 @@ function StudyListContent() {
     
     setSubmitting(true)
     try {
-      await studentAPI.addToStudyList(parseInt(newTopicId))
+      await studentAPI.addToStudyList(parseInt(newTopicId), newNotes || undefined)
       toast.success('Topic added successfully!')
       setIsAddDialogOpen(false)
       setNewTopicId('')
@@ -100,9 +97,9 @@ function StudyListContent() {
     }
   }
 
-  const handleUpdateNotes = async (itemId: number, notes: string) => {
+  const handleUpdateNotes = async (itemId: number, notes: string, status: 'ADDED' | 'IN_PROGRESS' | 'DONE') => {
     try {
-      await studentAPI.updateStudyListNote(itemId, notes)
+      await studentAPI.updateStudyListNote(itemId, notes, status)
       toast.success('Notes updated successfully!')
       setEditingItem(null)
       loadStudyList()
@@ -189,21 +186,22 @@ function StudyListContent() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-center">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="page-header">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">My Study List</h1>
-            <p className="text-sm text-gray-500 mt-1">ORGANIZE YOUR LEARNING JOURNEY</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-white">My Study List</h1>
+            <p className="text-sm text-white/80 mt-1">Organize your learning journey</p>
           </div>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-md">
+              <Button className="btn-primary">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Topic
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="modal-content">
               <DialogHeader>
                 <DialogTitle>Add Topic to Study List</DialogTitle>
                 <DialogDescription>
@@ -219,8 +217,9 @@ function StudyListContent() {
                     placeholder="Enter topic ID"
                     value={newTopicId}
                     onChange={(e) => setNewTopicId(e.target.value)}
+                    className="input-modern"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Find topic ID from Content Discovery</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-300 mt-1">Find topic ID from Content Discovery</p>
                 </div>
                 <div>
                   <Label htmlFor="notes">Notes (Optional)</Label>
@@ -230,16 +229,17 @@ function StudyListContent() {
                     value={newNotes}
                     onChange={(e) => setNewNotes(e.target.value)}
                     rows={3}
+                    className="input-modern"
                   />
                 </div>
                 <div className="flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                  <Button variant="outline" className="btn-outline" onClick={() => setIsAddDialogOpen(false)}>
                     Cancel
                   </Button>
-                  <Button 
+                  <Button
                     onClick={handleAddItem}
                     disabled={!newTopicId || submitting}
-                    className="bg-gradient-to-r from-emerald-500 to-teal-500"
+                    className="btn-primary"
                   >
                     {submitting ? (
                       <>
@@ -255,60 +255,61 @@ function StudyListContent() {
             </DialogContent>
           </Dialog>
         </div>
+      </div>
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="rounded-2xl border-gray-100 shadow-sm">
+          <Card className="glass-panel">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500 uppercase tracking-wide mb-1">Total Items</p>
-                  <p className="text-3xl font-bold text-gray-900">{items.length}</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-300 uppercase tracking-wide mb-1">Total Items</p>
+                  <p className="text-3xl font-bold text-slate-900 dark:text-white">{items.length}</p>
                 </div>
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center shadow-md">
-                  <ListTodo className="h-7 w-7 text-white" />
+                <div className="w-14 h-14 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                  <ListTodo className="h-7 w-7 text-emerald-500" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border-gray-100 shadow-sm">
+          <Card className="glass-panel">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500 uppercase tracking-wide mb-1">Added</p>
-                  <p className="text-3xl font-bold text-gray-900">{countByStatus('ADDED')}</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-300 uppercase tracking-wide mb-1">Added</p>
+                  <p className="text-3xl font-bold text-slate-900 dark:text-white">{countByStatus('ADDED')}</p>
                 </div>
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center shadow-md">
-                  <BookmarkPlus className="h-7 w-7 text-white" />
+                <div className="w-14 h-14 rounded-xl bg-sky-500/10 flex items-center justify-center">
+                  <BookmarkPlus className="h-7 w-7 text-sky-500" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border-gray-100 shadow-sm">
+          <Card className="glass-panel">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500 uppercase tracking-wide mb-1">In Progress</p>
-                  <p className="text-3xl font-bold text-gray-900">{countByStatus('IN_PROGRESS')}</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-300 uppercase tracking-wide mb-1">In Progress</p>
+                  <p className="text-3xl font-bold text-slate-900 dark:text-white">{countByStatus('IN_PROGRESS')}</p>
                 </div>
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-md">
-                  <Clock className="h-7 w-7 text-white" />
+                <div className="w-14 h-14 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                  <Clock className="h-7 w-7 text-amber-500" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border-gray-100 shadow-sm">
+          <Card className="glass-panel">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500 uppercase tracking-wide mb-1">Completed</p>
-                  <p className="text-3xl font-bold text-gray-900">{countByStatus('DONE')}</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-300 uppercase tracking-wide mb-1">Completed</p>
+                  <p className="text-3xl font-bold text-slate-900 dark:text-white">{countByStatus('DONE')}</p>
                 </div>
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-md">
-                  <CheckCircle className="h-7 w-7 text-white" />
+                <div className="w-14 h-14 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                  <CheckCircle className="h-7 w-7 text-emerald-500" />
                 </div>
               </div>
             </CardContent>
@@ -316,17 +317,17 @@ function StudyListContent() {
         </div>
 
         {/* Status Tabs */}
-        <Card className="rounded-2xl border-gray-100 shadow-sm">
+        <Card className="glass-panel border border-white/40">
           <CardContent className="p-0">
-            <div className="flex border-b border-gray-200">
+            <div className="flex border-b border-white/20">
               {(['ALL', 'ADDED', 'IN_PROGRESS', 'DONE'] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
                   className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
                     activeTab === tab
-                      ? 'text-emerald-600 border-b-2 border-emerald-600 bg-emerald-50/50'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                      ? 'text-[#0F9D58] border-b-2 border-[#0F9D58] bg-white/60'
+                      : 'text-slate-600 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-white/30'
                   }`}
                 >
                   {tab === 'ALL' ? 'All Items' : tab.replace('_', ' ')}
@@ -343,22 +344,22 @@ function StudyListContent() {
         <div className="space-y-4">
           {filteredItems.length > 0 ? (
             filteredItems.map((item) => (
-              <Card key={item.id} className="rounded-2xl border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+              <Card key={item.id} className="glass-panel border border-white/40 hover-lift transition-shadow">
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">{item.topicName}</h3>
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{item.topicName}</h3>
                         <Badge className={`${getStatusColor(item.status)} flex items-center space-x-1`}>
                           {getStatusIcon(item.status)}
                           <span>{item.status.replace('_', ' ')}</span>
                         </Badge>
                       </div>
                       
-                      <div className="flex items-center space-x-2 text-sm text-gray-500 mb-3">
+                      <div className="flex items-center space-x-2 text-sm text-slate-500 dark:text-slate-300 mb-3">
                         <BookOpen className="h-4 w-4" />
                         <span>{item.subjectName}</span>
-                        <span>•</span>
+                        <span>-</span>
                         <span>{item.chapterName}</span>
                       </div>
 
@@ -369,18 +370,20 @@ function StudyListContent() {
                             onChange={(e) => setEditingItem({ ...editingItem, notes: e.target.value })}
                             placeholder="Add notes..."
                             rows={2}
+                            className="input-modern"
                           />
                           <div className="flex space-x-2">
                             <Button
                               size="sm"
-                              onClick={() => handleUpdateNotes(item.id, editingItem.notes || '')}
-                              className="bg-gradient-to-r from-emerald-500 to-teal-500"
+                              onClick={() => handleUpdateNotes(item.id, editingItem.notes || '', item.status)}
+                              className="btn-primary h-9 px-4 text-sm"
                             >
                               Save
                             </Button>
                             <Button
                               size="sm"
                               variant="outline"
+                              className="btn-outline h-9 px-4 text-sm"
                               onClick={() => setEditingItem(null)}
                             >
                               Cancel
@@ -390,12 +393,12 @@ function StudyListContent() {
                       ) : (
                         <>
                           {item.notes && (
-                            <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3 mb-3">
+                            <p className="text-sm text-slate-600 dark:text-slate-200 glass rounded-lg p-3 mb-3">
                               {item.notes}
                             </p>
                           )}
-                          <p className="text-xs text-gray-400">
-                            Added {formatDate(item.addedAt)} • Updated {formatDate(item.lastUpdatedAt)}
+                          <p className="text-xs text-slate-400 dark:text-slate-300">
+                            Added {formatDate(item.addedAt)} - Updated {formatDate(item.lastUpdatedAt)}
                           </p>
                         </>
                       )}
@@ -408,7 +411,7 @@ function StudyListContent() {
                             <Button
                               size="sm"
                               onClick={() => handleUpdateStatus(item.id, 'IN_PROGRESS')}
-                              className="bg-gradient-to-r from-amber-500 to-orange-500 text-white"
+                              className="btn-primary h-9 px-4 text-sm"
                             >
                               Start Learning
                             </Button>
@@ -417,7 +420,7 @@ function StudyListContent() {
                             <Button
                               size="sm"
                               onClick={() => handleMarkAsDone(item.id)}
-                              className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white"
+                              className="btn-primary h-9 px-4 text-sm"
                             >
                               <CheckCircle className="h-4 w-4 mr-1" />
                               Mark Done
@@ -428,6 +431,7 @@ function StudyListContent() {
                       <Button
                         size="sm"
                         variant="outline"
+                        className="btn-outline h-9 px-4 text-sm"
                         onClick={() => setEditingItem(item)}
                       >
                         <Edit className="h-4 w-4 mr-1" />
@@ -436,6 +440,7 @@ function StudyListContent() {
                       <Button
                         size="sm"
                         variant="outline"
+                        className="btn-outline h-9 px-4 text-sm"
                         onClick={() => router.push(`/student/booking?topicId=${item.topicId}`)}
                       >
                         Book Class
@@ -443,7 +448,7 @@ function StudyListContent() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="text-red-600 hover:bg-red-50 hover:border-red-200"
+                        className="btn-outline h-9 px-4 text-sm text-red-600 hover:text-red-700"
                         onClick={() => handleRemoveItem(item.id)}
                       >
                         <Trash2 className="h-4 w-4 mr-1" />
@@ -455,20 +460,20 @@ function StudyListContent() {
               </Card>
             ))
           ) : (
-            <Card className="rounded-2xl border-gray-100 shadow-sm">
+            <Card className="glass-panel border border-white/40">
               <CardContent className="p-12 text-center">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                  <ListTodo className="h-8 w-8 text-gray-400" />
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-500/10 flex items-center justify-center">
+                  <ListTodo className="h-8 w-8 text-slate-400" />
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No items in this category</h3>
-                <p className="text-gray-500 mb-4">
+                <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">No items in this category</h3>
+                <p className="text-slate-500 dark:text-slate-300 mb-4">
                   {activeTab === 'ALL' 
                     ? 'Start adding topics to your study list' 
-                    : `No items with status "${activeTab.replace('_', ' ')}"`}
+                    : `No items with status \"${activeTab.replace('_', ' ')}\"`}
                 </p>
                 <Button 
                   onClick={() => setIsAddDialogOpen(true)}
-                  className="bg-gradient-to-r from-emerald-500 to-teal-500"
+                  className="btn-primary"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Your First Topic

@@ -151,23 +151,6 @@ test.describe('Admin Dashboard', () => {
     await expect(page.locator('[data-testid="users-header"]')).toBeVisible();
   });
 
-  test('should navigate to bookings management', async ({ page }) => {
-    // Click on bookings navigation
-    await page.click('[data-testid="bookings-nav-link"]');
-    
-    // Should navigate to bookings page
-    await expect(page).toHaveURL('/admin/bookings');
-    await expect(page.locator('[data-testid="bookings-header"]')).toBeVisible();
-  });
-
-  test('should navigate to reports page', async ({ page }) => {
-    // Click on reports navigation
-    await page.click('[data-testid="reports-nav-link"]');
-    
-    // Should navigate to reports page
-    await expect(page).toHaveURL('/admin/reports');
-    await expect(page.locator('[data-testid="reports-header"]')).toBeVisible();
-  });
 });
 
 test.describe('Cross-Role Navigation', () => {

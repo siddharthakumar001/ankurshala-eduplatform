@@ -111,10 +111,10 @@ function DashboardContent() {
       <div className="space-y-6" data-testid="dashboard-loading">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {[...Array(4)].map((_, i) => (
-            <Card key={i} className="animate-pulse">
+            <Card key={i} className="animate-pulse glass-panel border border-white/40">
               <CardContent className="p-6">
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+                <div className="h-4 bg-white/70 dark:bg-slate-900/60 rounded w-3/4 mb-2"></div>
+                <div className="h-8 bg-white/70 dark:bg-slate-900/60 rounded w-1/2"></div>
               </CardContent>
             </Card>
           ))}
@@ -126,11 +126,11 @@ function DashboardContent() {
   return (
     <div className="space-y-6" data-testid="dashboard-content">
       {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-ankur-secondary to-[#2a4a73] rounded-2xl p-8 text-white shadow-lg" data-testid="dashboard-welcome">
+      <div className="page-header rounded-2xl p-8 text-white shadow-lg" data-testid="dashboard-welcome">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold mb-2">
-              Welcome back, {user?.name?.split(' ')[0] || 'Student'}! 👋
+              Welcome back, {user?.name?.split(' ')[0] || 'Student'}!
             </h1>
             <p className="text-white/80">
               Here&apos;s a quick overview of what&apos;s happening today.
@@ -150,50 +150,50 @@ function DashboardContent() {
       </div>
 
       {/* Platform Overview - Stats Cards */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100" data-testid="dashboard-stats">
+      <div className="glass-panel rounded-2xl p-6 shadow-sm border border-white/40" data-testid="dashboard-stats">
         <div className="mb-6">
-          <h2 className="text-xl font-bold text-gray-900">Platform Overview</h2>
-          <p className="text-sm text-gray-500">KEY METRICS AT A GLANCE</p>
+          <h2 className="text-xl font-bold text-ankur-secondary dark:text-white">Platform Overview</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-300">KEY METRICS AT A GLANCE</p>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="flex items-center space-x-4 p-4 bg-emerald-50 rounded-xl">
+          <div className="flex items-center space-x-4 p-4 bg-emerald-50/80 dark:bg-emerald-900/20 rounded-xl">
             <div className="h-14 w-14 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
               <Calendar className="h-7 w-7 text-white" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Upcoming</p>
-              <p className="text-3xl font-bold text-gray-900">{stats?.upcomingBookings ?? 0}</p>
+              <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Upcoming</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats?.upcomingBookings ?? 0}</p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-4 p-4 bg-blue-50 rounded-xl">
+          <div className="flex items-center space-x-4 p-4 bg-blue-50/80 dark:bg-blue-900/20 rounded-xl">
             <div className="h-14 w-14 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
               <BookOpen className="h-7 w-7 text-white" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Completed</p>
-              <p className="text-3xl font-bold text-gray-900">{stats?.completedBookings ?? 0}</p>
+              <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Completed</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats?.completedBookings ?? 0}</p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-4 p-4 bg-purple-50 rounded-xl">
+          <div className="flex items-center space-x-4 p-4 bg-purple-50/80 dark:bg-purple-900/20 rounded-xl">
             <div className="h-14 w-14 bg-gradient-to-br from-purple-400 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
               <Clock className="h-7 w-7 text-white" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Hours</p>
-              <p className="text-3xl font-bold text-gray-900">{stats?.totalHoursSpent ?? 0}</p>
+              <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Hours</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats?.totalHoursSpent ?? 0}</p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-4 p-4 bg-amber-50 rounded-xl">
+          <div className="flex items-center space-x-4 p-4 bg-amber-50/80 dark:bg-amber-900/20 rounded-xl">
             <div className="h-14 w-14 bg-gradient-to-br from-amber-400 to-amber-600 rounded-xl flex items-center justify-center shadow-lg">
               <TrendingUp className="h-7 w-7 text-white" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Avg Score</p>
-              <p className="text-3xl font-bold text-gray-900">
+              <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Avg Score</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">
                 {stats?.subjectMastery && stats.subjectMastery.length > 0
                   ? Math.round(stats.subjectMastery.reduce((acc, subject) => acc + subject.averageScore, 0) / stats.subjectMastery.length)
                   : 0}%
@@ -204,16 +204,16 @@ function DashboardContent() {
       </div>
 
       {/* Quick Actions */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100" data-testid="dashboard-quick-actions">
+      <div className="glass-panel rounded-2xl p-6 shadow-sm border border-white/40" data-testid="dashboard-quick-actions">
         <div className="mb-6">
-          <h2 className="text-xl font-bold text-gray-900">Quick Actions</h2>
-          <p className="text-sm text-gray-500">FREQUENT TASKS</p>
+          <h2 className="text-xl font-bold text-ankur-secondary dark:text-white">Quick Actions</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-300">FREQUENT TASKS</p>
         </div>
         
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Link href="/student/booking">
-            <div className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl hover:shadow-lg transition-all cursor-pointer border-2 border-transparent hover:border-emerald-200" data-testid="dashboard-action-book">
-              <div className="h-14 w-14 bg-white rounded-xl flex items-center justify-center mb-3 shadow-sm">
+            <div className="flex flex-col items-center justify-center p-6 bg-emerald-50/70 dark:bg-emerald-900/20 rounded-xl hover:shadow-lg transition-all cursor-pointer border border-white/30 hover:border-emerald-200" data-testid="dashboard-action-book">
+              <div className="h-14 w-14 bg-white/80 dark:bg-slate-900/60 rounded-xl flex items-center justify-center mb-3 shadow-sm">
                 <BookOpen className="h-6 w-6 text-emerald-600" />
               </div>
               <p className="text-sm font-semibold text-gray-700">BOOK CLASS</p>
@@ -221,8 +221,8 @@ function DashboardContent() {
           </Link>
           
           <Link href="/student/study-list">
-            <div className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl hover:shadow-lg transition-all cursor-pointer border-2 border-transparent hover:border-blue-200">
-              <div className="h-14 w-14 bg-white rounded-xl flex items-center justify-center mb-3 shadow-sm">
+            <div className="flex flex-col items-center justify-center p-6 bg-blue-50/70 dark:bg-blue-900/20 rounded-xl hover:shadow-lg transition-all cursor-pointer border border-white/30 hover:border-blue-200">
+              <div className="h-14 w-14 bg-white/80 dark:bg-slate-900/60 rounded-xl flex items-center justify-center mb-3 shadow-sm">
                 <Target className="h-6 w-6 text-blue-600" />
               </div>
               <p className="text-sm font-semibold text-gray-700">VIEW REPORTS</p>
@@ -230,8 +230,8 @@ function DashboardContent() {
           </Link>
           
           <Link href="/student/calendar">
-            <div className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl hover:shadow-lg transition-all cursor-pointer border-2 border-transparent hover:border-purple-200">
-              <div className="h-14 w-14 bg-white rounded-xl flex items-center justify-center mb-3 shadow-sm">
+            <div className="flex flex-col items-center justify-center p-6 bg-purple-50/70 dark:bg-purple-900/20 rounded-xl hover:shadow-lg transition-all cursor-pointer border border-white/30 hover:border-purple-200">
+              <div className="h-14 w-14 bg-white/80 dark:bg-slate-900/60 rounded-xl flex items-center justify-center mb-3 shadow-sm">
                 <Calendar className="h-6 w-6 text-purple-600" />
               </div>
               <p className="text-sm font-semibold text-gray-700">CALENDAR</p>
@@ -239,8 +239,8 @@ function DashboardContent() {
           </Link>
           
           <Link href="/student/notifications">
-            <div className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl hover:shadow-lg transition-all cursor-pointer border-2 border-transparent hover:border-amber-200">
-              <div className="h-14 w-14 bg-white rounded-xl flex items-center justify-center mb-3 shadow-sm">
+            <div className="flex flex-col items-center justify-center p-6 bg-amber-50/70 dark:bg-amber-900/20 rounded-xl hover:shadow-lg transition-all cursor-pointer border border-white/30 hover:border-amber-200">
+              <div className="h-14 w-14 bg-white/80 dark:bg-slate-900/60 rounded-xl flex items-center justify-center mb-3 shadow-sm">
                 <Bell className="h-6 w-6 text-amber-600" />
               </div>
               <p className="text-sm font-semibold text-gray-700">NOTIFICATIONS</p>
@@ -251,8 +251,8 @@ function DashboardContent() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Upcoming Classes */}
-        <Card className="border-gray-100 shadow-sm" data-testid="dashboard-upcoming-classes">
-          <CardHeader className="border-b border-gray-100 bg-gray-50/50">
+        <Card className="glass-panel border border-white/40 shadow-sm" data-testid="dashboard-upcoming-classes">
+          <CardHeader className="border-b border-white/30 dark:border-white/10 bg-white/60 dark:bg-slate-900/60">
             <CardTitle className="flex items-center text-lg">
               <Calendar className="h-5 w-5 mr-2 text-emerald-500" />
               Upcoming Classes
@@ -263,7 +263,7 @@ function DashboardContent() {
             <div className="space-y-3">
               {stats?.upcomingClasses && stats.upcomingClasses.length > 0 ? (
                 stats.upcomingClasses.map((classItem) => (
-                <div key={classItem.bookingId} className="border border-gray-200 rounded-xl p-4 hover:border-emerald-300 hover:shadow-md transition-all bg-white">
+                <div key={classItem.bookingId} className="border border-white/40 dark:border-white/10 rounded-xl p-4 hover:border-emerald-300 hover:shadow-md transition-all bg-white/70 dark:bg-slate-900/70">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-bold text-gray-900">{classItem.topicTitle}</h3>
                     <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-0">
@@ -297,7 +297,7 @@ function DashboardContent() {
               )}
               {stats?.upcomingClasses && stats.upcomingClasses.length > 0 && (
                 <Link href="/student/calendar">
-                  <Button variant="outline" className="w-full mt-2 border-gray-300 hover:bg-gray-50">
+                  <Button variant="outline" className="w-full mt-2 border-white/40 hover:bg-white/60 dark:hover:bg-slate-900/60">
                     View All Classes
                   </Button>
                 </Link>
@@ -307,8 +307,8 @@ function DashboardContent() {
         </Card>
 
         {/* Subject Mastery */}
-        <Card className="border-gray-100 shadow-sm">
-          <CardHeader className="border-b border-gray-100 bg-gray-50/50">
+        <Card className="glass-panel border border-white/40 shadow-sm">
+          <CardHeader className="border-b border-white/30 dark:border-white/10 bg-white/60 dark:bg-slate-900/60">
             <CardTitle className="flex items-center text-lg">
               <Target className="h-5 w-5 mr-2 text-emerald-500" />
               Subject Mastery
@@ -351,16 +351,16 @@ function DashboardContent() {
       </div>
 
       {/* Recent Activity */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+      <div className="glass-panel rounded-2xl p-6 shadow-sm border border-white/40">
         <div className="mb-6">
-          <h2 className="text-xl font-bold text-gray-900">Recent Activity</h2>
-          <p className="text-sm text-gray-500">LIVE FEED</p>
+          <h2 className="text-xl font-bold text-ankur-secondary dark:text-white">Recent Activity</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-300">LIVE FEED</p>
         </div>
         
         <div className="space-y-3">
           {stats?.recommendations && stats.recommendations.length > 0 ? (
             stats.recommendations.map((rec, index) => (
-              <div key={index} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+              <div key={index} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-white/60 dark:hover:bg-slate-900/60 transition-colors">
                 <div className="h-2 w-2 bg-emerald-500 rounded-full mt-2"></div>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-900">{rec.title}</p>
@@ -379,14 +379,14 @@ function DashboardContent() {
       </div>
 
       {/* Announcements */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+      <div className="glass-panel rounded-2xl p-6 shadow-sm border border-white/40">
         <div className="mb-6">
-          <h2 className="text-xl font-bold text-gray-900">Announcements</h2>
-          <p className="text-sm text-gray-500">LATEST UPDATES</p>
+          <h2 className="text-xl font-bold text-ankur-secondary dark:text-white">Announcements</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-300">LATEST UPDATES</p>
         </div>
         
-        <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center">
-          <p className="text-gray-500">No announcements yet.</p>
+        <div className="border-2 border-dashed border-white/40 dark:border-white/10 rounded-xl p-8 text-center">
+          <p className="text-gray-500 dark:text-gray-300">No announcements yet.</p>
         </div>
       </div>
     </div>

@@ -140,10 +140,8 @@ export default function AdminPricingPage() {
 
   const fetchPricingRules = useCallback(async () => {
     try {
-      console.log('Fetching pricing rules...')
       const response = await api.get('/admin/pricing')
       const data = response.data as any
-      console.log('Pricing rules response:', data)
       setPricingRules(data.content || data || [])
     } catch (error) {
       console.error('Error fetching pricing rules:', error)
@@ -153,10 +151,8 @@ export default function AdminPricingPage() {
 
   const fetchBoards = useCallback(async () => {
     try {
-      console.log('Fetching boards...')
       const response = await api.get('/admin/content/boards')
       const data = response.data as any
-      console.log('Boards response:', data)
       setBoards(data.content || data || [])
     } catch (error) {
       console.error('Error fetching boards:', error)
@@ -166,10 +162,8 @@ export default function AdminPricingPage() {
 
   const fetchGrades = useCallback(async () => {
     try {
-      console.log('Fetching grades...')
       const response = await api.get('/admin/content/grades/dropdown')
       const data = response.data as any
-      console.log('Grades response:', data)
       setGrades(data || [])
     } catch (error) {
       console.error('Error fetching grades:', error)
@@ -179,10 +173,8 @@ export default function AdminPricingPage() {
 
   const fetchSubjects = useCallback(async () => {
     try {
-      console.log('Fetching subjects...')
       const response = await api.get('/admin/content/subjects/dropdown')
       const data = response.data as any
-      console.log('Subjects response:', data)
       setSubjects(data || [])
     } catch (error) {
       console.error('Error fetching subjects:', error)
@@ -192,10 +184,8 @@ export default function AdminPricingPage() {
 
   const fetchChapters = useCallback(async () => {
     try {
-      console.log('Fetching chapters...')
       const response = await api.get('/admin/content/chapters/dropdown')
       const data = response.data as any
-      console.log('Chapters response:', data)
       setChapters(data || [])
     } catch (error) {
       console.error('Error fetching chapters:', error)
@@ -205,10 +195,8 @@ export default function AdminPricingPage() {
 
   const fetchTopics = useCallback(async () => {
     try {
-      console.log('Fetching topics...')
       const response = await api.get('/admin/content/topics/dropdown')
       const data = response.data as any
-      console.log('Topics response:', data)
       setTopics(data || [])
     } catch (error) {
       console.error('Error fetching topics:', error)
@@ -428,6 +416,13 @@ export default function AdminPricingPage() {
     return parts.join(' - ') || 'All'
   }
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR'
+    }).format(amount)
+  }
+
   const filteredRules = pricingRules.filter(rule => {
     const scope = getScopeDescription(rule).toLowerCase()
     return scope.includes(searchTerm.toLowerCase()) || 
@@ -438,9 +433,9 @@ export default function AdminPricingPage() {
     return (
       <DashboardLayout role="admin">
         <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
-            <p className="text-gray-600 dark:text-gray-400">Loading pricing rules...</p>
+          <div className="text-center glass-panel rounded-2xl border border-white/40 px-8 py-6">
+            <Loader2 className="h-8 w-8 animate-spin text-ankur-primary mx-auto mb-2" />
+            <p className="text-gray-600 dark:text-gray-300">Loading pricing rules...</p>
           </div>
         </div>
       </DashboardLayout>
@@ -451,9 +446,9 @@ export default function AdminPricingPage() {
     return (
       <DashboardLayout role="admin">
         <div className="flex items-center justify-center h-64">
-          <div className="text-center">
+          <div className="text-center glass-panel rounded-2xl border border-red-200/60 dark:border-red-500/30 px-8 py-6 bg-red-50/70 dark:bg-red-500/10">
             <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
+            <p className="text-red-600 dark:text-red-200 mb-4">{error}</p>
             <Button onClick={fetchAllData} variant="outline">
               Try Again
             </Button>
@@ -471,10 +466,10 @@ export default function AdminPricingPage() {
           <div className="absolute bottom-10 left-8 h-64 w-64 rounded-full bg-ankur-accent/10 blur-3xl" />
         </div>
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="page-header flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Pricing Management</h1>
-            <p className="text-gray-600 dark:text-gray-400">Manage pricing rules and rates</p>
+            <h1 className="text-2xl font-bold text-white">Pricing Management</h1>
+            <p className="text-white/80">Manage pricing rules and rates</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button 
@@ -487,7 +482,7 @@ export default function AdminPricingPage() {
             </Button>
             <Button 
               onClick={openCreateDialog}
-              className="flex items-center space-x-2"
+              className="flex items-center space-x-2 btn-primary"
             >
               <Plus className="h-4 w-4" />
               <span>New Rule</span>
@@ -509,7 +504,7 @@ export default function AdminPricingPage() {
                 />
               </div>
             </div>
-            <div className="text-sm text-gray-500 dark:text-gray-400">
+            <div className="text-sm text-gray-500 dark:text-gray-300">
               {filteredRules.length} rules found
             </div>
           </div>
@@ -519,8 +514,8 @@ export default function AdminPricingPage() {
         <Card className="p-6 glass">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Pricing Rules</h3>
-              <div className="text-sm text-gray-500 dark:text-gray-400">
+              <h3 className="text-lg font-semibold text-ankur-secondary dark:text-white">Pricing Rules</h3>
+              <div className="text-sm text-gray-500 dark:text-gray-300">
                 {pricingRules.filter(r => r.active).length} active rules
               </div>
             </div>
@@ -534,30 +529,30 @@ export default function AdminPricingPage() {
                 </p>
               </div>
             ) : (
-              <div className="overflow-hidden border border-white/30 dark:border-white/10 rounded-lg bg-white/70 dark:bg-slate-900/40 backdrop-blur">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-800">
+              <div className="overflow-x-auto">
+                <table className="data-table">
+                  <thead>
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Scope
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Hourly Rate
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Created
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Status
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                  <tbody className="divide-y divide-white/40 dark:divide-white/10">
                     {filteredRules.map((rule) => (
-                      <tr key={rule.id}>
+                      <tr key={rule.id} className="hover:bg-white/60 dark:hover:bg-slate-900/60">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900 dark:text-white">
                             {getScopeDescription(rule)}
@@ -567,7 +562,7 @@ export default function AdminPricingPage() {
                           <div className="flex items-center">
                             <DollarSign className="h-4 w-4 text-green-500 mr-1" />
                             <span className="text-sm font-medium text-gray-900 dark:text-white">
-                              ₹{rule.hourlyRate}/hour
+                              {formatCurrency(rule.hourlyRate)}/hour
                             </span>
                           </div>
                         </td>
@@ -577,7 +572,7 @@ export default function AdminPricingPage() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <Badge 
                             variant={rule.active ? "default" : "secondary"}
-                            className={rule.active ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : ""}
+                            className={rule.active ? "bg-green-100/80 text-green-800 dark:bg-green-900/30 dark:text-green-200" : ""}
                           >
                             {rule.active ? 'Active' : 'Inactive'}
                           </Badge>
@@ -628,7 +623,7 @@ export default function AdminPricingPage() {
 
         {/* Create Rule Dialog */}
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl glass-panel border border-white/30 dark:border-white/10">
             <DialogHeader>
               <DialogTitle>Create Pricing Rule</DialogTitle>
               <DialogDescription>
@@ -719,7 +714,7 @@ export default function AdminPricingPage() {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="hourlyRate">Hourly Rate (₹)</Label>
+                <Label htmlFor="hourlyRate">Hourly Rate (INR)</Label>
                 <Input
                   id="hourlyRate"
                   type="number"
@@ -735,7 +730,7 @@ export default function AdminPricingPage() {
                 )}
               </div>
               {error && (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                <div className="bg-red-50/70 dark:bg-red-500/10 border border-red-200/60 dark:border-red-500/30 rounded-lg p-3">
                   <p className="text-red-800 dark:text-red-200 text-sm">{error}</p>
                 </div>
               )}
@@ -760,7 +755,7 @@ export default function AdminPricingPage() {
 
         {/* Edit Rule Dialog */}
         <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl glass-panel border border-white/30 dark:border-white/10">
             <DialogHeader>
               <DialogTitle>Edit Pricing Rule</DialogTitle>
               <DialogDescription>
@@ -851,7 +846,7 @@ export default function AdminPricingPage() {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="hourlyRate">Hourly Rate (₹)</Label>
+                <Label htmlFor="hourlyRate">Hourly Rate (INR)</Label>
                 <Input
                   id="hourlyRate"
                   type="number"
@@ -867,7 +862,7 @@ export default function AdminPricingPage() {
                 )}
               </div>
               {error && (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                <div className="bg-red-50/70 dark:bg-red-500/10 border border-red-200/60 dark:border-red-500/30 rounded-lg p-3">
                   <p className="text-red-800 dark:text-red-200 text-sm">{error}</p>
                 </div>
               )}
@@ -892,7 +887,7 @@ export default function AdminPricingPage() {
 
         {/* Test Pricing Dialog */}
         <Dialog open={showTestDialog} onOpenChange={setShowTestDialog}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl glass-panel border border-white/30 dark:border-white/10">
             <DialogHeader>
               <DialogTitle>Test Pricing Resolution</DialogTitle>
               <DialogDescription>
@@ -984,11 +979,11 @@ export default function AdminPricingPage() {
               </div>
               
               {testResult && (
-                <div className="mt-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                <div className="mt-6 p-4 bg-green-50/70 dark:bg-green-900/20 border border-green-200/60 dark:border-green-800 rounded-lg">
                   <h4 className="font-semibold text-green-800 dark:text-green-200 mb-2">Pricing Rule Found</h4>
-                  <div className="space-y-2 text-sm">
+                  <div className="space-y-2 text-sm text-gray-700 dark:text-gray-200">
                     <div><strong>Scope:</strong> {getScopeDescription(testResult)}</div>
-                    <div><strong>Rate:</strong> ₹{testResult.hourlyRate}/hour</div>
+                    <div><strong>Rate:</strong> {formatCurrency(testResult.hourlyRate)}/hour</div>
                     <div><strong>Status:</strong> {testResult.active ? 'Active' : 'Inactive'}</div>
                   </div>
                 </div>

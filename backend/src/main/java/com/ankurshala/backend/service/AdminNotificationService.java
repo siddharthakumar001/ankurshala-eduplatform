@@ -6,6 +6,7 @@ import com.ankurshala.backend.entity.Notification;
 import com.ankurshala.backend.entity.NotificationAudience;
 import com.ankurshala.backend.entity.NotificationDelivery;
 import com.ankurshala.backend.entity.NotificationStatus;
+import com.ankurshala.backend.entity.NotificationType;
 import com.ankurshala.backend.entity.Role;
 import com.ankurshala.backend.entity.User;
 import com.ankurshala.backend.repository.NotificationRepository;
@@ -14,7 +15,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -49,79 +49,68 @@ public class AdminNotificationService {
             }
         }
 
-        Page<Notification> notifications = notificationRepository.findAll(pageable);
+        Page<Notification> notifications = notificationRepository.findFiltered(userId, audienceEnum, statusEnum, pageable);
         
         return notifications.map(this::convertToDto);
     }
 
     public Map<String, Object> broadcastNotification(BroadcastNotificationRequest request) {
-        try {
-            NotificationAudience audience = NotificationAudience.valueOf(
-                    request.getAudience().toUpperCase());
-            NotificationDelivery delivery = NotificationDelivery.valueOf(
-                    request.getDelivery().toUpperCase());
+        NotificationAudience audience = parseAudience(request.getAudience());
+        NotificationDelivery delivery = parseDelivery(request.getDelivery());
 
-            // Get target users based on audience
-            List<User> targetUsers = getTargetUsers(audience);
-            
-            int inAppCount = 0;
-            int emailCount = 0;
-            int failedCount = 0;
-
-            for (User user : targetUsers) {
-                try {
-                    // Create notification record
-                    Notification notification = new Notification();
-                    notification.setUserId(user.getId());
-                    notification.setUser(user);
-                    notification.setTitle(request.getTitle());
-                    notification.setMessage(request.getBody());
-                    notification.setAudience(audience);
-                    notification.setDelivery(delivery);
-                    notification.setStatus(NotificationStatus.PENDING);
-                    
-                    notificationRepository.save(notification);
-
-                    // Send email if requested
-                    if (delivery == NotificationDelivery.EMAIL || 
-                        delivery == NotificationDelivery.IN_APP_EMAIL) {
-                        // Email sending would be implemented here when mail service is configured
-                        emailCount++;
-                    }
-
-                    // Mark as sent for in-app notifications
-                    if (delivery == NotificationDelivery.IN_APP || 
-                        delivery == NotificationDelivery.IN_APP_EMAIL) {
-                        notification.setStatus(NotificationStatus.SENT);
-                        notificationRepository.save(notification);
-                        inAppCount++;
-                    }
-
-                } catch (Exception e) {
-                    failedCount++;
-                    // Log error but continue with other users
-                    System.err.println("Failed to send notification to user " + user.getId() + ": " + e.getMessage());
-                }
-            }
-
-            Map<String, Object> result = new HashMap<>();
-            result.put("totalUsers", targetUsers.size());
-            result.put("inAppSent", inAppCount);
-            result.put("emailSent", emailCount);
-            result.put("failed", failedCount);
-            result.put("message", "Notification broadcast completed");
-
-            return result;
-        } catch (Exception e) {
-            System.err.println("Error in broadcastNotification: " + e.getMessage());
-            Map<String, Object> errorResult = new HashMap<>();
-            errorResult.put("totalUsers", 0);
-            errorResult.put("inAppSent", 0);
-            errorResult.put("emailSent", 0);
-            errorResult.put("failed", 1);
-            errorResult.put("message", "Error broadcasting notification: " + e.getMessage());
-            return errorResult;
+        User targetUser = resolveTargetUser(request);
+        List<User> targetUsers;
+        if (targetUser != null) {
+            audience = resolveAudienceFromUser(targetUser, audience);
+            targetUsers = List.of(targetUser);
+        } else {
+            targetUsers = getTargetUsers(audience);
         }
+        
+        int inAppCount = 0;
+        int emailCount = 0;
+        int failedCount = 0;
+
+        for (User user : targetUsers) {
+            try {
+                Notification notification = new Notification();
+                notification.setUserId(user.getId());
+                notification.setUser(user);
+                notification.setTitle(request.getTitle());
+                notification.setMessage(request.getBody());
+                notification.setType(NotificationType.GENERAL_ANNOUNCEMENT);
+                notification.setAudience(audience);
+                notification.setDelivery(delivery);
+                notification.setStatus(NotificationStatus.PENDING);
+                
+                notificationRepository.save(notification);
+
+                if (delivery == NotificationDelivery.EMAIL || 
+                    delivery == NotificationDelivery.IN_APP_EMAIL) {
+                    emailCount++;
+                }
+
+                if (delivery == NotificationDelivery.IN_APP || 
+                    delivery == NotificationDelivery.IN_APP_EMAIL) {
+                    notification.setStatus(NotificationStatus.SENT);
+                    notificationRepository.save(notification);
+                    inAppCount++;
+                }
+
+            } catch (Exception e) {
+                failedCount++;
+                System.err.println("Failed to send notification to user " + user.getId() + ": " + e.getMessage());
+            }
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("totalUsers", targetUsers.size());
+        result.put("inAppSent", inAppCount);
+        result.put("emailSent", emailCount);
+        result.put("failed", failedCount);
+        result.put("message", "Notification broadcast completed");
+
+        return result;
     }
 
     public Map<String, Object> getNotificationStats() {
@@ -160,6 +149,8 @@ public class AdminNotificationService {
                 return userRepository.findByRole(Role.STUDENT);
             case TEACHER:
                 return userRepository.findByRole(Role.TEACHER);
+            case ADMIN:
+                return userRepository.findByRole(Role.ADMIN);
             case ALL:
                 return userRepository.findByRoleIn(List.of(Role.STUDENT, Role.TEACHER));
             default:
@@ -186,5 +177,53 @@ public class AdminNotificationService {
                 notification.getCreatedAt(),
                 null // sentAt not available in current entity
         );
+    }
+
+    private NotificationAudience parseAudience(String audience) {
+        if (audience == null) {
+            throw new IllegalArgumentException("Audience is required");
+        }
+        try {
+            return NotificationAudience.valueOf(audience.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid audience value: " + audience);
+        }
+    }
+
+    private NotificationDelivery parseDelivery(String delivery) {
+        if (delivery == null) {
+            throw new IllegalArgumentException("Delivery method is required");
+        }
+        try {
+            return NotificationDelivery.valueOf(delivery.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid delivery value: " + delivery);
+        }
+    }
+
+    private User resolveTargetUser(BroadcastNotificationRequest request) {
+        if (request.getTargetUserId() != null) {
+            return userRepository.findById(request.getTargetUserId())
+                    .orElseThrow(() -> new IllegalArgumentException("Target user not found"));
+        }
+        if (request.getTargetEmail() != null && !request.getTargetEmail().isBlank()) {
+            String email = request.getTargetEmail().trim();
+            return userRepository.findByEmail(email)
+                    .orElseThrow(() -> new IllegalArgumentException("Target user not found"));
+        }
+        return null;
+    }
+
+    private NotificationAudience resolveAudienceFromUser(User user, NotificationAudience fallback) {
+        if (user.getRole() == Role.STUDENT) {
+            return NotificationAudience.STUDENT;
+        }
+        if (user.getRole() == Role.TEACHER) {
+            return NotificationAudience.TEACHER;
+        }
+        if (user.getRole() == Role.ADMIN) {
+            return NotificationAudience.ADMIN;
+        }
+        return fallback != null ? fallback : NotificationAudience.ALL;
     }
 }

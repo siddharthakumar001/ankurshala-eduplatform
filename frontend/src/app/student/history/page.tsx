@@ -57,7 +57,7 @@ function HistoryContent() {
     if (searchQuery) {
       filtered = filtered.filter(booking =>
         booking.topicTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        booking.teacherName.toLowerCase().includes(searchQuery.toLowerCase())
+        (booking.teacherName || '').toLowerCase().includes(searchQuery.toLowerCase())
       )
     }
 
@@ -72,14 +72,14 @@ function HistoryContent() {
     filterBookings()
   }, [filterBookings])
 
-  const formatDateTime = (date: string, time: string) => {
-    return `${new Date(date).toLocaleDateString()} at ${time}`
-  }
-
-  const calculateDuration = (startTime: string, endTime: string) => {
-    const start = new Date(`2000-01-01T${startTime}`)
-    const end = new Date(`2000-01-01T${endTime}`)
-    return Math.round((end.getTime() - start.getTime()) / (1000 * 60))
+  const formatDateTime = (startTime: string) => {
+    return new Date(startTime).toLocaleString('en-IN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
   }
 
   const getStatusColor = (status: string) => {
@@ -90,7 +90,8 @@ function HistoryContent() {
         return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
       case 'CANCELLED':
         return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-      case 'RESCHEDULED':
+      case 'ACCEPTED':
+      case 'IN_PROGRESS':
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
       case 'PENDING':
         return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
@@ -131,55 +132,56 @@ function HistoryContent() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2 dark:text-white">Booking History</h1>
-          <p className="text-gray-600 dark:text-gray-400">View and manage your past bookings</p>
+    <div className="space-y-6 max-w-6xl mx-auto px-4">
+        <div className="page-header">
+          <h1 className="text-3xl font-bold text-white">Booking History</h1>
+          <p className="text-white/80">View and manage your past bookings</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <Card className="dark:bg-gray-800">
+          <Card className="glass-panel">
             <CardHeader className="pb-3">
-              <CardDescription className="dark:text-gray-400">Total Bookings</CardDescription>
-              <CardTitle className="text-3xl dark:text-white">{totalElements}</CardTitle>
+              <CardDescription className="text-slate-500 dark:text-slate-300">Total Bookings</CardDescription>
+              <CardTitle className="text-3xl text-slate-900 dark:text-white">{totalElements}</CardTitle>
             </CardHeader>
           </Card>
-          <Card className="dark:bg-gray-800">
+          <Card className="glass-panel">
             <CardHeader className="pb-3">
-              <CardDescription className="dark:text-gray-400">Completed</CardDescription>
-              <CardTitle className="text-3xl text-green-600 dark:text-green-400">{completedCount}</CardTitle>
+              <CardDescription className="text-slate-500 dark:text-slate-300">Completed</CardDescription>
+              <CardTitle className="text-3xl text-emerald-500">{completedCount}</CardTitle>
             </CardHeader>
           </Card>
-          <Card className="dark:bg-gray-800">
+          <Card className="glass-panel">
             <CardHeader className="pb-3">
-              <CardDescription className="dark:text-gray-400">Confirmed</CardDescription>
-              <CardTitle className="text-3xl text-blue-600 dark:text-blue-400">{confirmedCount}</CardTitle>
+              <CardDescription className="text-slate-500 dark:text-slate-300">Confirmed</CardDescription>
+              <CardTitle className="text-3xl text-sky-500">{confirmedCount}</CardTitle>
             </CardHeader>
           </Card>
         </div>
 
-        <Card className="mb-6 dark:bg-gray-800">
+        <Card className="glass-panel border border-white/40 mb-6">
           <CardContent className="pt-6">
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
                 <Input
                   placeholder="Search by topic or teacher name..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                  className="input-modern pl-10"
                 />
               </div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-[200px] dark:bg-gray-700 dark:text-white dark:border-gray-600">
+                <SelectTrigger className="input-modern w-full sm:w-[200px]">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
-                <SelectContent className="dark:bg-gray-700">
+                <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="COMPLETED">Completed</SelectItem>
                   <SelectItem value="CONFIRMED">Confirmed</SelectItem>
                   <SelectItem value="CANCELLED">Cancelled</SelectItem>
-                  <SelectItem value="RESCHEDULED">Rescheduled</SelectItem>
+                  <SelectItem value="ACCEPTED">Accepted</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -187,17 +189,17 @@ function HistoryContent() {
         </Card>
 
         {filteredBookings.length === 0 ? (
-          <Card className="dark:bg-gray-800">
+          <Card className="glass-panel border border-white/40">
             <CardContent className="text-center py-12">
-              <Calendar className="h-16 w-16 mx-auto text-gray-400 mb-4" />
-              <h3 className="text-xl font-semibold mb-2 dark:text-white">No Bookings Found</h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
+              <Calendar className="h-16 w-16 mx-auto text-slate-400 mb-4" />
+              <h3 className="text-xl font-semibold mb-2 text-slate-900 dark:text-white">No Bookings Found</h3>
+              <p className="text-slate-600 dark:text-slate-300 mb-6">
                 {searchQuery || statusFilter !== 'all' 
                   ? 'No bookings match your search criteria.'
                   : "You haven't booked any classes yet."}
               </p>
               {!searchQuery && statusFilter === 'all' && (
-                <Button onClick={() => router.push('/student/booking')} className="dark:bg-blue-600 dark:hover:bg-blue-700">
+                <Button className="btn-primary" onClick={() => router.push('/student/booking')}>
                   Book Your First Class
                 </Button>
               )}
@@ -206,13 +208,13 @@ function HistoryContent() {
         ) : (
           <div className="space-y-4">
             {filteredBookings.map((booking) => (
-              <Card key={booking.id} className="dark:bg-gray-800 dark:border-gray-700">
+              <Card key={booking.id} className="glass-panel border border-white/40">
                 <CardContent className="p-6">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div className="flex-1 space-y-3">
                       <div className="flex items-start justify-between">
                         <div>
-                          <h3 className="text-lg font-semibold mb-1 dark:text-white">{booking.topicTitle}</h3>
+                          <h3 className="text-lg font-semibold mb-1 text-slate-900 dark:text-white">{booking.topicTitle}</h3>
                           <Badge className={getStatusColor(booking.status)}>
                             {booking.status}
                           </Badge>
@@ -220,28 +222,28 @@ function HistoryContent() {
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                        <div className="flex items-center text-gray-600 dark:text-gray-400">
+                        <div className="flex items-center text-slate-600 dark:text-slate-300">
                           <User className="h-4 w-4 mr-2" />
                           <span>Teacher: {booking.teacherName}</span>
                         </div>
-                        <div className="flex items-center text-gray-600 dark:text-gray-400">
+                        <div className="flex items-center text-slate-600 dark:text-slate-300">
                           <Calendar className="h-4 w-4 mr-2" />
-                          <span>{formatDateTime(booking.date, booking.startTime)}</span>
+                          <span>{formatDateTime(booking.startTime)}</span>
                         </div>
-                        <div className="flex items-center text-gray-600 dark:text-gray-400">
+                        <div className="flex items-center text-slate-600 dark:text-slate-300">
                           <Clock className="h-4 w-4 mr-2" />
-                          <span>Duration: {calculateDuration(booking.startTime, booking.endTime)} minutes</span>
+                          <span>Duration: {booking.durationMinutes} minutes</span>
                         </div>
-                        <div className="flex items-center text-gray-600 dark:text-gray-400">
+                        <div className="flex items-center text-slate-600 dark:text-slate-300">
                           <DollarSign className="h-4 w-4 mr-2" />
-                          <span>Price: {booking.currency} {booking.price}</span>
+                          <span>Price: {booking.priceCurrency || 'INR'} {booking.priceMin ?? 0}</span>
                         </div>
                       </div>
 
-                      {booking.notes && (
-                        <div className="flex items-start text-sm text-gray-600 dark:text-gray-400 mt-2">
+                      {booking.studentNotes && (
+                        <div className="flex items-start text-sm text-slate-600 dark:text-slate-300 mt-2">
                           <FileText className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
-                          <span>{booking.notes}</span>
+                          <span>{booking.studentNotes}</span>
                         </div>
                       )}
                     </div>
@@ -250,17 +252,16 @@ function HistoryContent() {
                       <Button
                         variant="outline"
                         size="sm"
+                        className="btn-outline h-9 px-4 text-sm"
                         onClick={() => handleViewDetails(booking.id)}
-                        className="dark:bg-gray-700 dark:text-white dark:border-gray-600 dark:hover:bg-gray-600"
                       >
                         View Details
                       </Button>
                       {booking.status === 'COMPLETED' && (
                         <Button
-                          variant="default"
                           size="sm"
+                          className="btn-primary h-9 px-4 text-sm"
                           onClick={() => handleRateSession(booking.id)}
-                          className="dark:bg-blue-600 dark:hover:bg-blue-700"
                         >
                           Rate Session
                         </Button>
@@ -275,7 +276,7 @@ function HistoryContent() {
 
         {totalPages > 1 && (
           <div className="flex items-center justify-between mt-6">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-sm text-slate-600 dark:text-slate-300">
               Page {currentPage + 1} of {totalPages} ({totalElements} total bookings)
             </p>
             <div className="flex gap-2">
@@ -284,7 +285,7 @@ function HistoryContent() {
                 size="sm"
                 onClick={handlePrevPage}
                 disabled={currentPage === 0}
-                className="dark:bg-gray-700 dark:text-white dark:border-gray-600 dark:hover:bg-gray-600"
+                className="btn-outline h-9 px-4 text-sm"
               >
                 <ChevronLeft className="h-4 w-4 mr-1" />
                 Previous
@@ -294,7 +295,7 @@ function HistoryContent() {
                 size="sm"
                 onClick={handleNextPage}
                 disabled={currentPage >= totalPages - 1}
-                className="dark:bg-gray-700 dark:text-white dark:border-gray-600 dark:hover:bg-gray-600"
+                className="btn-outline h-9 px-4 text-sm"
               >
                 Next
                 <ChevronRight className="h-4 w-4 ml-1" />

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { StudentRoute } from '@/components/route-guard'
 import { studentAPI } from '@/lib/apiClient'
 import { useToast } from '@/hooks/use-toast'
@@ -41,22 +41,25 @@ interface Message {
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
+  topicId?: number
   suggestedActions?: {
-    type: 'GENERATE_NOTES' | 'START_PRACTICE' | 'START_FOCUS' | 'VIEW_TOPIC'
+    type: 'GENERATE_NOTES' | 'START_PRACTICE' | 'START_FOCUS' | 'VIEW_TOPIC' | 'ASK_TEACHER' | 'BROWSE_TOPICS'
     label: string
     topicId?: number
     topicName?: string
   }[]
   citations?: {
-    chunkId: number
-    content: string
-    topicName: string
-    chapterName: string
+    topicTitle?: string
+    chapterName?: string
+    subjectName?: string
+    sourceType?: string
+    sourceRef?: string
   }[]
 }
 
 function AITutorPageContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -66,8 +69,8 @@ function AITutorPageContent() {
   const [isStreaming, setIsStreaming] = useState(false)
   const [voiceMode, setVoiceMode] = useState(false)
   const [selectedLanguage, setSelectedLanguage] = useState('en')
-  const [studentProfile, setStudentProfile] = useState<any>(null)
   const [sessionId] = useState(`session-${Date.now()}`)
+  const [contextTopicId, setContextTopicId] = useState<number | undefined>(undefined)
   
   // Speech recognition and synthesis hooks
   const {
@@ -89,12 +92,21 @@ function AITutorPageContent() {
     error: synthesisError
   } = useSpeechSynthesis()
 
+  useEffect(() => {
+    const topicIdParam = searchParams.get('topicId')
+    if (topicIdParam) {
+      const parsed = Number(topicIdParam)
+      if (!Number.isNaN(parsed)) {
+        setContextTopicId(parsed)
+      }
+    }
+  }, [searchParams])
+
   // Load student profile on mount to get language preference and personalization data
   useEffect(() => {
     const loadStudentProfile = async () => {
       try {
         const profile = await studentAPI.getProfile()
-        setStudentProfile(profile)
         
         // Set language from profile if available
         if (profile?.language) {
@@ -146,6 +158,47 @@ function AITutorPageContent() {
     }
   }, [synthesisError, toast])
 
+  const normalizeSuggestedActions = (actions: any[] | undefined) => {
+    if (!actions || actions.length === 0) return []
+
+    return actions.map((action) => {
+      const actionType = action.type || action.actionType
+      const actionLabel = action.label || action.actionLabel
+      const actionData = action.actionData || {}
+      const topicId = action.topicId || actionData.topicId
+
+      switch (actionType) {
+        case 'GENERATE_NOTES':
+          return { type: 'GENERATE_NOTES', label: actionLabel || 'Generate notes', topicId }
+        case 'START_FOCUS':
+          return { type: 'START_FOCUS', label: actionLabel || 'Start focus session', topicId }
+        case 'START_PRACTICE':
+        case 'TAKE_QUIZ':
+          return { type: 'START_PRACTICE', label: actionLabel || 'Practice this topic', topicId }
+        case 'VIEW_TOPIC':
+          return { type: 'VIEW_TOPIC', label: actionLabel || 'View topic details', topicId }
+        case 'ASK_TEACHER':
+          return { type: 'ASK_TEACHER', label: actionLabel || 'Ask a teacher', topicId }
+        case 'BROWSE_TOPICS':
+          return { type: 'BROWSE_TOPICS', label: actionLabel || 'Browse topics' }
+        default:
+          return null
+      }
+    }).filter(Boolean) as Message['suggestedActions']
+  }
+
+  const normalizeCitations = (references: any[] | undefined) => {
+    if (!references || references.length === 0) return []
+
+    return references.map((reference) => ({
+      topicTitle: reference.topicTitle,
+      chapterName: reference.chapterName,
+      subjectName: reference.subjectName,
+      sourceType: reference.sourceType,
+      sourceRef: reference.sourceRef
+    }))
+  }
+
   const handleSendMessage = async () => {
     if (!input.trim() || isStreaming) return
 
@@ -171,6 +224,7 @@ function AITutorPageContent() {
 
     try {
       let fullContent = ''
+      const activeTopicId = contextTopicId
       
       await studentAPI.streamChatMessage(
         userMessage.content,
@@ -183,7 +237,7 @@ function AITutorPageContent() {
           ))
         },
         sessionId,
-        undefined,
+        activeTopicId,
         undefined,
         getLanguageInfo(selectedLanguage).localeCode
       )
@@ -192,18 +246,22 @@ function AITutorPageContent() {
       const fullResponse = await studentAPI.sendChatMessage(
         userMessage.content, 
         sessionId,
-        undefined,
+        activeTopicId,
         undefined,
         getLanguageInfo(selectedLanguage).localeCode
       )
+      const normalizedActions = normalizeSuggestedActions(fullResponse?.suggestedActions)
+      const normalizedCitations = normalizeCitations(fullResponse?.references)
+      const messageTopicId = normalizedActions.find((action) => action?.topicId)?.topicId ?? activeTopicId
       
       setMessages(prev => prev.map(msg => 
         msg.id === assistantMessageId 
           ? {
               ...msg,
-              content: fullResponse.answer || fullResponse.message,
-              suggestedActions: fullResponse.suggestedActions,
-              citations: fullResponse.references
+              content: fullResponse?.message || fullContent,
+              suggestedActions: normalizedActions,
+              citations: normalizedCitations,
+              topicId: messageTopicId
             }
           : msg
       ))
@@ -240,10 +298,28 @@ function AITutorPageContent() {
     }
   }
 
-  const handleSuggestedAction = (action: Message['suggestedActions'][0]) => {
+  const handleSuggestedAction = async (action: Message['suggestedActions'][0]) => {
     switch (action.type) {
       case 'GENERATE_NOTES':
-        router.push(`/student/notes?generate=true&topicId=${action.topicId}&topicName=${encodeURIComponent(action.topicName || '')}`)
+        if (!action.topicId) {
+          toast({
+            title: 'Topic not found',
+            description: 'Select a topic-based suggestion to generate notes.',
+            variant: 'destructive'
+          })
+          return
+        }
+        try {
+          await studentAPI.generateNotes(action.topicId, 'SHORT', selectedLanguage)
+          router.push('/student/notes')
+        } catch (error) {
+          console.error('Generate notes error:', error)
+          toast({
+            title: 'Failed to generate notes',
+            description: 'Please try again in a moment.',
+            variant: 'destructive'
+          })
+        }
         break
       case 'START_PRACTICE':
         router.push(`/student/practice?topicId=${action.topicId}`)
@@ -254,6 +330,12 @@ function AITutorPageContent() {
       case 'VIEW_TOPIC':
         router.push(`/student/discover?topicId=${action.topicId}`)
         break
+      case 'ASK_TEACHER':
+        router.push('/student/booking')
+        break
+      case 'BROWSE_TOPICS':
+        router.push('/student/discover')
+        break
       default:
         toast({ title: 'Action', description: `Action: ${action.label}` })
     }
@@ -261,16 +343,22 @@ function AITutorPageContent() {
 
   const handleSaveAsNotes = async (message: Message) => {
     try {
+      if (!message.topicId) {
+        toast({
+          title: 'Topic not found',
+          description: 'Pick a suggested action to anchor notes to a topic.',
+          variant: 'destructive'
+        })
+        return
+      }
+
       toast({
         title: 'Saving...',
         description: 'Creating notes from this conversation.'
       })
-      
-      // Extract topic info from citations if available
-      const topicId = message.citations?.[0]?.chunkId
-      const topicName = message.citations?.[0]?.topicName || 'AI Tutor Notes'
-      
-      router.push(`/student/notes?generate=true&content=${encodeURIComponent(message.content)}&topicName=${encodeURIComponent(topicName)}`)
+
+      await studentAPI.generateNotes(message.topicId, 'SHORT', selectedLanguage)
+      router.push('/student/notes')
     } catch (error) {
       console.error('Save notes error:', error)
       toast({
@@ -319,24 +407,26 @@ function AITutorPageContent() {
       case 'START_PRACTICE': return <Brain className="h-4 w-4" />
       case 'START_FOCUS': return <Target className="h-4 w-4" />
       case 'VIEW_TOPIC': return <Eye className="h-4 w-4" />
+      case 'ASK_TEACHER': return <Globe className="h-4 w-4" />
+      case 'BROWSE_TOPICS': return <BookOpen className="h-4 w-4" />
       default: return <Sparkles className="h-4 w-4" />
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 p-6" data-testid="ai-tutor-page">
-      <div className="max-w-5xl mx-auto">
+    <div className="space-y-6" data-testid="ai-tutor-page">
+      <div className="max-w-5xl mx-auto space-y-6">
         {/* Header */}
-        <div className="mb-6" data-testid="ai-tutor-header">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">AI Tutor</h1>
-          <p className="text-gray-600">Ask questions, get explanations, and learn interactively</p>
-          <Badge variant="secondary" className="mt-2">
+        <div className="page-header" data-testid="ai-tutor-header">
+          <h1 className="text-3xl font-bold text-white mb-2">AI Tutor</h1>
+          <p className="text-white/80">Ask questions, get explanations, and learn interactively</p>
+          <Badge variant="outline" className="mt-3 border-white/40 bg-white/10 text-white">
             <Sparkles className="h-3 w-3 mr-1" />
-            DEV Mode: Deterministic Responses
+            Personalized learning assistant
           </Badge>
         </div>
 
-        <Card data-testid="ai-tutor-chat-container">
+        <Card className="glass-panel border border-white/40" data-testid="ai-tutor-chat-container">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
@@ -350,6 +440,7 @@ function AITutorPageContent() {
                   variant={voiceMode ? 'default' : 'outline'}
                   size="sm"
                   onClick={toggleVoiceMode}
+                  className={voiceMode ? 'btn-primary h-9 px-4 text-sm' : 'btn-outline h-9 px-4 text-sm'}
                   data-testid="ai-tutor-voice-toggle"
                 >
                   {isListening ? (
@@ -363,6 +454,7 @@ function AITutorPageContent() {
                   <Button
                     variant="outline"
                     size="sm"
+                    className="btn-outline h-9 px-4 text-sm"
                     onClick={stopSpeaking}
                     data-testid="ai-tutor-stop-speaking"
                   >
@@ -376,12 +468,12 @@ function AITutorPageContent() {
           <CardContent>
             {/* Messages */}
             <div 
-              className="h-[500px] overflow-y-auto mb-4 space-y-4 p-4 bg-gray-50 rounded-lg"
+              className="h-[500px] overflow-y-auto mb-4 space-y-4 p-4 glass rounded-2xl"
               data-testid="ai-tutor-messages"
             >
               {messages.length === 0 && (
-                <div className="text-center text-gray-500 mt-20" data-testid="ai-tutor-empty">
-                  <Sparkles className="h-12 w-12 mx-auto mb-4 text-purple-400" />
+                <div className="text-center text-slate-500 dark:text-slate-300 mt-20" data-testid="ai-tutor-empty">
+                  <Sparkles className="h-12 w-12 mx-auto mb-4 text-emerald-400" />
                   <p className="text-lg font-medium">Start a conversation</p>
                   <p className="text-sm">Ask me anything about your subjects</p>
                 </div>
@@ -396,25 +488,27 @@ function AITutorPageContent() {
                   <div
                     className={`max-w-[80%] rounded-lg p-4 ${
                       message.role === 'user'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-white border border-gray-200 text-gray-900'
+                        ? 'bg-emerald-500 text-white'
+                        : 'glass border border-white/40 text-slate-900 dark:text-slate-100'
                     }`}
                   >
                     <div className="whitespace-pre-wrap">{message.content}</div>
                     
                     {/* Citations */}
                     {message.citations && message.citations.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-gray-300">
-                        <p className="text-xs font-semibold text-gray-600 mb-2">Sources:</p>
+                      <div className="mt-3 pt-3 border-t border-white/20">
+                        <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Sources:</p>
                         <div className="space-y-1">
                           {message.citations.map((citation, idx) => (
                             <div 
-                              key={citation.chunkId}
-                              className="text-xs text-gray-700 bg-gray-100 p-2 rounded"
+                              key={`${citation.topicTitle || 'source'}-${idx}`}
+                              className="text-xs text-slate-700 dark:text-slate-200 bg-white/70 p-2 rounded border border-white/40"
                               data-testid={`ai-tutor-citation-${idx}`}
                             >
-                              <span className="font-medium">{citation.topicName}</span>
-                              <span className="text-gray-500"> • {citation.chapterName}</span>
+                              <span className="font-medium">{citation.topicTitle || 'Curriculum Source'}</span>
+                              {citation.chapterName && (
+                                <span className="text-slate-500 dark:text-slate-300"> - {citation.chapterName}</span>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -423,8 +517,8 @@ function AITutorPageContent() {
 
                     {/* Suggested Actions */}
                     {message.suggestedActions && message.suggestedActions.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-gray-300">
-                        <p className="text-xs font-semibold text-gray-600 mb-2">Suggested Actions:</p>
+                      <div className="mt-3 pt-3 border-t border-white/20">
+                        <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Suggested Actions:</p>
                         <div className="flex flex-wrap gap-2">
                           {message.suggestedActions.map((action, idx) => (
                             <Button
@@ -432,7 +526,7 @@ function AITutorPageContent() {
                               size="sm"
                               variant="outline"
                               onClick={() => handleSuggestedAction(action)}
-                              className="text-xs"
+                              className="btn-outline h-8 px-3 text-xs"
                               data-testid={`ai-tutor-action-${action.type.toLowerCase()}`}
                             >
                               {getActionIcon(action.type)}
@@ -450,7 +544,7 @@ function AITutorPageContent() {
                           size="sm"
                           variant="ghost"
                           onClick={() => handleSaveAsNotes(message)}
-                          className="text-xs text-gray-600 hover:text-gray-900"
+                          className="text-xs text-slate-500 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
                           data-testid="ai-tutor-save-notes"
                         >
                           <Save className="h-3 w-3 mr-1" />
@@ -469,8 +563,8 @@ function AITutorPageContent() {
               {/* Streaming indicator */}
               {isStreaming && messages[messages.length - 1]?.role === 'assistant' && (
                 <div className="flex justify-start">
-                  <div className="bg-white border border-gray-200 rounded-lg p-4">
-                    <Loader2 className="h-4 w-4 animate-spin text-purple-600" />
+                  <div className="glass rounded-lg p-4 border border-white/40">
+                    <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
                   </div>
                 </div>
               )}
@@ -488,7 +582,7 @@ function AITutorPageContent() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={voiceMode ? (isListening ? "Listening... speak your question" : "Click mic to start listening") : "Ask a question..."}
-                className="min-h-[80px] resize-none"
+                className="input-modern min-h-[80px] resize-none"
                 disabled={isStreaming}
                 data-testid="ai-tutor-input"
               />
@@ -496,6 +590,7 @@ function AITutorPageContent() {
                 onClick={handleSendMessage}
                 disabled={!input.trim() || isStreaming}
                 size="lg"
+                className="btn-primary"
                 data-testid="ai-tutor-send"
               >
                 {isStreaming ? (
@@ -507,13 +602,13 @@ function AITutorPageContent() {
             </div>
 
             {/* Quick Tips */}
-            <div className="mt-4 text-sm text-gray-600" data-testid="ai-tutor-tips">
-              <p className="font-medium mb-1">💡 Tips:</p>
+            <div className="mt-4 text-sm text-slate-600 dark:text-slate-200" data-testid="ai-tutor-tips">
+              <p className="font-medium mb-1">Tips:</p>
               <ul className="list-disc list-inside space-y-1 text-xs">
                 <li>Ask specific questions about topics you&apos;re studying</li>
                 <li>Request explanations with examples</li>
                 <li>Use suggested actions to generate notes, start practice, or focus sessions</li>
-                <li>Voice mode (DEV): Type your message to simulate speech-to-text</li>
+                <li>Use voice mode when your device supports speech input</li>
               </ul>
             </div>
           </CardContent>

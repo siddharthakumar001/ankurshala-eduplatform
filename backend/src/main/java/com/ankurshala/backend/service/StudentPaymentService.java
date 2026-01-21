@@ -9,11 +9,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -32,6 +34,8 @@ public class StudentPaymentService {
     private final NotificationRepository notificationRepository;
     private final RazorpayService razorpayService;
     private final PaymentIntentRepository paymentIntentRepository;
+    private final PaymentMethodRepository paymentMethodRepository;
+    private final WalletService walletService;
 
     @Autowired
     private KafkaTemplate<String, Object> kafkaTemplate;
@@ -45,34 +49,74 @@ public class StudentPaymentService {
         User student = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Student not found"));
         
-        // Get all bookings for the student
-        List<Booking> allBookings = bookingRepository.findByStudentOrderByStartTsDesc(student, 
-                org.springframework.data.domain.PageRequest.of(0, 1000)).getContent();
-        
-        // Calculate billing summary (mock implementation)
-        BigDecimal totalAmount = BigDecimal.valueOf(5000);
-        BigDecimal paidAmount = BigDecimal.valueOf(3000);
-        BigDecimal pendingAmount = BigDecimal.valueOf(1500);
-        BigDecimal overdueAmount = BigDecimal.valueOf(500);
-        
-        int totalInvoices = 10;
-        int paidInvoices = 6;
-        int pendingInvoices = 3;
-        int overdueInvoices = 1;
-        
-        LocalDateTime lastPaymentDate = LocalDateTime.now().minusDays(2);
-        BigDecimal monthlySpending = BigDecimal.valueOf(2000);
-        BigDecimal yearlySpending = BigDecimal.valueOf(5000);
-        
-        // Mock default payment method
-        StudentPaymentMethodDto defaultPaymentMethod = new StudentPaymentMethodDto();
-        defaultPaymentMethod.setId(1L);
-        defaultPaymentMethod.setType("CARD");
-        defaultPaymentMethod.setLastFourDigits("1234");
-        defaultPaymentMethod.setCardBrand("VISA");
-        defaultPaymentMethod.setDefault(true);
-        defaultPaymentMethod.setCreatedAt(LocalDateTime.now().minusMonths(1));
-        defaultPaymentMethod.setUpdatedAt(LocalDateTime.now());
+        List<Booking> allBookings = bookingRepository.findByStudentOrderByStartTsDesc(
+                student, PageRequest.of(0, 1000)).getContent();
+
+        List<PaymentIntent> intents = paymentIntentRepository.findByUserIdOrderByCreatedAtDesc(student.getId());
+        Map<Long, PaymentIntent> latestIntentByBooking = new HashMap<>();
+        for (PaymentIntent intent : intents) {
+            if (intent.getBookingId() != null && !latestIntentByBooking.containsKey(intent.getBookingId())) {
+                latestIntentByBooking.put(intent.getBookingId(), intent);
+            }
+        }
+
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        BigDecimal paidAmount = BigDecimal.ZERO;
+        BigDecimal overdueAmount = BigDecimal.ZERO;
+
+        int totalInvoices = allBookings.size();
+        int paidInvoices = 0;
+        int overdueInvoices = 0;
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime monthStart = now.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
+        LocalDateTime yearStart = now.withDayOfYear(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
+        BigDecimal monthlySpending = BigDecimal.ZERO;
+        BigDecimal yearlySpending = BigDecimal.ZERO;
+
+        for (PaymentIntent intent : intents) {
+            if (intent.getStatus() == PaymentIntentStatus.COMPLETED) {
+                BigDecimal amount = centsToRupees(intent.getAmountCents());
+                paidAmount = paidAmount.add(amount);
+                LocalDateTime timestamp = intent.getUpdatedAt() != null ? intent.getUpdatedAt() : intent.getCreatedAt();
+                if (timestamp != null && !timestamp.isBefore(yearStart)) {
+                    yearlySpending = yearlySpending.add(amount);
+                }
+                if (timestamp != null && !timestamp.isBefore(monthStart)) {
+                    monthlySpending = monthlySpending.add(amount);
+                }
+            }
+        }
+
+        for (Booking booking : allBookings) {
+            BigDecimal bookingAmount = centsToRupees(resolveBookingAmountCents(booking));
+            totalAmount = totalAmount.add(bookingAmount);
+
+            PaymentIntent intent = latestIntentByBooking.get(booking.getId());
+            boolean isPaid = intent != null && intent.getStatus() == PaymentIntentStatus.COMPLETED;
+            if (isPaid) {
+                paidInvoices += 1;
+            } else if (booking.getEndTs() != null &&
+                    booking.getEndTs().toLocalDateTime().isBefore(now.minusDays(7))) {
+                overdueInvoices += 1;
+                overdueAmount = overdueAmount.add(bookingAmount);
+            }
+        }
+
+        int pendingInvoices = Math.max(totalInvoices - paidInvoices, 0);
+        BigDecimal pendingAmount = totalAmount.subtract(paidAmount);
+        if (pendingAmount.compareTo(BigDecimal.ZERO) < 0) {
+            pendingAmount = BigDecimal.ZERO;
+        }
+
+        LocalDateTime lastPaymentDate = intents.stream()
+                .filter(intent -> intent.getStatus() == PaymentIntentStatus.COMPLETED)
+                .map(intent -> intent.getUpdatedAt() != null ? intent.getUpdatedAt() : intent.getCreatedAt())
+                .filter(date -> date != null)
+                .findFirst()
+                .orElse(null);
+
+        StudentPaymentMethodDto defaultPaymentMethod = getDefaultPaymentMethod(student.getId());
         
         StudentBillingSummaryDto summary = new StudentBillingSummaryDto();
         summary.setTotalAmount(totalAmount);
@@ -99,8 +143,23 @@ public class StudentPaymentService {
         
         // Get bookings for the student
         Page<Booking> bookings = bookingRepository.findByStudentOrderByStartTsDesc(student, pageable);
-        
-        return bookings.map(this::convertToPaymentDto);
+        List<PaymentIntent> intents = paymentIntentRepository.findByUserIdOrderByCreatedAtDesc(student.getId());
+        Map<Long, PaymentIntent> latestIntentByBooking = new HashMap<>();
+        for (PaymentIntent intent : intents) {
+            if (intent.getBookingId() != null && !latestIntentByBooking.containsKey(intent.getBookingId())) {
+                latestIntentByBooking.put(intent.getBookingId(), intent);
+            }
+        }
+        Map<Long, PaymentMethod> paymentMethods = paymentMethodRepository
+                .findByUserIdAndIsActiveTrueOrderByIsDefaultDescCreatedAtDesc(student.getId())
+                .stream()
+                .collect(Collectors.toMap(PaymentMethod::getId, method -> method, (a, b) -> a));
+
+        return bookings.map(booking -> convertToPaymentDto(
+                booking,
+                latestIntentByBooking.get(booking.getId()),
+                paymentMethods
+        ));
     }
 
     public ProcessPaymentResponse processPayment(ProcessPaymentRequest request, UserPrincipal userPrincipal) {
@@ -121,18 +180,45 @@ public class StudentPaymentService {
             }};
         }
         
-        // Check if booking is completed
-        if (booking.getStatus() != BookingStatus.COMPLETED) {
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
             return new ProcessPaymentResponse() {{
                 setSuccess(false);
-                setMessage("Payment can only be processed for completed sessions");
+                setMessage("Payment cannot be processed for cancelled sessions");
                 setStatus("FAILED");
             }};
         }
+
+        if (isBookingPaid(booking.getId(), student.getId())) {
+            return new ProcessPaymentResponse() {{
+                setSuccess(false);
+                setMessage("This booking is already paid");
+                setStatus("FAILED");
+            }};
+        }
+
+        BigDecimal bookingAmount = centsToRupees(resolveBookingAmountCents(booking));
         
         // Check for fee waivers
         boolean hasFeeWaiver = feeWaiverRepository.existsByUser_IdAndStatus(student.getId(), FeeWaiver.WaiverStatus.APPROVED);
         if (hasFeeWaiver) {
+            PaymentIntent paymentIntent = new PaymentIntent();
+            paymentIntent.setUserId(student.getId());
+            paymentIntent.setBookingId(booking.getId());
+            paymentIntent.setAmountCents(0);
+            paymentIntent.setCurrency("INR");
+            paymentIntent.setStatus(PaymentIntentStatus.COMPLETED);
+            paymentIntent.setProviderPaymentId("WAIVER_" + booking.getId());
+            paymentIntent.setProviderResponse(Map.of(
+                "waiverApplied", true,
+                "originalAmountCents", resolveBookingAmountCents(booking)
+            ));
+            paymentIntentRepository.save(paymentIntent);
+
+            if (booking.getStatus() == BookingStatus.PENDING || booking.getStatus() == BookingStatus.ACCEPTED) {
+                booking.setStatus(BookingStatus.CONFIRMED);
+                bookingRepository.save(booking);
+            }
+
             return new ProcessPaymentResponse() {{
                 setSuccess(true);
                 setTransactionId("WAIVER_" + booking.getId());
@@ -143,83 +229,301 @@ public class StudentPaymentService {
             }};
         }
         
-        // Process payment (mock implementation)
-        String transactionId = "TXN_" + System.currentTimeMillis();
-        String paymentUrl = "https://payments.ankurshala.com/process/" + transactionId;
-        
-        // Send payment notification
-        sendPaymentNotification(booking, student, request.getAmount());
-        
-        // Send Kafka event
+        CreatePaymentOrderResponse orderResponse = createPaymentOrder(new CreatePaymentOrderRequest() {{
+            setBookingId(request.getBookingId());
+            setAmount(bookingAmount);
+            setCurrency("INR");
+            setNotes(request.getNotes());
+        }}, userPrincipal);
+
         kafkaTemplate.send("payment-events", "payment-initiated", new Object() {{
             // Payment event data
         }});
-        
+
         return new ProcessPaymentResponse() {{
             setSuccess(true);
-            setTransactionId(transactionId);
-            setPaymentUrl(paymentUrl);
-            setAmount(request.getAmount());
+            setTransactionId(orderResponse.getOrderId());
+            setPaymentUrl(orderResponse.getOrderId());
+            setAmount(bookingAmount);
             setStatus("PENDING");
-            setMessage("Payment initiated successfully");
+            setMessage("Payment order created successfully");
             setProcessedAt(LocalDateTime.now());
         }};
     }
 
     public List<StudentPaymentMethodDto> getPaymentMethods(UserPrincipal userPrincipal) {
         log.info("Getting payment methods for student {}", userPrincipal.getId());
-        
-        // Mock payment methods
-        return List.of(
-                new StudentPaymentMethodDto() {{
-                    setId(1L);
-                    setType("CARD");
-                    setLastFourDigits("1234");
-                    setCardBrand("VISA");
-                    setDefault(true);
-                    setCreatedAt(LocalDateTime.now().minusMonths(1));
-                    setUpdatedAt(LocalDateTime.now());
-                }},
-                new StudentPaymentMethodDto() {{
-                    setId(2L);
-                    setType("UPI");
-                    setUpiId("student@paytm");
-                    setDefault(false);
-                    setCreatedAt(LocalDateTime.now().minusWeeks(2));
-                    setUpdatedAt(LocalDateTime.now());
-                }}
-        );
+        List<PaymentMethod> methods = paymentMethodRepository
+                .findByUserIdAndIsActiveTrueOrderByIsDefaultDescCreatedAtDesc(userPrincipal.getId());
+        return methods.stream()
+                .map(this::toStudentPaymentMethod)
+                .collect(Collectors.toList());
     }
 
-    private StudentPaymentDto convertToPaymentDto(Booking booking) {
-        BigDecimal amount = BigDecimal.valueOf(500); // Mock amount
+    public WalletPaymentResponse payBookingWithWallet(WalletPaymentRequest request, UserPrincipal userPrincipal) {
+        log.info("Processing wallet payment for student {} and booking {}", userPrincipal.getId(), request.getBookingId());
+
+        User student = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(() -> new IllegalArgumentException("Student not found"));
+
+        Booking booking = bookingRepository.findById(request.getBookingId())
+                .orElseThrow(() -> new IllegalArgumentException("Booking not found"));
+
+        if (!booking.getStudent().getId().equals(student.getId())) {
+            throw new IllegalArgumentException("You are not authorized to pay for this booking");
+        }
+
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
+            throw new IllegalArgumentException("Payment cannot be processed for cancelled bookings");
+        }
+
+        if (isBookingPaid(booking.getId(), student.getId())) {
+            throw new IllegalArgumentException("This booking is already paid");
+        }
+
+        Integer amountCents = resolveBookingAmountCents(booking);
+        BigDecimal amount = centsToRupees(amountCents);
+
+        walletService.debitStudentWallet(
+                student.getId(),
+                amountCents.longValue(),
+                WalletTransactionSource.BOOKING_PAYMENT,
+                booking.getId(),
+                "Booking payment"
+        );
+
+        PaymentIntent paymentIntent = new PaymentIntent();
+        paymentIntent.setUserId(student.getId());
+        paymentIntent.setBookingId(booking.getId());
+        paymentIntent.setAmountCents(amountCents);
+        paymentIntent.setCurrency("INR");
+        paymentIntent.setStatus(PaymentIntentStatus.COMPLETED);
+        paymentIntent.setProviderPaymentId("WALLET_" + booking.getId());
+        paymentIntent.setProviderResponse(Map.of("method", "WALLET"));
+        paymentIntentRepository.save(paymentIntent);
+
+        if (booking.getStatus() == BookingStatus.PENDING || booking.getStatus() == BookingStatus.ACCEPTED) {
+            booking.setStatus(BookingStatus.CONFIRMED);
+            bookingRepository.save(booking);
+        }
+
+        sendPaymentNotification(booking, student, amount);
+
+        WalletPaymentResponse response = new WalletPaymentResponse();
+        response.setSuccess(true);
+        response.setStatus("PAID");
+        response.setMessage("Wallet payment completed");
+        response.setBookingId(booking.getId());
+        response.setAmount(amount);
+        response.setBalanceCents(walletService.getStudentWalletBalance(student.getId()));
+        response.setPaidAt(LocalDateTime.now());
+        return response;
+    }
+
+    public WalletTopupOrderResponse createWalletTopupOrder(WalletTopupOrderRequest request, UserPrincipal userPrincipal) {
+        log.info("Creating wallet top-up order for student {}", userPrincipal.getId());
+
+        User student = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(() -> new IllegalArgumentException("Student not found"));
+
+        BigDecimal amount = request.getAmount();
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Top-up amount must be greater than zero");
+        }
+
+        if (request.getCurrency() != null && !"INR".equalsIgnoreCase(request.getCurrency())) {
+            throw new IllegalArgumentException("Only INR is supported for wallet top-ups");
+        }
+        String currency = "INR";
+
+        PaymentIntent paymentIntent = new PaymentIntent();
+        paymentIntent.setUserId(student.getId());
+        paymentIntent.setAmountCents(amount.multiply(BigDecimal.valueOf(100))
+                .setScale(0, RoundingMode.HALF_UP)
+                .intValue());
+        paymentIntent.setCurrency(currency);
+        paymentIntent.setStatus(PaymentIntentStatus.CREATED);
+        paymentIntent = paymentIntentRepository.save(paymentIntent);
+
+        String receipt = "wallet_topup_" + student.getId() + "_" + System.currentTimeMillis();
+        Map<String, String> notes = new HashMap<>();
+        notes.put("student_id", student.getId().toString());
+        notes.put("payment_intent_id", paymentIntent.getId().toString());
+        if (request.getNotes() != null) {
+            notes.put("notes", request.getNotes());
+        }
+
+        Map<String, Object> razorpayOrder = razorpayService.createOrder(
+                amount,
+                currency,
+                receipt,
+                notes
+        );
+
+        paymentIntent.setProviderOrderId((String) razorpayOrder.get("id"));
+        paymentIntentRepository.save(paymentIntent);
+
+        WalletTopupOrderResponse response = new WalletTopupOrderResponse();
+        response.setOrderId((String) razorpayOrder.get("id"));
+        response.setAmount(amount);
+        response.setCurrency(currency);
+        response.setKeyId(razorpayService.getKeyId());
+        response.setReceipt(receipt);
+        response.setStatus("created");
+        response.setOrderDetails(razorpayOrder);
+        response.setMessage("Wallet top-up order created successfully");
+        return response;
+    }
+
+    public WalletTopupVerifyResponse verifyWalletTopup(WalletTopupVerifyRequest request, UserPrincipal userPrincipal) {
+        log.info("Verifying wallet top-up for student {}", userPrincipal.getId());
+
+        User student = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(() -> new IllegalArgumentException("Student not found"));
+
+        boolean signatureValid = razorpayService.verifyPaymentSignature(
+                request.getOrderId(),
+                request.getPaymentId(),
+                request.getSignature()
+        );
+
+        if (!signatureValid) {
+            WalletTopupVerifyResponse response = new WalletTopupVerifyResponse();
+            response.setSuccess(false);
+            response.setStatus("FAILED");
+            response.setMessage("Wallet top-up verification failed. Invalid signature.");
+            return response;
+        }
+
+        PaymentIntent paymentIntent = paymentIntentRepository
+                .findByProviderOrderId(request.getOrderId())
+                .orElseThrow(() -> new IllegalArgumentException("Payment intent not found"));
+
+        if (!paymentIntent.getUserId().equals(student.getId())) {
+            throw new IllegalArgumentException("You are not authorized to verify this top-up");
+        }
+
+        if (paymentIntent.getStatus() == PaymentIntentStatus.COMPLETED) {
+            WalletTopupVerifyResponse response = new WalletTopupVerifyResponse();
+            response.setSuccess(true);
+            response.setStatus("VERIFIED");
+            response.setMessage("Wallet top-up already verified");
+            response.setTransactionId(paymentIntent.getProviderPaymentId());
+            response.setAmount(centsToRupees(paymentIntent.getAmountCents()));
+            response.setCurrency(paymentIntent.getCurrency());
+            response.setBalanceCents(walletService.getStudentWalletBalance(student.getId()));
+            response.setPaidAt(paymentIntent.getUpdatedAt() != null ? paymentIntent.getUpdatedAt() : LocalDateTime.now());
+            return response;
+        }
+
+        Map<String, Object> paymentDetails = razorpayService.fetchPayment(request.getPaymentId());
+
+        paymentIntent.setStatus(PaymentIntentStatus.COMPLETED);
+        paymentIntent.setProviderPaymentId(request.getPaymentId());
+        paymentIntent.setProviderResponse(paymentDetails);
+        paymentIntent.setUpdatedAt(LocalDateTime.now());
+        paymentIntentRepository.save(paymentIntent);
+
+        walletService.creditStudentWallet(
+                student.getId(),
+                paymentIntent.getAmountCents().longValue(),
+                WalletTransactionSource.WALLET_TOPUP,
+                null,
+                "Wallet top-up"
+        );
+
+        WalletTopupVerifyResponse response = new WalletTopupVerifyResponse();
+        response.setSuccess(true);
+        response.setStatus("VERIFIED");
+        response.setMessage("Wallet top-up verified successfully");
+        response.setTransactionId(request.getPaymentId());
+        response.setAmount(centsToRupees(paymentIntent.getAmountCents()));
+        response.setCurrency(paymentIntent.getCurrency());
+        response.setBalanceCents(walletService.getStudentWalletBalance(student.getId()));
+        response.setPaidAt(LocalDateTime.now());
+        return response;
+    }
+
+    private StudentPaymentDto convertToPaymentDto(Booking booking, PaymentIntent paymentIntent, Map<Long, PaymentMethod> paymentMethods) {
+        BigDecimal amount = centsToRupees(resolveBookingAmountCents(booking));
         BigDecimal discountAmount = BigDecimal.ZERO;
-        BigDecimal finalAmount = amount.subtract(discountAmount);
-        
-        // Mock payment status
-        String paymentStatus = booking.getId() % 2 == 0 ? "PAID" : "PENDING";
-        String paymentMethod = booking.getId() % 2 == 0 ? "CARD" : "UPI";
-        String transactionId = booking.getId() % 2 == 0 ? "TXN_" + booking.getId() : null;
-        LocalDateTime paidAt = booking.getId() % 2 == 0 ? booking.getEndTs().toLocalDateTime() : null;
-        
-        return new StudentPaymentDto() {{
-            setId(booking.getId());
-            setBookingId(booking.getId());
-            setBookingTitle(booking.getTopic().getTitle());
-            setTeacherName(booking.getTeacher().getName());
-            setSessionDate(booking.getStartTs().toLocalDateTime());
-            setSessionDuration(booking.getDurationMinutes());
-            setAmount(amount);
-            setDiscountAmount(discountAmount);
-            setFinalAmount(finalAmount);
-            setPaymentStatus(paymentStatus);
-            setPaymentMethod(paymentMethod);
-            setTransactionId(transactionId);
-            setPaidAt(paidAt);
-            setDueDate(booking.getEndTs().plusDays(7).toLocalDateTime());
-            setInvoiceUrl("/invoices/" + booking.getId() + ".pdf");
-            setReceiptUrl(paidAt != null ? "/receipts/" + booking.getId() + ".pdf" : null);
-        }};
+        BigDecimal finalAmount = amount;
+
+        String paymentStatus = "PENDING";
+        String paymentMethod = null;
+        String transactionId = null;
+        LocalDateTime paidAt = null;
+
+        if (paymentIntent != null) {
+            switch (paymentIntent.getStatus()) {
+                case COMPLETED:
+                    paymentStatus = "PAID";
+                    paidAt = paymentIntent.getUpdatedAt();
+                    break;
+                case FAILED:
+                    paymentStatus = "FAILED";
+                    break;
+                case CANCELLED:
+                    paymentStatus = "REFUNDED";
+                    break;
+                default:
+                    paymentStatus = "PENDING";
+            }
+
+            transactionId = paymentIntent.getProviderPaymentId() != null
+                    ? paymentIntent.getProviderPaymentId()
+                    : "TXN_" + paymentIntent.getId();
+
+            if (paymentIntent.getProviderResponse() != null &&
+                Boolean.TRUE.equals(paymentIntent.getProviderResponse().get("waiverApplied"))) {
+                discountAmount = amount;
+                finalAmount = BigDecimal.ZERO;
+            }
+
+            if (paymentIntent.getPaymentMethodId() != null) {
+                PaymentMethod method = paymentMethods.get(paymentIntent.getPaymentMethodId());
+                if (method != null) {
+                    paymentMethod = method.getMethodType().name();
+                }
+            } else if (paymentIntent.getProviderResponse() != null) {
+                Object method = paymentIntent.getProviderResponse().get("method");
+                if (method != null) {
+                    paymentMethod = method.toString().toUpperCase();
+                }
+            }
+        }
+
+        StudentPaymentDto dto = new StudentPaymentDto();
+        dto.setId(booking.getId());
+        dto.setBookingId(booking.getId());
+        dto.setBookingTitle(booking.getTopic() != null ? booking.getTopic().getTitle() : "Session");
+        dto.setTeacherName(booking.getTeacher() != null ? booking.getTeacher().getName() : "TBD");
+        dto.setSessionDate(booking.getStartTs().toLocalDateTime());
+        dto.setSessionDuration(booking.getDurationMinutes());
+        dto.setAmount(amount);
+        dto.setDiscountAmount(discountAmount);
+        dto.setFinalAmount(finalAmount);
+        dto.setPaymentStatus(paymentStatus);
+        dto.setPaymentMethod(paymentMethod);
+        dto.setTransactionId(transactionId);
+        dto.setPaidAt(paidAt);
+        dto.setDueDate(booking.getEndTs().plusDays(7).toLocalDateTime());
+        dto.setInvoiceUrl("/invoices/" + booking.getId() + ".pdf");
+        dto.setReceiptUrl(paidAt != null ? "/receipts/" + booking.getId() + ".pdf" : null);
+        return dto;
+    }
+
+    private boolean isBookingPaid(Long bookingId, Long studentId) {
+        List<PaymentIntent> intents = paymentIntentRepository.findByBookingIdOrderByCreatedAtDesc(bookingId);
+        for (PaymentIntent intent : intents) {
+            if (intent.getUserId() != null && !intent.getUserId().equals(studentId)) {
+                continue;
+            }
+            if (intent.getStatus() == PaymentIntentStatus.COMPLETED) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void sendPaymentNotification(Booking booking, User student, BigDecimal amount) {
@@ -228,7 +532,7 @@ public class StudentPaymentService {
             Notification notification = new Notification();
             notification.setUser(student);
             notification.setTitle("Payment Processed");
-            notification.setBody("Payment of ₹" + amount + " has been processed for your session with " + booking.getTeacher().getName());
+            notification.setBody("Payment of INR " + amount + " has been processed for your session with " + booking.getTeacher().getName());
             notification.setAudience(NotificationAudience.STUDENT);
             notification.setDelivery(NotificationDelivery.IN_APP);
             notification.setStatus(NotificationStatus.PENDING);
@@ -239,6 +543,56 @@ public class StudentPaymentService {
         } catch (Exception e) {
             log.error("Failed to send payment notification", e);
         }
+    }
+
+    private BigDecimal centsToRupees(Integer cents) {
+        if (cents == null) {
+            return BigDecimal.ZERO;
+        }
+        return BigDecimal.valueOf(cents)
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+    }
+
+    private Integer resolveBookingAmountCents(Booking booking) {
+        if (booking.getPriceMinCents() != null) {
+            return booking.getPriceMinCents();
+        }
+        if (booking.getPriceMin() != null) {
+            return booking.getPriceMin()
+                    .multiply(BigDecimal.valueOf(100))
+                    .setScale(0, RoundingMode.HALF_UP)
+                    .intValue();
+        }
+        return 0;
+    }
+
+    private StudentPaymentMethodDto getDefaultPaymentMethod(Long userId) {
+        List<PaymentMethod> methods = paymentMethodRepository
+                .findByUserIdAndIsActiveTrueOrderByIsDefaultDescCreatedAtDesc(userId);
+        if (methods.isEmpty()) {
+            return null;
+        }
+        return toStudentPaymentMethod(methods.get(0));
+    }
+
+    private StudentPaymentMethodDto toStudentPaymentMethod(PaymentMethod method) {
+        StudentPaymentMethodDto dto = new StudentPaymentMethodDto();
+        dto.setId(method.getId());
+        dto.setType(method.getMethodType().name());
+        dto.setDefault(method.getIsDefault() != null && method.getIsDefault());
+        dto.setCreatedAt(method.getCreatedAt());
+        dto.setUpdatedAt(method.getUpdatedAt());
+
+        String masked = method.getMaskedDetails();
+        if (masked != null && masked.length() >= 4) {
+            dto.setLastFourDigits(masked.substring(masked.length() - 4));
+        }
+
+        if (method.getMethodType() == PaymentMethodType.UPI) {
+            dto.setUpiId(masked);
+        }
+
+        return dto;
     }
 
     public CreatePaymentOrderResponse createPaymentOrder(CreatePaymentOrderRequest request, UserPrincipal userPrincipal) {
@@ -256,12 +610,27 @@ public class StudentPaymentService {
             throw new IllegalArgumentException("You are not authorized to pay for this booking");
         }
 
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
+            throw new IllegalArgumentException("Payment cannot be processed for cancelled bookings");
+        }
+
+        if (isBookingPaid(booking.getId(), student.getId())) {
+            throw new IllegalArgumentException("This booking is already paid");
+        }
+
+        if (request.getCurrency() != null && !"INR".equalsIgnoreCase(request.getCurrency())) {
+            throw new IllegalArgumentException("Only INR is supported for booking payments");
+        }
+        String currency = "INR";
+
+        BigDecimal bookingAmount = centsToRupees(resolveBookingAmountCents(booking));
+
         // Create payment intent
         PaymentIntent paymentIntent = new PaymentIntent();
         paymentIntent.setUserId(userPrincipal.getId());
         paymentIntent.setBookingId(booking.getId());
-        paymentIntent.setAmountCents(request.getAmount().multiply(BigDecimal.valueOf(100)).intValue());
-        paymentIntent.setCurrency(request.getCurrency() != null ? request.getCurrency() : "INR");
+        paymentIntent.setAmountCents(resolveBookingAmountCents(booking));
+        paymentIntent.setCurrency(currency);
         paymentIntent.setStatus(PaymentIntentStatus.CREATED);
         paymentIntent = paymentIntentRepository.save(paymentIntent);
 
@@ -276,8 +645,8 @@ public class StudentPaymentService {
         }
 
         Map<String, Object> razorpayOrder = razorpayService.createOrder(
-                request.getAmount(),
-                request.getCurrency(),
+                bookingAmount,
+                currency,
                 receipt,
                 notes
         );
@@ -289,8 +658,8 @@ public class StudentPaymentService {
         // Build response
         return CreatePaymentOrderResponse.builder()
                 .orderId((String) razorpayOrder.get("id"))
-                .amount(request.getAmount())
-                .currency((String) razorpayOrder.get("currency"))
+                .amount(bookingAmount)
+                .currency(currency)
                 .keyId(razorpayService.getKeyId())
                 .receipt(receipt)
                 .status("created")
@@ -348,7 +717,7 @@ public class StudentPaymentService {
         paymentIntentRepository.save(paymentIntent);
 
         // Update booking status if needed
-        if (booking.getStatus() == BookingStatus.PENDING) {
+        if (booking.getStatus() == BookingStatus.PENDING || booking.getStatus() == BookingStatus.ACCEPTED) {
             booking.setStatus(BookingStatus.CONFIRMED);
             bookingRepository.save(booking);
             

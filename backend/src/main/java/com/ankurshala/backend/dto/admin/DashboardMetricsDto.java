@@ -32,6 +32,11 @@ public class DashboardMetricsDto implements Serializable {
     // Course counts (placeholders for now)
     private long activeCourses;
     private long completedCourses;
+
+    // Revenue (in cents)
+    private long totalRevenueCents;
+    private long revenueLast30DaysCents;
+    private long revenuePrevious30DaysCents;
     
     // Import analytics
     private long totalImports;
@@ -46,6 +51,7 @@ public class DashboardMetricsDto implements Serializable {
                                long newStudentsLast30Days, long newTeachersLast7Days, long newTeachersLast30Days,
                                long totalBoards, long totalGrades, long totalSubjects, long totalChapters,
                                long totalTopics, long activeCourses, long completedCourses,
+                               long totalRevenueCents, long revenueLast30DaysCents, long revenuePrevious30DaysCents,
                                long totalImports, long successfulImports, long failedImports,
                                long pendingImports, long runningImports) {
         this.totalStudents = totalStudents;
@@ -65,6 +71,9 @@ public class DashboardMetricsDto implements Serializable {
         this.totalTopics = totalTopics;
         this.activeCourses = activeCourses;
         this.completedCourses = completedCourses;
+        this.totalRevenueCents = totalRevenueCents;
+        this.revenueLast30DaysCents = revenueLast30DaysCents;
+        this.revenuePrevious30DaysCents = revenuePrevious30DaysCents;
         this.totalImports = totalImports;
         this.successfulImports = successfulImports;
         this.failedImports = failedImports;

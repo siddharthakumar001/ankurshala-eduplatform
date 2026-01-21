@@ -436,16 +436,16 @@ interface TabProps {
 }
 
 interface ExtendedTabProps extends TabProps {
-  selectedBoardFilter?: number | null
-  setSelectedBoardFilter?: (id: number | null) => void
-  selectedGradeFilter?: number | null
-  setSelectedGradeFilter?: (id: number | null) => void
-  selectedSubjectFilter?: number | null
-  setSelectedSubjectFilter?: (id: number | null) => void
-  selectedChapterFilter?: number | null
-  setSelectedChapterFilter?: (id: number | null) => void
-  selectedTopicFilter?: number | null
-  setSelectedTopicFilter?: (id: number | null) => void
+  selectedBoardFilter-: number | null
+  setSelectedBoardFilter-: (id: number | null) => void
+  selectedGradeFilter-: number | null
+  setSelectedGradeFilter-: (id: number | null) => void
+  selectedSubjectFilter-: number | null
+  setSelectedSubjectFilter-: (id: number | null) => void
+  selectedChapterFilter-: number | null
+  setSelectedChapterFilter-: (id: number | null) => void
+  selectedTopicFilter-: number | null
+  setSelectedTopicFilter-: (id: number | null) => void
 }
 
 // ========================= UTILITY COMPONENTS =========================
@@ -548,7 +548,7 @@ function BoardsTab(props: TabProps) {
     page: currentPage,
     size: pageSize,
     search: searchTerm || undefined,
-    active: statusFilter === 'all' ? undefined : statusFilter === 'active'
+    active: statusFilter === 'all' - undefined : statusFilter === 'active'
   }
 
   // React Query hooks
@@ -556,11 +556,11 @@ function BoardsTab(props: TabProps) {
   const createBoardMutation = useCreateBoard()
   const updateBoardMutation = useUpdateBoard()
   const deleteBoardMutation = useDeleteBoard()
-  const { data: deletionImpact } = useBoardDeletionImpact(deletingItem?.id || 0)
+  const { data: deletionImpact } = useBoardDeletionImpact(deletingItem-.id || 0)
 
-  const boards = boardsData?.content || []
-  const totalPages = boardsData?.totalPages || 0
-  const totalElements = boardsData?.totalElements || 0
+  const boards = boardsData-.content || []
+  const totalPages = boardsData-.totalPages || 0
+  const totalElements = boardsData-.totalElements || 0
 
   // Handle form submission for create/update
   const handleSubmit = async (e: React.FormEvent) => {
@@ -634,9 +634,9 @@ function BoardsTab(props: TabProps) {
 
   if (error) {
     console.error('BoardsTab: Error details:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    const errorName = error instanceof Error ? error.name : 'Unknown';
-    const errorStack = error instanceof Error ? error.stack : 'No stack trace available';
+    const errorMessage = error instanceof Error - error.message : 'Unknown error occurred';
+    const errorName = error instanceof Error - error.name : 'Unknown';
+    const errorStack = error instanceof Error - error.stack : 'No stack trace available';
     return (
       <div className="text-red-500 text-center space-y-2">
         <div>Error loading boards: {errorMessage}</div>
@@ -697,8 +697,8 @@ function BoardsTab(props: TabProps) {
                 <div>
                   <h3 className="font-semibold">{board.name}</h3>
                   <div className="flex items-center gap-4 mt-1">
-                    <Badge variant={board.active ? 'default' : 'secondary'}>
-                      {board.active ? 'Active' : 'Inactive'}
+                    <Badge variant={board.active - 'default' : 'secondary'}>
+                      {board.active - 'Active' : 'Inactive'}
                     </Badge>
                     {board.gradesCount !== undefined && (
                       <span className="text-sm text-gray-500">
@@ -753,7 +753,7 @@ function BoardsTab(props: TabProps) {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
-                {editingItem ? 'Edit Board' : 'Create Board'}
+                {editingItem - 'Edit Board' : 'Create Board'}
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -791,7 +791,7 @@ function BoardsTab(props: TabProps) {
                   type="submit" 
                   disabled={createBoardMutation.isPending || updateBoardMutation.isPending}
                 >
-                  {(createBoardMutation.isPending || updateBoardMutation.isPending) ? 'Saving...' : 'Save'}
+                  {(createBoardMutation.isPending || updateBoardMutation.isPending) - 'Saving...' : 'Save'}
                 </Button>
               </div>
             </form>
@@ -805,31 +805,31 @@ function BoardsTab(props: TabProps) {
               <DialogTitle>Delete Board</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              <p>Are you sure you want to delete &quot;{deletingItem?.name}&quot;?</p>
+              <p>Are you sure you want to delete &quot;{deletingItem-.name}&quot;-</p>
               
               {deletionImpact && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
                   <h4 className="font-semibold text-yellow-800 mb-2">Impact Analysis:</h4>
                   <ul className="text-sm text-yellow-700 space-y-1">
-                    <li>• Total items affected: {deletionImpact.totalImpact}</li>
+                    <li>- Total items affected: {deletionImpact.totalImpact}</li>
                     {deletionImpact.gradesCount && deletionImpact.gradesCount > 0 && (
-                      <li>• {deletionImpact.gradesCount} grades will be affected</li>
+                      <li>- {deletionImpact.gradesCount} grades will be affected</li>
                     )}
                     {deletionImpact.subjectsCount && deletionImpact.subjectsCount > 0 && (
-                      <li>• {deletionImpact.subjectsCount} subjects will be affected</li>
+                      <li>- {deletionImpact.subjectsCount} subjects will be affected</li>
                     )}
                     {deletionImpact.chaptersCount && deletionImpact.chaptersCount > 0 && (
-                      <li>• {deletionImpact.chaptersCount} chapters will be affected</li>
+                      <li>- {deletionImpact.chaptersCount} chapters will be affected</li>
                     )}
                     {deletionImpact.topicsCount && deletionImpact.topicsCount > 0 && (
-                      <li>• {deletionImpact.topicsCount} topics will be affected</li>
+                      <li>- {deletionImpact.topicsCount} topics will be affected</li>
                     )}
                     {deletionImpact.warnings.length > 0 && (
                       <div className="mt-2">
                         <strong>Warnings:</strong>
                         <ul className="ml-4">
                           {deletionImpact.warnings.map((warning, index) => (
-                            <li key={index}>• {warning}</li>
+                            <li key={index}>- {warning}</li>
                           ))}
                         </ul>
                       </div>
@@ -847,7 +847,7 @@ function BoardsTab(props: TabProps) {
                   onClick={handleDelete}
                   disabled={deleteBoardMutation.isPending}
                 >
-                  {deleteBoardMutation.isPending ? 'Deleting...' : 'Delete'}
+                  {deleteBoardMutation.isPending - 'Deleting...' : 'Delete'}
                 </Button>
               </div>
             </div>
@@ -877,7 +877,7 @@ function GradesTab(props: ExtendedTabProps) {
     page: currentPage,
     size: pageSize,
     search: searchTerm || undefined,
-    active: statusFilter === 'all' ? undefined : statusFilter === 'active'
+    active: statusFilter === 'all' - undefined : statusFilter === 'active'
   }
 
   // Get page parameters with board filter
@@ -893,9 +893,9 @@ function GradesTab(props: ExtendedTabProps) {
   const updateGradeMutation = useUpdateGrade()
   const deleteGradeMutation = useDeleteGrade()
 
-  const grades = gradesData?.content || []
-  const totalPages = gradesData?.totalPages || 0
-  const totalElements = gradesData?.totalElements || 0
+  const grades = gradesData-.content || []
+  const totalPages = gradesData-.totalPages || 0
+  const totalElements = gradesData-.totalElements || 0
 
   // Handle form submission for create/update
   const handleSubmit = async (e: React.FormEvent) => {
@@ -975,7 +975,7 @@ function GradesTab(props: ExtendedTabProps) {
   }
 
   if (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    const errorMessage = error instanceof Error - error.message : 'Unknown error occurred';
     return <div className="text-red-500 text-center">Error loading grades: {errorMessage}</div>
   }
 
@@ -1004,13 +1004,13 @@ function GradesTab(props: ExtendedTabProps) {
               className="w-full"
             />
           </div>
-          <Select value={selectedBoardFilter?.toString() || 'all'} onValueChange={(value) => setSelectedBoardFilter?.(value === 'all' ? null : parseInt(value))}>
+          <Select value={selectedBoardFilter-.toString() || 'all'} onValueChange={(value) => setSelectedBoardFilter-.(value === 'all' - null : parseInt(value))}>
             <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Filter by Board" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Boards</SelectItem>
-              {boardsDropdown?.map((board) => (
+              {boardsDropdown-.map((board) => (
                 <SelectItem key={board.id} value={board.id.toString()}>{board.name}</SelectItem>
               ))}
             </SelectContent>
@@ -1035,8 +1035,8 @@ function GradesTab(props: ExtendedTabProps) {
                 <div>
                   <h3 className="font-semibold">{grade.displayName} ({grade.name})</h3>
                   <div className="flex items-center gap-4 mt-1">
-                    <Badge variant={grade.active ? 'default' : 'secondary'}>
-                      {grade.active ? 'Active' : 'Inactive'}
+                    <Badge variant={grade.active - 'default' : 'secondary'}>
+                      {grade.active - 'Active' : 'Inactive'}
                     </Badge>
                     <span className="text-sm text-gray-500">
                       Board ID: {grade.boardId}
@@ -1084,7 +1084,7 @@ function GradesTab(props: ExtendedTabProps) {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
-                {editingItem ? 'Edit Grade' : 'Create Grade'}
+                {editingItem - 'Edit Grade' : 'Create Grade'}
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -1109,14 +1109,14 @@ function GradesTab(props: ExtendedTabProps) {
               <div>
                 <Label htmlFor="boardId">Board</Label>
                 <Select 
-                  value={formData.boardId?.toString() || ''} 
+                  value={formData.boardId-.toString() || ''} 
                   onValueChange={(value) => setFormData({ ...formData, boardId: parseInt(value) })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select Board" />
                   </SelectTrigger>
                   <SelectContent>
-                    {boardsDropdown?.map((board) => (
+                    {boardsDropdown-.map((board) => (
                       <SelectItem key={board.id} value={board.id.toString()}>{board.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -1147,7 +1147,7 @@ function GradesTab(props: ExtendedTabProps) {
                   type="submit" 
                   disabled={createGradeMutation.isPending || updateGradeMutation.isPending}
                 >
-                  {(createGradeMutation.isPending || updateGradeMutation.isPending) ? 'Saving...' : 'Save'}
+                  {(createGradeMutation.isPending || updateGradeMutation.isPending) - 'Saving...' : 'Save'}
                 </Button>
               </div>
             </form>
@@ -1161,7 +1161,7 @@ function GradesTab(props: ExtendedTabProps) {
               <DialogTitle>Delete Grade</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              <p>Are you sure you want to delete &quot;{deletingItem?.displayName}&quot;?</p>
+              <p>Are you sure you want to delete &quot;{deletingItem-.displayName}&quot;-</p>
               
               <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
                 <h4 className="font-semibold text-yellow-800 mb-2">Warning:</h4>
@@ -1179,7 +1179,7 @@ function GradesTab(props: ExtendedTabProps) {
                   onClick={handleDelete}
                   disabled={deleteGradeMutation.isPending}
                 >
-                  {deleteGradeMutation.isPending ? 'Deleting...' : 'Delete'}
+                  {deleteGradeMutation.isPending - 'Deleting...' : 'Delete'}
                 </Button>
               </div>
             </div>
@@ -1265,14 +1265,14 @@ function ContentTreeDialog({ isOpen, setIsOpen, selectedBoardId, setSelectedBoar
           <div>
             <Label htmlFor="board-select">Select Board</Label>
             <Select
-              value={selectedBoardId?.toString() || ''}
-              onValueChange={(value) => setSelectedBoardId(value ? parseInt(value) : null)}
+              value={selectedBoardId-.toString() || ''}
+              onValueChange={(value) => setSelectedBoardId(value - parseInt(value) : null)}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select a board to view its content tree" />
               </SelectTrigger>
               <SelectContent>
-                {boardsDropdown?.map((board) => (
+                {boardsDropdown-.map((board) => (
                   <SelectItem key={board.id} value={board.id.toString()}>{board.name}</SelectItem>
                 ))}
               </SelectContent>

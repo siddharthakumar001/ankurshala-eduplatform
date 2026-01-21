@@ -18,7 +18,7 @@ import java.util.List;
  * All endpoints require STUDENT role and validate ownership.
  */
 @RestController
-@RequestMapping("/api/student/bookings/{bookingId}/companion")
+@RequestMapping("/student/bookings/{bookingId}/companion")
 @PreAuthorize("hasRole('STUDENT')")
 @Slf4j
 public class StudentCompanionController {

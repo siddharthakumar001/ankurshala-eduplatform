@@ -37,6 +37,8 @@ public class PaymentService {
     private PaymentRefundRepository paymentRefundRepository;
     @Autowired
     private AppProperties appProperties;
+    @Autowired
+    private PaymentProviderService paymentProviderService;
 
     public PaymentIntent createPaymentIntent(Long userId, Long bookingId, Integer amountCents, String currency, Long paymentMethodId) {
         String traceId = TraceUtil.getTraceId();
@@ -145,6 +147,31 @@ public class PaymentService {
         refund.setProcessedBy(processedBy);
 
         PaymentRefund savedRefund = paymentRefundRepository.save(refund);
+
+        if (paymentIntent.getProviderPaymentId() == null || paymentIntent.getProviderPaymentId().isBlank()) {
+            throw new BusinessException("Missing provider payment reference for refund", HttpStatus.BAD_REQUEST, "REFUND_MISSING_PROVIDER_PAYMENT_ID");
+        }
+
+        PaymentProvider provider = PaymentProvider.RAZORPAY;
+        if (paymentIntent.getPaymentMethodId() != null) {
+            provider = paymentMethodRepository.findById(paymentIntent.getPaymentMethodId())
+                    .map(PaymentMethod::getProvider)
+                    .orElse(PaymentProvider.RAZORPAY);
+        }
+
+        refund.setProviderResponse(Map.of("paymentId", paymentIntent.getProviderPaymentId()));
+        Map<String, Object> providerResponse = paymentProviderService.createRefund(provider, refund);
+        refund.setProviderResponse(providerResponse);
+        Object refundId = providerResponse.get("id");
+        if (refundId == null) {
+            refundId = providerResponse.get("refund_id");
+        }
+        if (refundId != null) {
+            refund.setProviderRefundId(refundId.toString());
+        }
+        refund.setStatus(PaymentRefundStatus.PROCESSING);
+
+        savedRefund = paymentRefundRepository.save(refund);
         log.info("Refund created - TraceId: {}, RefundId: {}", traceId, savedRefund.getId());
 
         return savedRefund;

@@ -21,52 +21,75 @@ export interface PageResponse<T> {
 
 export interface BookingQuoteRequest {
   topicId: number
-  date: string // ISO date
-  startTime: string // HH:mm format
-  teacherId: number
+  startTime: string // ISO local datetime (YYYY-MM-DDTHH:mm:ss)
+  durationMinutes: number
+  timezone?: string
 }
 
 export interface BookingQuote {
   expectedMinutes: number
-  endTimeISO: string
+  endTime: string
   bufferOk: boolean
   price: {
     currency: string
     min: number
     max: number
+    ruleId?: number | null
   }
 }
 
 export interface CreateBookingRequest {
   topicId: number
-  date: string // ISO date
-  startTime: string // HH:mm format
-  teacherId: number
-  notes?: string
+  startTime: string // ISO local datetime (YYYY-MM-DDTHH:mm:ss)
+  durationMinutes: number
+  studentNotes?: string
+  timezone?: string
 }
 
 export interface BookingResponse {
   id: number
   studentId: number
-  teacherId: number
-  teacherName: string
+  teacherId?: number | null
+  teacherName?: string | null
   topicId: number
   topicTitle: string
-  date: string
   startTime: string
   endTime: string
-  status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'RESCHEDULED'
-  price: number
-  currency: string
-  notes?: string
-  createdAt: string
-  updatedAt: string
+  durationMinutes: number
+  status: string
+  acceptedAt?: string | null
+  cancelledAt?: string | null
+  cancellationReason?: string | null
+  priceMin?: number | null
+  priceMax?: number | null
+  priceCurrency?: string | null
+  cancellationFee?: number | null
+  rescheduleFee?: number | null
+  studentNotes?: string | null
+  teacherNotes?: string | null
+  studentFeedback?: string | null
+  teacherFeedback?: string | null
+  rating?: number | null
+  createdAt?: string | null
+  updatedAt?: string | null
+  bookmarked?: boolean | null
+}
+
+export interface BookingNoteResponse {
+  id: number
+  authorId?: number
+  authorName?: string
+  content: string
+  noteType?: string
+  createdAt?: string
+  updatedAt?: string
 }
 
 export interface RescheduleRequest {
-  newDate: string
-  newStartTime: string
+  newStartTime: string // ISO local datetime
+  newDurationMinutes: number
   reason: string
+  timezone?: string
 }
 
 export interface CancelBookingRequest {
@@ -79,9 +102,12 @@ export interface CalendarEvent {
   start: string // ISO datetime
   end: string // ISO datetime
   status: string
-  type: 'BOOKING' | 'AVAILABILITY'
+  color?: string
   teacherName?: string
   topicTitle?: string
+  canReschedule?: boolean
+  canCancel?: boolean
+  canJoin?: boolean
 }
 
 export interface SessionFeedback {
@@ -99,7 +125,7 @@ export interface SessionJoinResponse {
 // =========================== API SERVICE CLASS ===========================
 
 class BookingService {
-  private baseUrl = '/bookings'
+  private baseUrl = '/student/bookings'
 
   /**
    * Get booking quote (price and duration estimate)
@@ -155,13 +181,13 @@ class BookingService {
   /**
    * Get upcoming bookings
    */
-  async getUpcomingBookings(page: number = 0, size: number = 20): Promise<PageResponse<BookingResponse>> {
-    const url = `${this.baseUrl}/upcoming?page=${page}&size=${size}`
+  async getUpcomingBookings(): Promise<BookingResponse[]> {
+    const url = `${this.baseUrl}/upcoming`
     console.log('BookingService: Getting upcoming bookings')
 
     try {
-      const response = await api.get<PageResponse<BookingResponse>>(url)
-      console.log('BookingService: Found bookings:', response.data.content.length)
+      const response = await api.get<BookingResponse[]>(url)
+      console.log('BookingService: Found bookings:', response.data.length)
       return response.data
     } catch (error) {
       console.error('BookingService: Upcoming bookings load failed:', error)
@@ -240,12 +266,12 @@ class BookingService {
   /**
    * Add notes to a booking
    */
-  async addNotes(bookingId: number, notes: string): Promise<BookingResponse> {
+  async addNotes(bookingId: number, notes: string): Promise<BookingNoteResponse> {
     const url = `${this.baseUrl}/${bookingId}/notes`
     console.log('BookingService: Adding notes to booking:', bookingId)
 
     try {
-      const response = await api.post<BookingResponse>(url, { notes })
+      const response = await api.post<BookingNoteResponse>(url, { content: notes })
       console.log('BookingService: Notes added')
       return response.data
     } catch (error) {
@@ -257,14 +283,17 @@ class BookingService {
   /**
    * Bookmark a booking
    */
-  async bookmarkBooking(bookingId: number, bookmarked: boolean = true): Promise<BookingResponse> {
+  async bookmarkBooking(bookingId: number, bookmarked: boolean = true): Promise<void> {
     const url = `${this.baseUrl}/${bookingId}/bookmark`
     console.log('BookingService: Bookmarking:', bookingId, bookmarked)
 
     try {
-      const response = await api.post<BookingResponse>(url, { bookmarked })
+      if (bookmarked) {
+        await api.post(url, {})
+      } else {
+        await api.delete(url)
+      }
       console.log('BookingService: Bookmark updated')
-      return response.data
     } catch (error) {
       console.error('BookingService: Bookmark failed:', error)
       throw error

@@ -75,7 +75,7 @@ public class BookingExpirationService {
             }
             
             if (expiredCount > 0) {
-                log.info("[BOOKING_EXPIRATION] ✅ Expired {} bookings that had no teacher acceptance within {} minutes", 
+                log.info("[BOOKING_EXPIRATION] Expired {} bookings that had no teacher acceptance within {} minutes", 
                         expiredCount, expirationMinutes);
             } else {
                 log.debug("[BOOKING_EXPIRATION] No bookings expired in this run");
@@ -96,8 +96,7 @@ public class BookingExpirationService {
                     booking.getId(), booking.getCreatedAt());
             
             // Update booking status
-            booking.setStatus(BookingStatus.CANCELLED);
-            booking.setState("EXPIRED");
+            booking.setStatus(BookingStatus.EXPIRED);
             booking.setCancellationReason("No teacher accepted within " + expirationMinutes + " minutes");
             booking.setCancelledAt(ZonedDateTime.now());
             booking.setUpdatedAt(ZonedDateTime.now());
@@ -107,7 +106,7 @@ public class BookingExpirationService {
             // Notify student
             notifyStudentOfExpiration(booking);
             
-            log.info("[BOOKING_EXPIRATION] ✅ Successfully expired booking {}", booking.getId());
+            log.info("[BOOKING_EXPIRATION] Successfully expired booking {}", booking.getId());
             
         } catch (Exception e) {
             log.error("[BOOKING_EXPIRATION] Failed to expire booking {}: {}", 
@@ -150,7 +149,7 @@ public class BookingExpirationService {
         ZonedDateTime expirationThreshold = now.minusMinutes(expirationMinutes);
         
         return booking.getCreatedAt().isBefore(expirationThreshold) &&
-               "REQUESTED".equals(booking.getState()) &&
+               booking.getStatus() == BookingStatus.PENDING &&
                booking.getTeacherId() == null;
     }
 

@@ -50,8 +50,14 @@ public class AdminNotificationsController {
     @PostMapping("/broadcast")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, Object>> broadcastNotification(@Valid @RequestBody BroadcastNotificationRequest request) {
-        Map<String, Object> result = notificationService.broadcastNotification(request);
-        return ResponseEntity.ok(result);
+        try {
+            Map<String, Object> result = notificationService.broadcastNotification(request);
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
     }
 
     @GetMapping("/stats")

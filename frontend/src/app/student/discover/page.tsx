@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { useAuthStore } from '@/store/auth'
 import { StudentRoute } from '@/components/route-guard'
 import { BookOpen, Clock, Plus, Loader2, Search, GraduationCap } from 'lucide-react'
 import { contentAPI, studentAPI } from '@/lib/apiClient'
@@ -61,7 +60,6 @@ function DiscoverContent() {
   const [addingToList, setAddingToList] = useState(false)
   
   const router = useRouter()
-  const { user } = useAuthStore()
 
   // Load student profile on mount - auth already verified by StudentRoute
   useEffect(() => {
@@ -208,53 +206,55 @@ function DiscoverContent() {
 
   if (profileLoading) {
     return (
-      <div className="p-6 flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading your personalized content...</p>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="glass-panel p-8 text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-500 mx-auto mb-4" />
+          <p className="text-slate-600 dark:text-slate-200">Loading your personalized content...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="p-6 space-y-6" data-testid="discover-page">
+    <div className="space-y-6" data-testid="discover-page">
         {/* Header with personalized info */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Content Discovery</h1>
-            <p className="text-sm text-gray-500 mt-1">EXPLORE AND DISCOVER NEW TOPICS</p>
-          </div>
-          
-          {/* Student's Board & Grade Badge */}
-          {studentProfile && (
-            <div className="flex items-center space-x-2 bg-gradient-to-r from-emerald-50 to-teal-50 px-4 py-2 rounded-lg border border-emerald-200">
-              <GraduationCap className="h-5 w-5 text-emerald-600" />
-              <div className="text-sm">
-                <span className="font-medium text-emerald-700">
-                  {studentProfile.educationalBoard}
-                </span>
-                <span className="text-emerald-600"> • </span>
-                <span className="text-emerald-600">
-                  {formatGradeDisplay(studentProfile.classLevel || studentProfile.gradeLevel)}
-                </span>
-              </div>
+        <div className="page-header">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-white">Content Discovery</h1>
+              <p className="text-sm text-white/80 mt-1">Explore and discover new topics</p>
             </div>
-          )}
+            
+            {/* Student's Board & Grade Badge */}
+            {studentProfile && (
+              <div className="glass flex items-center gap-3 px-4 py-2 rounded-xl border border-white/30 text-white">
+                <GraduationCap className="h-5 w-5 text-white" />
+                <div className="text-sm">
+                  <span className="font-semibold">
+                    {studentProfile.educationalBoard}
+                  </span>
+                  <span className="text-white/80"> - </span>
+                  <span className="text-white/80">
+                    {formatGradeDisplay(studentProfile.classLevel || studentProfile.gradeLevel)}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Subject and Chapter Selectors (Board/Grade are auto-selected) */}
-        <Card className="rounded-2xl border-gray-100 shadow-sm">
-          <CardHeader className="border-b border-gray-100 bg-gray-50/50">
+        <Card className="glass-panel border border-white/40">
+          <CardHeader className="border-b border-white/20">
             <CardTitle className="text-base flex items-center space-x-2">
-              <Search className="h-5 w-5 text-emerald-600" />
+              <Search className="h-5 w-5 text-emerald-500" />
               <span>Find Your Topic</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
                   Subject
                 </label>
                 <Select 
@@ -262,7 +262,7 @@ function DiscoverContent() {
                   onValueChange={setSelectedSubject}
                   disabled={subjects.length === 0}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="input-modern">
                     <SelectValue placeholder={subjects.length > 0 ? "Select Subject" : "Loading subjects..."} />
                   </SelectTrigger>
                   <SelectContent>
@@ -276,7 +276,7 @@ function DiscoverContent() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
                   Chapter
                 </label>
                 <Select 
@@ -284,7 +284,7 @@ function DiscoverContent() {
                   onValueChange={setSelectedChapter}
                   disabled={!selectedSubject}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="input-modern">
                     <SelectValue placeholder="Select Chapter" />
                   </SelectTrigger>
                   <SelectContent>
@@ -300,8 +300,8 @@ function DiscoverContent() {
 
             {loading && (
               <div className="flex items-center justify-center py-4 mt-4">
-                <Loader2 className="h-6 w-6 animate-spin text-emerald-600" />
-                <span className="ml-2 text-sm text-gray-600">Loading...</span>
+                <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
+                <span className="ml-2 text-sm text-slate-600 dark:text-slate-200">Loading...</span>
               </div>
             )}
           </CardContent>
@@ -310,15 +310,15 @@ function DiscoverContent() {
         {/* Topics List */}
         {topics.length > 0 && (
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
               Available Topics ({topics.length})
             </h2>
             
             {topics.map(topic => (
               <Card 
                 key={topic.id} 
-                className={`rounded-2xl border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer ${
-                  selectedTopic?.id === topic.id ? 'ring-2 ring-emerald-500' : ''
+                className={`glass-panel border border-white/40 hover-lift transition-all cursor-pointer ${
+                  selectedTopic?.id === topic.id ? 'ring-2 ring-emerald-400/70' : ''
                 }`}
                 onClick={() => setSelectedTopic(topic)}
               >
@@ -326,15 +326,15 @@ function DiscoverContent() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">{topic.name}</h3>
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{topic.name}</h3>
                         <Badge className={getDifficultyColor(topic.difficulty)}>
                           {topic.difficulty}
                         </Badge>
                       </div>
                       
-                      <p className="text-sm text-gray-600 mb-3">{topic.description}</p>
+                      <p className="text-sm text-slate-600 dark:text-slate-200 mb-3">{topic.description}</p>
                       
-                      <div className="flex items-center space-x-4 text-sm text-gray-500">
+                      <div className="flex items-center space-x-4 text-sm text-slate-500 dark:text-slate-300">
                         <div className="flex items-center space-x-1">
                           <Clock className="h-4 w-4" />
                           <span>{topic.expectedTimeMins} minutes</span>
@@ -351,7 +351,7 @@ function DiscoverContent() {
                           handleAddToStudyList(topic)
                         }}
                         disabled={addingToList}
-                        className="whitespace-nowrap"
+                        className="btn-outline h-9 px-4 text-sm whitespace-nowrap"
                       >
                         {addingToList ? (
                           <>
@@ -371,7 +371,7 @@ function DiscoverContent() {
                           e.stopPropagation()
                           handleBookClass(topic)
                         }}
-                        className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white whitespace-nowrap"
+                        className="btn-primary h-9 px-4 text-sm whitespace-nowrap"
                       >
                         <BookOpen className="h-4 w-4 mr-1" />
                         Book Class
@@ -386,13 +386,13 @@ function DiscoverContent() {
 
         {/* Empty State - No Subject Selected */}
         {subjects.length > 0 && !selectedSubject && (
-          <Card className="rounded-2xl border-gray-100 shadow-sm">
+          <Card className="glass-panel border border-white/40">
             <CardContent className="p-12 text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
-                <Search className="h-8 w-8 text-white" />
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-500/15 flex items-center justify-center">
+                <Search className="h-8 w-8 text-emerald-500" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Start Exploring</h3>
-              <p className="text-gray-500">
+              <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">Start Exploring</h3>
+              <p className="text-slate-500 dark:text-slate-300">
                 Select a subject and chapter to discover available topics for your grade
               </p>
             </CardContent>
@@ -401,16 +401,16 @@ function DiscoverContent() {
 
         {/* No Subjects Available */}
         {!loading && subjects.length === 0 && studentProfile && (
-          <Card className="rounded-2xl border-gray-100 shadow-sm">
+          <Card className="glass-panel border border-white/40">
             <CardContent className="p-12 text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-100 flex items-center justify-center">
-                <BookOpen className="h-8 w-8 text-amber-600" />
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-500/15 flex items-center justify-center">
+                <BookOpen className="h-8 w-8 text-amber-500" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Content Available Yet</h3>
-              <p className="text-gray-500">
+              <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">No Content Available Yet</h3>
+              <p className="text-slate-500 dark:text-slate-300">
                 Content for {studentProfile.educationalBoard} - {formatGradeDisplay(studentProfile.classLevel || studentProfile.gradeLevel)} is being prepared
               </p>
-              <p className="text-sm text-gray-400 mt-2">
+              <p className="text-sm text-slate-400 mt-2">
                 Please check back later or contact support
               </p>
             </CardContent>
@@ -419,13 +419,13 @@ function DiscoverContent() {
 
         {/* No Topics in Selected Chapter */}
         {selectedChapter && topics.length === 0 && !loading && (
-          <Card className="rounded-2xl border-gray-100 shadow-sm">
+          <Card className="glass-panel border border-white/40">
             <CardContent className="p-12 text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                <BookOpen className="h-8 w-8 text-gray-400" />
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-500/10 flex items-center justify-center">
+                <BookOpen className="h-8 w-8 text-slate-400" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Topics Found</h3>
-              <p className="text-gray-500">
+              <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">No Topics Found</h3>
+              <p className="text-slate-500 dark:text-slate-300">
                 No topics available for the selected chapter yet
               </p>
             </CardContent>

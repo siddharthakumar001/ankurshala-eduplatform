@@ -210,9 +210,9 @@ export default function AdminAnalyticsPage() {
     return (
       <DashboardLayout role="admin">
         <div className="flex items-center justify-center h-64">
-          <div className="text-center">
+          <div className="text-center glass-panel rounded-2xl border border-white/40 px-8 py-6">
             <Activity className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
-            <p className="text-gray-600 dark:text-gray-400">Loading analytics...</p>
+            <p className="text-gray-600 dark:text-gray-300">Loading analytics...</p>
           </div>
         </div>
       </DashboardLayout>
@@ -227,10 +227,10 @@ export default function AdminAnalyticsPage() {
           <div className="absolute bottom-0 left-8 h-64 w-64 rounded-full bg-ankur-accent/10 blur-3xl" />
         </div>
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="page-header flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Analytics</h1>
-            <p className="text-gray-600 dark:text-gray-400">Platform insights and performance metrics</p>
+            <h1 className="text-2xl font-bold text-white">Analytics</h1>
+            <p className="text-white/80">Platform insights and performance metrics</p>
           </div>
           <div className="flex space-x-2">
             <Button 
@@ -329,11 +329,11 @@ export default function AdminAnalyticsPage() {
 
         {/* Analytics Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="content">Content</TabsTrigger>
-            <TabsTrigger value="imports">Imports</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 glass-panel rounded-2xl p-2 border border-white/40 dark:border-white/10">
+            <TabsTrigger value="overview" className="data-[state=active]:bg-white/70 data-[state=active]:text-ankur-secondary dark:data-[state=active]:bg-slate-900/70">Overview</TabsTrigger>
+            <TabsTrigger value="users" className="data-[state=active]:bg-white/70 data-[state=active]:text-ankur-secondary dark:data-[state=active]:bg-slate-900/70">Users</TabsTrigger>
+            <TabsTrigger value="content" className="data-[state=active]:bg-white/70 data-[state=active]:text-ankur-secondary dark:data-[state=active]:bg-slate-900/70">Content</TabsTrigger>
+            <TabsTrigger value="imports" className="data-[state=active]:bg-white/70 data-[state=active]:text-ankur-secondary dark:data-[state=active]:bg-slate-900/70">Imports</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -392,25 +392,25 @@ export default function AdminAnalyticsPage() {
             <Card className="p-6 glass">
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Key Metrics</h3>
-                <div className="overflow-hidden border border-gray-200 dark:border-gray-700 rounded-lg">
-                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-800">
+                <div className="overflow-x-auto">
+                  <table className="data-table">
+                    <thead>
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                           Metric
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                           Current
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                           Active
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                           New This Period
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody className="divide-y divide-white/40 dark:divide-white/10">
                       <tr>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                           Students

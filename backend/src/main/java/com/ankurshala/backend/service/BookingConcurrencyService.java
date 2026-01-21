@@ -81,8 +81,8 @@ public class BookingConcurrencyService {
             
             Booking booking = bookingOpt.get();
             
-            // Step 2: Validate booking is still in PENDING/REQUESTED state
-            if (booking.getStatus() != BookingStatus.PENDING && !booking.getState().equals("REQUESTED")) {
+            // Step 2: Validate booking is still in PENDING state
+            if (booking.getStatus() != BookingStatus.PENDING) {
                 log.warn("[BOOKING_ACCEPT] Booking {} is no longer available. Current state: {}, status: {}", 
                         bookingId, booking.getState(), booking.getStatus());
                 throw new BookingAlreadyAcceptedException(
@@ -103,7 +103,6 @@ public class BookingConcurrencyService {
             // Step 5: Atomically update booking (within the transaction with lock held)
             booking.setTeacherId(teacherId);
             booking.setStatus(BookingStatus.ACCEPTED);
-            booking.setState("ACCEPTED");
             booking.setAcceptedAt(ZonedDateTime.now());
             
             // Find and set teacher entity
@@ -158,7 +157,6 @@ public class BookingConcurrencyService {
         // Update booking (optimistic lock will trigger retry if version mismatch)
         booking.setTeacherId(teacherId);
         booking.setStatus(BookingStatus.ACCEPTED);
-        booking.setState("ACCEPTED");
         booking.setAcceptedAt(ZonedDateTime.now());
         
         Teacher teacher = teacherRepository.findById(teacherId)

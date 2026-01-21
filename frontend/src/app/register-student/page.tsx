@@ -181,16 +181,16 @@ export default function RegisterStudentPage() {
   ];
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex bg-transparent text-foreground">
       {/* Left Brand Section */}
-      <div className="hidden lg:flex lg:w-5/12 bg-gradient-to-br from-ankur-secondary via-ankur-secondary to-ankur-primary/80 p-12 flex-col justify-between relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-5/12 brand-gradient p-12 flex-col justify-between relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-ankur-primary/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-ankur-accent/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
         
         <div className="relative z-10">
           <Link href="/" className="flex items-center gap-3 mb-12">
             <Image src="/ankurshala-logo-small.png" width={56} height={56} alt="Ankurshala" className="rounded-lg" />
-            <span className="text-2xl font-bold text-white">Ankurshala</span>
+            <span className="text-2xl font-display font-semibold text-white">Ankurshala</span>
           </Link>
           
           <h1 className="text-4xl font-bold text-white mb-4">Start Your Learning Journey</h1>
@@ -220,23 +220,23 @@ export default function RegisterStudentPage() {
       </div>
 
       {/* Right Form Section */}
-      <div className="flex-1 flex items-center justify-center p-6 lg:p-12 bg-gray-50">
+      <div className="flex-1 flex items-center justify-center p-6 lg:p-12 bg-transparent">
         <div className="w-full max-w-xl">
           <div className="lg:hidden mb-8 text-center">
             <Link href="/" className="inline-flex items-center gap-2 mb-4">
               <Image src="/ankurshala-logo-small.png" width={40} height={40} alt="Ankurshala" className="rounded-lg" />
-              <span className="text-xl font-bold text-ankur-secondary">Ankurshala</span>
+              <span className="text-xl font-display font-semibold text-ankur-secondary dark:text-white">Ankurshala</span>
             </Link>
           </div>
 
-          <Card className="border-0 shadow-xl bg-white">
+          <Card className="border-0 shadow-xl glass-panel">
             <CardContent className="p-8">
               <div className="text-center mb-8">
                 <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-ankur-primary/10 mb-4">
                   <GraduationCap className="h-7 w-7 text-ankur-primary" />
                 </div>
-                <h2 className="text-2xl font-bold text-ankur-secondary">Student Registration</h2>
-                <p className="text-gray-600 mt-1">Create your account in 4 easy steps</p>
+                <h2 className="text-2xl font-display font-semibold text-ankur-secondary dark:text-white">Student Registration</h2>
+                <p className="text-gray-600 dark:text-gray-300 mt-1 dark:text-gray-300">Create your account in 4 easy steps</p>
               </div>
 
               {/* Progress Steps */}
@@ -273,23 +273,23 @@ export default function RegisterStudentPage() {
                 {currentStep === 1 && (
                   <div className="space-y-4">
                     <div>
-                      <Label htmlFor="name" className="text-gray-700">Full Name</Label>
+                      <Label htmlFor="name" className="text-gray-700 dark:text-gray-200">Full Name</Label>
                       <Input id="name" {...register('name')} placeholder="Enter your full name" className={`mt-1.5 h-11 ${errors.name ? 'border-red-500' : 'border-gray-200'}`} />
                       {errors.name && <p className="text-sm text-red-500 mt-1">{errors.name.message}</p>}
                     </div>
                     <div>
-                      <Label htmlFor="email" className="text-gray-700">Email Address</Label>
+                      <Label htmlFor="email" className="text-gray-700 dark:text-gray-200">Email Address</Label>
                       <Input id="email" type="email" {...register('email')} placeholder="Enter your email" className={`mt-1.5 h-11 ${errors.email ? 'border-red-500' : 'border-gray-200'}`} />
                       {errors.email && <p className="text-sm text-red-500 mt-1">{errors.email.message}</p>}
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="password" className="text-gray-700">Password</Label>
+                        <Label htmlFor="password" className="text-gray-700 dark:text-gray-200">Password</Label>
                         <Input id="password" type="password" {...register('password')} placeholder="Create password" className={`mt-1.5 h-11 ${errors.password ? 'border-red-500' : 'border-gray-200'}`} />
                         {errors.password && <p className="text-sm text-red-500 mt-1">{errors.password.message}</p>}
                       </div>
                       <div>
-                        <Label htmlFor="confirmPassword" className="text-gray-700">Confirm</Label>
+                        <Label htmlFor="confirmPassword" className="text-gray-700 dark:text-gray-200">Confirm</Label>
                         <Input id="confirmPassword" type="password" {...register('confirmPassword')} placeholder="Confirm password" className={`mt-1.5 h-11 ${errors.confirmPassword ? 'border-red-500' : 'border-gray-200'}`} />
                         {errors.confirmPassword && <p className="text-sm text-red-500 mt-1">{errors.confirmPassword.message}</p>}
                       </div>
@@ -302,7 +302,7 @@ export default function RegisterStudentPage() {
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label className="text-gray-700">Educational Board</Label>
+                        <Label className="text-gray-700 dark:text-gray-200">Educational Board</Label>
                         <Select 
                           value={watchedBoard || ''} 
                           onValueChange={(value) => { 
@@ -320,7 +320,7 @@ export default function RegisterStudentPage() {
                         {errors.board && <p className="text-sm text-red-500 mt-1">{errors.board.message}</p>}
                       </div>
                       <div>
-                        <Label className="text-gray-700">Grade/Class</Label>
+                        <Label className="text-gray-700 dark:text-gray-200">Grade/Class</Label>
                         <Select 
                           value={watchedGrade || ''} 
                           onValueChange={(value) => setValue('grade', value, { shouldValidate: true })} 
@@ -338,7 +338,7 @@ export default function RegisterStudentPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label className="text-gray-700">Preferred Language</Label>
+                        <Label className="text-gray-700 dark:text-gray-200">Preferred Language</Label>
                         <Select 
                           value={watchedLanguage || ''} 
                           onValueChange={(value) => setValue('language', value, { shouldValidate: true })}
@@ -353,18 +353,18 @@ export default function RegisterStudentPage() {
                         {errors.language && <p className="text-sm text-red-500 mt-1">{errors.language.message}</p>}
                       </div>
                       <div>
-                        <Label htmlFor="dob" className="text-gray-700">Date of Birth</Label>
+                        <Label htmlFor="dob" className="text-gray-700 dark:text-gray-200">Date of Birth</Label>
                         <Input id="dob" type="date" {...register('dob')} className={`mt-1.5 h-11 ${errors.dob ? 'border-red-500' : 'border-gray-200'}`} />
                         {errors.dob && <p className="text-sm text-red-500 mt-1">{errors.dob.message}</p>}
                       </div>
                     </div>
                     <div>
-                      <Label htmlFor="school" className="text-gray-700">School Name</Label>
+                      <Label htmlFor="school" className="text-gray-700 dark:text-gray-200">School Name</Label>
                       <Input id="school" {...register('school')} placeholder="Enter your school name" className={`mt-1.5 h-11 ${errors.school ? 'border-red-500' : 'border-gray-200'}`} />
                       {errors.school && <p className="text-sm text-red-500 mt-1">{errors.school.message}</p>}
                     </div>
                     <div>
-                      <Label htmlFor="pincode" className="text-gray-700">Pincode</Label>
+                      <Label htmlFor="pincode" className="text-gray-700 dark:text-gray-200">Pincode</Label>
                       <Input id="pincode" {...register('pincode')} placeholder="Enter your pincode" className={`mt-1.5 h-11 ${errors.pincode ? 'border-red-500' : 'border-gray-200'}`} />
                       {errors.pincode && <p className="text-sm text-red-500 mt-1">{errors.pincode.message}</p>}
                     </div>
@@ -379,17 +379,17 @@ export default function RegisterStudentPage() {
                         <Users className="h-6 w-6 text-ankur-primary" />
                         <div>
                           <p className="font-medium text-ankur-secondary">Parent/Guardian Information</p>
-                          <p className="text-sm text-gray-600">We&apos;ll keep them informed about your progress</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-300">We&apos;ll keep them informed about your progress</p>
                         </div>
                       </div>
                     </div>
                     <div>
-                      <Label htmlFor="guardianName" className="text-gray-700">Guardian&apos;s Full Name</Label>
+                      <Label htmlFor="guardianName" className="text-gray-700 dark:text-gray-200">Guardian&apos;s Full Name</Label>
                       <Input id="guardianName" {...register('guardianName')} placeholder="Enter guardian's full name" className={`mt-1.5 h-11 ${errors.guardianName ? 'border-red-500' : 'border-gray-200'}`} />
                       {errors.guardianName && <p className="text-sm text-red-500 mt-1">{errors.guardianName.message}</p>}
                     </div>
                     <div>
-                      <Label htmlFor="guardianContact" className="text-gray-700">Guardian&apos;s Contact Number</Label>
+                      <Label htmlFor="guardianContact" className="text-gray-700 dark:text-gray-200">Guardian&apos;s Contact Number</Label>
                       <Input id="guardianContact" {...register('guardianContact')} placeholder="Enter mobile number" className={`mt-1.5 h-11 ${errors.guardianContact ? 'border-red-500' : 'border-gray-200'}`} />
                       {errors.guardianContact && <p className="text-sm text-red-500 mt-1">{errors.guardianContact.message}</p>}
                     </div>
@@ -400,7 +400,7 @@ export default function RegisterStudentPage() {
                 {currentStep === 4 && (
                   <div className="space-y-4">
                     <div>
-                      <Label className="text-gray-700 mb-3 block">What are your learning goals?</Label>
+                      <Label className="text-gray-700 dark:text-gray-200 mb-3 block">What are your learning goals?</Label>
                       <div className="grid grid-cols-2 gap-3">
                         {learningGoals.map((goal) => {
                           const isChecked = watchedGoals.includes(goal);
@@ -417,7 +417,7 @@ export default function RegisterStudentPage() {
                                 onChange={(e) => handleGoalChange(goal, e.target.checked)}
                                 className="h-4 w-4 rounded border-gray-300 text-ankur-primary focus:ring-ankur-primary"
                               />
-                              <span className="text-sm text-gray-700">{goal}</span>
+                              <span className="text-sm text-gray-700 dark:text-gray-200">{goal}</span>
                             </label>
                           );
                         })}
@@ -435,7 +435,7 @@ export default function RegisterStudentPage() {
                         onChange={(e) => setValue('acceptTerms', e.target.checked)}
                         className="mt-0.5 h-4 w-4 rounded border-gray-300 text-ankur-primary focus:ring-ankur-primary"
                       />
-                      <span className="text-sm text-gray-600">
+                      <span className="text-sm text-gray-600 dark:text-gray-300">
                         I agree to the <a href="#" className="text-ankur-primary hover:underline font-medium">Terms and Conditions</a> and <a href="#" className="text-ankur-primary hover:underline font-medium">Privacy Policy</a>
                       </span>
                     </label>
@@ -445,7 +445,7 @@ export default function RegisterStudentPage() {
 
                 {/* Navigation */}
                 <div className="flex justify-between pt-4">
-                  <Button type="button" variant="outline" onClick={prevStep} disabled={currentStep === 1} className="border-gray-200 text-gray-600 hover:bg-gray-50">
+                  <Button type="button" variant="outline" onClick={prevStep} disabled={currentStep === 1} className="border-gray-200 text-gray-600 dark:text-gray-300 hover:bg-gray-50">
                     <ArrowLeft className="h-4 w-4 mr-2" />Back
                   </Button>
                   {currentStep < steps.length ? (
@@ -459,12 +459,12 @@ export default function RegisterStudentPage() {
               </form>
 
               <div className="mt-8 pt-6 border-t border-gray-100 text-center">
-                <p className="text-gray-600">Already have an account? <Link href="/login" className="text-ankur-primary font-semibold hover:underline">Sign in</Link></p>
+                <p className="text-gray-600 dark:text-gray-300">Already have an account? <Link href="/login" className="text-ankur-primary font-semibold hover:underline">Sign in</Link></p>
               </div>
             </CardContent>
           </Card>
 
-          <p className="text-center text-gray-500 text-sm mt-6">Looking to teach? <Link href="/register-teacher" className="text-ankur-primary hover:underline">Register as a teacher</Link></p>
+          <p className="text-center text-gray-500 dark:text-gray-400 text-sm mt-6">Looking to teach? <Link href="/register-teacher" className="text-ankur-primary hover:underline">Register as a teacher</Link></p>
         </div>
       </div>
     </div>

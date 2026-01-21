@@ -106,9 +106,9 @@ export default function AdminProfilePage() {
   const renderLoading = () => (
     <DashboardLayout role="admin">
       <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
-          <p className="text-gray-600 dark:text-gray-400">Loading admin profile...</p>
+        <div className="text-center glass-panel rounded-2xl border border-white/40 px-8 py-6">
+          <Loader2 className="h-8 w-8 animate-spin text-ankur-primary mx-auto mb-2" />
+          <p className="text-gray-600 dark:text-gray-300">Loading admin profile...</p>
         </div>
       </div>
     </DashboardLayout>
@@ -117,9 +117,9 @@ export default function AdminProfilePage() {
   const renderError = () => (
     <DashboardLayout role="admin">
       <div className="flex items-center justify-center h-64">
-        <div className="text-center">
+        <div className="text-center glass-panel rounded-2xl border border-red-200/60 dark:border-red-500/30 px-8 py-6 bg-red-50/70 dark:bg-red-500/10">
           <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <p className="text-red-600 dark:text-red-400 mb-4">Failed to load admin profile.</p>
+          <p className="text-red-600 dark:text-red-200 mb-4">Failed to load admin profile.</p>
           <Button variant="outline" onClick={fetchProfile}>
             Try Again
           </Button>
@@ -157,17 +157,17 @@ export default function AdminProfilePage() {
               <div className="absolute -top-20 right-6 h-72 w-72 rounded-full bg-ankur-primary/10 blur-3xl" />
               <div className="absolute bottom-0 left-6 h-64 w-64 rounded-full bg-ankur-accent/10 blur-3xl" />
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Admin Profile</h1>
-              <p className="text-gray-600 dark:text-gray-400">Manage your administrative profile and information.</p>
+            <div className="page-header">
+              <h1 className="text-2xl font-bold text-white">Admin Profile</h1>
+              <p className="text-white/80">Manage your administrative profile and information.</p>
             </div>
 
             {message?.text && (
               <div
-                className={`rounded-lg border p-4 ${
+                className={`rounded-2xl border p-4 ${
                   message.type === 'success'
-                    ? 'bg-green-50 border-green-200 text-green-800'
-                    : 'bg-red-50 border-red-200 text-red-800'
+                    ? 'bg-green-50/70 border-green-200/60 text-green-800 dark:bg-green-900/20 dark:text-green-200 dark:border-green-800'
+                    : 'bg-red-50/70 border-red-200/60 text-red-800 dark:bg-red-500/10 dark:text-red-200 dark:border-red-500/30'
                 }`}
               >
                 {message.text}
@@ -362,7 +362,7 @@ export default function AdminProfilePage() {
                   <CardDescription>Read-only view of administrative permissions.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <pre className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4">
+                  <pre className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap bg-white/70 dark:bg-slate-900/70 border border-white/30 dark:border-white/10 rounded-lg p-4">
                     {permissionsText}
                   </pre>
                 </CardContent>
@@ -370,7 +370,7 @@ export default function AdminProfilePage() {
             )}
 
             <div className="flex justify-end">
-              <Button onClick={updateProfile} disabled={saving}>
+              <Button onClick={updateProfile} disabled={saving} className="btn-primary">
                 {saving ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />

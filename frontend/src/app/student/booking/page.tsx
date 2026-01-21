@@ -55,15 +55,14 @@ function BookingContent() {
   const [selectedTopic, setSelectedTopic] = useState<TopicDetail | null>(null)
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [selectedTime, setSelectedTime] = useState<string>('')
-  const [selectedTeacherId, setSelectedTeacherId] = useState<number | null>(null)
   const [notes, setNotes] = useState<string>('')
+  const [durationMinutes, setDurationMinutes] = useState<number>(60)
   
   // API data
   const [subjects, setSubjects] = useState<SubjectDropdown[]>([])
   const [chapters, setChapters] = useState<ChapterDropdown[]>([])
   const [topics, setTopics] = useState<TopicDropdown[]>([])
   const [bookingQuote, setBookingQuote] = useState<BookingQuote | null>(null)
-  const [availableTeachers, setAvailableTeachers] = useState<any[]>([])
   const [studentGradeId, setStudentGradeId] = useState<number | null>(null)
 
   // Load student profile to get gradeId
@@ -165,8 +164,10 @@ function BookingContent() {
     }
   }
 
+  const buildStartTime = () => `${selectedDate}T${selectedTime}:00`
+
   const handleGetQuote = async () => {
-    if (!selectedTopicId || !selectedDate || !selectedTime || !selectedTeacherId) {
+    if (!selectedTopicId || !selectedDate || !selectedTime || !durationMinutes) {
       setError('Please fill all required fields')
       return
     }
@@ -177,9 +178,9 @@ function BookingContent() {
     try {
       const quote = await bookingService.getQuote({
         topicId: selectedTopicId,
-        date: selectedDate,
-        startTime: selectedTime,
-        teacherId: selectedTeacherId
+        startTime: buildStartTime(),
+        durationMinutes,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
       })
 
       if (!quote.bufferOk) {
@@ -198,7 +199,7 @@ function BookingContent() {
   }
 
   const handleCreateBooking = async () => {
-    if (!selectedTopicId || !selectedDate || !selectedTime || !selectedTeacherId) {
+    if (!selectedTopicId || !selectedDate || !selectedTime || !durationMinutes) {
       setError('Missing required booking information')
       return
     }
@@ -207,12 +208,12 @@ function BookingContent() {
     setError(null)
 
     try {
-      const booking = await bookingService.createBooking({
+      await bookingService.createBooking({
         topicId: selectedTopicId,
-        date: selectedDate,
-        startTime: selectedTime,
-        teacherId: selectedTeacherId,
-        notes: notes || undefined
+        startTime: buildStartTime(),
+        durationMinutes,
+        studentNotes: notes || undefined,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
       })
 
       toast.success('Booking request submitted successfully!')
@@ -250,12 +251,12 @@ function BookingContent() {
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-4xl">
-        <div className="flex items-center justify-between mb-6">
+        <div className="page-header flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Book a Class</h1>
-            <p className="text-gray-600 dark:text-gray-400">Schedule a session with expert teachers</p>
+            <h1 className="text-3xl font-bold text-white">Book a Class</h1>
+            <p className="text-white/80">Schedule a session with expert teachers</p>
           </div>
-          <Badge variant="outline" className="text-blue-600 border-blue-300 dark:bg-blue-900 dark:text-blue-200">
+          <Badge variant="outline" className="border-white/40 text-white">
             Step {step} of 3
           </Badge>
         </div>
@@ -269,7 +270,7 @@ function BookingContent() {
 
         {/* Step 1: Topic & Schedule Selection */}
         {step === 1 && (
-          <Card className="dark:bg-gray-800">
+          <Card className="glass-panel border border-white/30 dark:border-white/10">
             <CardHeader>
               <CardTitle className="flex items-center dark:text-white">
                 <BookOpen className="h-5 w-5 mr-2 text-blue-500" />
@@ -282,12 +283,12 @@ function BookingContent() {
             <CardContent className="space-y-6">
               {/* Topic Selection */}
               {selectedTopic ? (
-                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <div className="p-4 bg-blue-50/70 dark:bg-blue-900/20 rounded-lg border border-blue-100/60 dark:border-blue-900/40">
                   <div className="flex items-start justify-between">
                     <div>
                       <h3 className="font-semibold text-lg dark:text-white">{selectedTopic.title}</h3>
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        {selectedTopic.subjectName} • {selectedTopic.chapterName}
+                        {selectedTopic.subjectName} - {selectedTopic.chapterName}
                       </p>
                       {selectedTopic.summary && (
                         <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">{selectedTopic.summary}</p>
@@ -308,10 +309,10 @@ function BookingContent() {
                   </div>
                 </div>
               ) : (
-                <div className="text-center p-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
+                <div className="text-center p-8 border-2 border-dashed border-white/40 dark:border-white/10 rounded-lg">
                   <BookOpen className="h-12 w-12 mx-auto text-gray-400 mb-3" />
                   <p className="text-gray-600 dark:text-gray-400 mb-4">No topic selected</p>
-                  <Button onClick={() => router.push('/student/discover')} className="dark:bg-blue-600 dark:hover:bg-blue-700">
+                  <Button onClick={() => router.push('/student/discover')} className="btn-primary">
                     Browse Topics
                   </Button>
                 </div>
@@ -322,7 +323,7 @@ function BookingContent() {
                 <>
                   <div>
                     <Label htmlFor="chapter" className="dark:text-gray-300">Chapter *</Label>
-                    <Select onValueChange={handleChapterChange} value={selectedChapterId?.toString()}>
+                    <Select onValueChange={handleChapterChange} value={selectedChapterId?.toString() || ''}>
                       <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                         <SelectValue placeholder="Select a chapter" />
                       </SelectTrigger>
@@ -339,7 +340,7 @@ function BookingContent() {
                   {selectedChapterId && topics.length > 0 && (
                     <div>
                       <Label htmlFor="topic" className="dark:text-gray-300">Topic *</Label>
-                      <Select onValueChange={handleTopicChange} value={selectedTopicId?.toString()}>
+                      <Select onValueChange={handleTopicChange} value={selectedTopicId?.toString() || ''}>
                         <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                           <SelectValue placeholder="Select a topic" />
                         </SelectTrigger>
@@ -369,7 +370,7 @@ function BookingContent() {
                     min={today}
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    className="w-full px-3 py-2 border border-white/40 rounded-md bg-white/70 dark:bg-slate-900/70 dark:border-white/10 dark:text-white"
                     required
                   />
                 </div>
@@ -394,20 +395,22 @@ function BookingContent() {
                 </div>
               </div>
 
-              {/* Teacher ID Selection (temporary - will be replaced with teacher search) */}
               <div>
-                <Label htmlFor="teacherId" className="dark:text-gray-300">Teacher ID *</Label>
-                <input
-                  type="number"
-                  id="teacherId"
-                  value={selectedTeacherId || ''}
-                  onChange={(e) => setSelectedTeacherId(parseInt(e.target.value))}
-                  placeholder="Enter teacher ID"
+                <Label htmlFor="duration" className="dark:text-gray-300">Session Duration *</Label>
+                <select
+                  id="duration"
+                  value={durationMinutes}
+                  onChange={(e) => setDurationMinutes(parseInt(e.target.value))}
                   className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  required
-                />
+                >
+                  <option value={30}>30 minutes</option>
+                  <option value={45}>45 minutes</option>
+                  <option value={60}>60 minutes</option>
+                  <option value={90}>90 minutes</option>
+                  <option value={120}>120 minutes</option>
+                </select>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Temporary: Use teacher ID from teacher search feature
+                  A teacher will be matched based on availability and expertise.
                 </p>
               </div>
 
@@ -427,8 +430,8 @@ function BookingContent() {
               <div className="flex justify-end gap-3 pt-4">
                 <Button
                   onClick={handleGetQuote}
-                  disabled={!selectedTopicId || !selectedDate || !selectedTime || !selectedTeacherId || isLoading}
-                  className="dark:bg-blue-600 dark:hover:bg-blue-700"
+                  disabled={!selectedTopicId || !selectedDate || !selectedTime || !durationMinutes || isLoading}
+                  className="btn-primary"
                 >
                   {isLoading ? (
                     <>
@@ -449,7 +452,7 @@ function BookingContent() {
 
         {/* Step 2: Review & Confirm */}
         {step === 2 && bookingQuote && selectedTopic && (
-          <Card className="dark:bg-gray-800">
+          <Card className="glass-panel border border-white/30 dark:border-white/10">
             <CardHeader>
               <CardTitle className="flex items-center dark:text-white">
                 <CheckCircle className="h-5 w-5 mr-2 text-green-500" />
@@ -462,11 +465,11 @@ function BookingContent() {
             <CardContent className="space-y-6">
               {/* Booking Summary */}
               <div className="space-y-4">
-                <div className="flex items-start justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <div className="flex items-start justify-between p-4 bg-white/70 dark:bg-slate-900/70 rounded-lg border border-white/30 dark:border-white/10">
                   <div>
                     <h3 className="font-semibold text-lg dark:text-white">{selectedTopic.title}</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      {selectedTopic.subjectName} • {selectedTopic.chapterName}
+                      {selectedTopic.subjectName} - {selectedTopic.chapterName}
                     </p>
                   </div>
                 </div>
@@ -478,11 +481,11 @@ function BookingContent() {
                   </div>
                   <div className="flex items-center text-gray-700 dark:text-gray-300">
                     <Clock className="h-4 w-4 mr-2" />
-                    <span>{selectedTime} - {new Date(bookingQuote.endTimeISO).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span>{selectedTime} - {new Date(bookingQuote.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <div className="flex items-center justify-between p-4 bg-blue-50/70 dark:bg-blue-900/20 rounded-lg border border-blue-100/60 dark:border-blue-900/40">
                   <div className="flex items-center text-gray-700 dark:text-gray-300">
                     <DollarSign className="h-5 w-5 mr-2 text-blue-500" />
                     <span className="font-medium">Estimated Price</span>
@@ -493,7 +496,7 @@ function BookingContent() {
                 </div>
 
                 {notes && (
-                  <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                  <div className="p-4 bg-white/70 dark:bg-slate-900/70 rounded-lg border border-white/30 dark:border-white/10">
                     <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Your Notes:</p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">{notes}</p>
                   </div>
@@ -505,7 +508,7 @@ function BookingContent() {
                   variant="outline"
                   onClick={() => setStep(1)}
                   disabled={isLoading}
-                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  className="border-white/40 hover:bg-white/60 dark:hover:bg-slate-900/60"
                 >
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Back
@@ -513,7 +516,7 @@ function BookingContent() {
                 <Button
                   onClick={handleCreateBooking}
                   disabled={isLoading}
-                  className="dark:bg-blue-600 dark:hover:bg-blue-700"
+                  className="btn-primary"
                 >
                   {isLoading ? (
                     <>
@@ -534,7 +537,7 @@ function BookingContent() {
 
         {/* Step 3: Success */}
         {step === 3 && (
-          <Card className="dark:bg-gray-800">
+          <Card className="glass-panel border border-white/30 dark:border-white/10">
             <CardContent className="text-center py-12">
               <CheckCircle className="h-16 w-16 mx-auto text-green-500 mb-4" />
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Booking Request Submitted!</h2>
@@ -545,13 +548,13 @@ function BookingContent() {
                 <Button
                   variant="outline"
                   onClick={() => router.push('/student/dashboard')}
-                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  className="border-white/40 hover:bg-white/60 dark:hover:bg-slate-900/60"
                 >
                   Go to Dashboard
                 </Button>
                 <Button
                   onClick={() => router.push('/student/calendar')}
-                  className="dark:bg-blue-600 dark:hover:bg-blue-700"
+                  className="btn-primary"
                 >
                   View Calendar
                 </Button>

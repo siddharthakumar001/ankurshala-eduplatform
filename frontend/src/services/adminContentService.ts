@@ -158,8 +158,9 @@ export interface CreateGradeRequest {
 }
 
 export interface UpdateGradeRequest {
-  name: string
-  displayName: string
+  name?: string
+  displayName?: string
+  boardId?: number
   active?: boolean
 }
 
@@ -171,7 +172,9 @@ export interface CreateSubjectRequest {
 }
 
 export interface UpdateSubjectRequest {
-  name: string
+  name?: string
+  boardId?: number
+  gradeId?: number
   active?: boolean
 }
 
@@ -184,8 +187,10 @@ export interface CreateChapterRequest {
 }
 
 export interface UpdateChapterRequest {
-  name: string
-  subjectId: number
+  name?: string
+  boardId?: number
+  gradeId?: number
+  subjectId?: number
   active?: boolean
 }
 
@@ -202,13 +207,14 @@ export interface CreateTopicRequest {
 }
 
 export interface UpdateTopicRequest {
-  title: string
+  title?: string
   description?: string
   summary?: string
   expectedTimeMins?: number
-  boardId: number
-  subjectId: number
-  chapterId: number
+  boardId?: number
+  gradeId?: number
+  subjectId?: number
+  chapterId?: number
   active?: boolean
 }
 
@@ -226,9 +232,14 @@ export interface CreateTopicNoteRequest {
 }
 
 export interface UpdateTopicNoteRequest {
-  title: string
-  content: string
+  title?: string
+  content?: string
   attachments?: string
+  topicId?: number
+  boardId?: number
+  gradeId?: number
+  subjectId?: number
+  chapterId?: number
   active?: boolean
 }
 

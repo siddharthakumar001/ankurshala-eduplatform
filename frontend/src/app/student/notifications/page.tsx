@@ -19,11 +19,9 @@ import {
   Settings,
   Smartphone
 } from 'lucide-react'
-import { useAuthStore } from '@/store/auth'
 import { StudentRoute } from '@/components/route-guard'
 import { studentAPI } from '@/lib/apiClient'
 import { toast } from 'sonner'
-import StudentNavigation from '@/components/student-navigation'
 
 interface StudentNotification {
   id: number
@@ -66,7 +64,6 @@ function NotificationsContent() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [markingAsRead, setMarkingAsRead] = useState<number | null>(null)
   
-  const user = useAuthStore((state) => state.user)
   const router = useRouter()
 
   useEffect(() => {
@@ -83,7 +80,7 @@ function NotificationsContent() {
       
       // Fetch unread notifications for count
       const unreadData = await studentAPI.getUnreadNotifications()
-      setUnreadCount(unreadData.length)
+      setUnreadCount(unreadData ?? 0)
       
       // Fetch settings from API (with fallback for new users)
       try {
@@ -201,31 +198,28 @@ function NotificationsContent() {
 
   if (loading) {
     return (
-      <>
-        <StudentNavigation />
-        <div className="min-h-screen bg-gray-50 py-8">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-              <span className="ml-2 text-gray-600">Loading notifications...</span>
+      <div className="min-h-screen bg-transparent py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-center h-64">
+            <div className="glass-panel rounded-2xl border border-white/40 px-6 py-4 flex items-center">
+              <Loader2 className="h-8 w-8 animate-spin text-ankur-primary" />
+              <span className="ml-2 text-gray-600 dark:text-gray-300">Loading notifications...</span>
             </div>
           </div>
         </div>
-      </>
+      </div>
     )
   }
 
   return (
-    <>
-      <StudentNavigation />
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-transparent py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <div className="mb-8">
-            <div className="flex justify-between items-center">
+            <div className="page-header flex justify-between items-center">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">Notifications</h1>
-                <p className="text-gray-600">Stay updated with your learning journey</p>
+                <h1 className="text-3xl font-bold text-white">Notifications</h1>
+                <p className="text-white/80">Stay updated with your learning journey</p>
               </div>
               <div className="flex gap-2">
                 {unreadCount > 0 && (
@@ -253,13 +247,13 @@ function NotificationsContent() {
           {/* Main Content Tabs */}
           <div className="space-y-6">
             {activeTab === 'notifications' && (
-              <Card>
+              <Card className="glass-panel border border-white/40">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Bell className="h-5 w-5 text-blue-600" />
                     Notifications
                     {unreadCount > 0 && (
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                      <Badge variant="outline" className="bg-blue-50/70 text-blue-700 border-blue-200">
                         {unreadCount} unread
                       </Badge>
                     )}
@@ -280,8 +274,8 @@ function NotificationsContent() {
                           key={notification.id}
                           className={`border rounded-lg p-4 cursor-pointer transition-colors ${
                             notification.isRead 
-                              ? 'bg-gray-50 border-gray-200' 
-                              : 'bg-blue-50 border-blue-200'
+                              ? 'bg-white/60 dark:bg-slate-900/60 border-white/40 dark:border-white/10' 
+                              : 'bg-blue-50/70 dark:bg-blue-900/20 border-blue-200/60 dark:border-blue-900/40'
                           }`}
                           onClick={() => handleMarkAsRead(notification.id)}
                         >
@@ -328,7 +322,7 @@ function NotificationsContent() {
             )}
 
             {activeTab === 'settings' && settings && (
-              <Card>
+              <Card className="glass-panel border border-white/40">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Settings className="h-5 w-5 text-gray-600" />
@@ -489,7 +483,7 @@ function NotificationsContent() {
                                 reminderMinutesBeforeSession: parseInt(e.target.value) 
                               })
                             }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 border border-white/40 rounded-md bg-white/70 dark:bg-slate-900/70 dark:border-white/10 dark:text-white focus:outline-none focus:ring-2 focus:ring-ankur-primary/30"
                           >
                             <option value={5}>5 minutes</option>
                             <option value={15}>15 minutes</option>
@@ -514,7 +508,7 @@ function NotificationsContent() {
                                 preferredNotificationTime: e.target.value 
                               })
                             }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 border border-white/40 rounded-md bg-white/70 dark:bg-slate-900/70 dark:border-white/10 dark:text-white focus:outline-none focus:ring-2 focus:ring-ankur-primary/30"
                           />
                         </div>
                       </div>
@@ -524,8 +518,7 @@ function NotificationsContent() {
               </Card>
             )}
           </div>
-        </div>
       </div>
-    </>
+    </div>
   )
 }

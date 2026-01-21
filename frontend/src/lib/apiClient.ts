@@ -217,22 +217,34 @@ export const studentAPI = {
   },
 
   getStudyListSummary: async () => {
-    const response = await protectedAPI.get('/student/study-list/summary')
-    return response.data
+    const [added, inProgress, done] = await Promise.all([
+      protectedAPI.get('/student/study-list/count/ADDED'),
+      protectedAPI.get('/student/study-list/count/IN_PROGRESS'),
+      protectedAPI.get('/student/study-list/count/DONE')
+    ])
+    const addedCount = added.data ?? 0
+    const inProgressCount = inProgress.data ?? 0
+    const doneCount = done.data ?? 0
+    return {
+      added: addedCount,
+      inProgress: inProgressCount,
+      done: doneCount,
+      total: addedCount + inProgressCount + doneCount
+    }
   },
 
-  addToStudyList: async (topicId: number) => {
-    const response = await protectedAPI.post('/student/study-list', { topicId })
+  addToStudyList: async (topicId: number, notes?: string) => {
+    const response = await protectedAPI.post('/student/study-list', { topicId, notes })
     return response.data
   },
 
   updateStudyListStatus: async (id: number, status: string) => {
-    const response = await protectedAPI.put(`/student/study-list/${id}/status`, { status })
+    const response = await protectedAPI.patch(`/student/study-list/${id}`, { status })
     return response.data
   },
 
-  updateStudyListNote: async (id: number, notes: string) => {
-    const response = await protectedAPI.put(`/student/study-list/${id}/note`, { notes })
+  updateStudyListNote: async (id: number, notes: string, status: string) => {
+    const response = await protectedAPI.patch(`/student/study-list/${id}`, { status, notes })
     return response.data
   },
 
@@ -242,14 +254,18 @@ export const studentAPI = {
   },
 
   getTopicProgress: async (topicId: number) => {
-    const response = await protectedAPI.get(`/student/study-list/topic/${topicId}/progress`)
+    const response = await protectedAPI.get(`/student/mastery/topic/${topicId}`)
     return response.data
   },
 
   // Booking Management (13 endpoints)
   getBookings: async (status?: string) => {
-    const params = status ? { status } : {}
-    const response = await protectedAPI.get('/student/bookings', { params })
+    const normalizedStatus = status ? status.toUpperCase() : 'UPCOMING'
+    if (normalizedStatus === 'HISTORY') {
+      const response = await protectedAPI.get('/student/bookings/history')
+      return response.data?.content ?? response.data
+    }
+    const response = await protectedAPI.get('/student/bookings/upcoming')
     return response.data
   },
 
@@ -263,26 +279,16 @@ export const studentAPI = {
     return response.data
   },
 
-  updateBooking: async (id: number, bookingData: any) => {
-    const response = await protectedAPI.put(`/student/bookings/${id}`, bookingData)
-    return response.data
-  },
-
   cancelBooking: async (id: number, reason: string) => {
-    const response = await protectedAPI.post(`/student/bookings/${id}/cancel`, { reason })
+    const response = await protectedAPI.put(`/student/bookings/${id}/cancel`, { reason })
     return response.data
   },
 
   rescheduleBooking: async (id: number, newStartTime: string, newEndTime: string) => {
-    const response = await protectedAPI.post(`/student/bookings/${id}/reschedule`, {
+    const response = await protectedAPI.put(`/student/bookings/${id}/reschedule`, {
       newStartTime,
-      newEndTime
+      newDurationMinutes: Math.max(30, Math.round((new Date(newEndTime).getTime() - new Date(newStartTime).getTime()) / 60000))
     })
-    return response.data
-  },
-
-  confirmBooking: async (id: number) => {
-    const response = await protectedAPI.post(`/student/bookings/${id}/confirm`)
     return response.data
   },
 
@@ -291,30 +297,13 @@ export const studentAPI = {
     return response.data
   },
 
-  getBookingHistory: async () => {
-    const response = await protectedAPI.get('/student/bookings/history')
-    return response.data
-  },
-
-  getPendingBookings: async () => {
-    const response = await protectedAPI.get('/student/bookings/pending')
-    return response.data
-  },
-
-  searchAvailableSlots: async (teacherId: number, date: string) => {
-    const response = await protectedAPI.get('/student/bookings/available-slots', {
-      params: { teacherId, date }
-    })
-    return response.data
-  },
-
-  getBookingsForTopic: async (topicId: number) => {
-    const response = await protectedAPI.get(`/student/bookings/topic/${topicId}`)
+  getBookingHistory: async (page: number = 0, size: number = 20) => {
+    const response = await protectedAPI.get('/student/bookings/history', { params: { page, size } })
     return response.data
   },
 
   addBookingNote: async (id: number, note: string) => {
-    const response = await protectedAPI.post(`/student/bookings/${id}/notes`, { note })
+    const response = await protectedAPI.post(`/student/bookings/${id}/notes`, { content: note })
     return response.data
   },
 
@@ -325,19 +314,23 @@ export const studentAPI = {
   },
 
   getRecentActivity: async () => {
-    const response = await protectedAPI.get('/student/dashboard/activity')
+    const response = await protectedAPI.get('/student/dashboard/stats')
     return response.data
   },
 
   // Notifications (5 endpoints)
   getNotifications: async () => {
     const response = await protectedAPI.get('/student/notifications')
-    return response.data
+    const data = response.data
+    if (Array.isArray(data)) {
+      return data
+    }
+    return data?.content ?? []
   },
 
   getUnreadNotifications: async () => {
-    const response = await protectedAPI.get('/student/notifications/unread')
-    return response.data
+    const response = await protectedAPI.get('/student/notifications/unread-count')
+    return response.data ?? 0
   },
 
   markAsRead: async (id: number) => {
@@ -346,7 +339,7 @@ export const studentAPI = {
   },
 
   markAllAsRead: async () => {
-    const response = await protectedAPI.put('/student/notifications/read-all')
+    const response = await protectedAPI.put('/student/notifications/mark-all-read')
     return response.data
   },
 
@@ -365,82 +358,72 @@ export const studentAPI = {
     return response.data
   },
 
-  // Payment (endpoints exist but not in main flow)
-  getPayments: async () => {
-    const response = await protectedAPI.get('/student/payments')
+  // Payments
+  getPayments: async (page: number = 0, size: number = 20) => {
+    const response = await protectedAPI.get('/student/payments/history', { params: { page, size } })
     return response.data
   },
 
-  getPaymentById: async (id: number) => {
-    const response = await protectedAPI.get(`/student/payments/${id}`)
+  // Session Management
+  joinSession: async (bookingId: number) => {
+    const response = await protectedAPI.post('/student/sessions/join', { bookingId })
     return response.data
   },
 
-  initiatePayment: async (bookingId: number, amount: number) => {
-    const response = await protectedAPI.post('/student/payments/initiate', { bookingId, amount })
+  submitSessionFeedback: async (bookingId: number, feedback: string, rating: number) => {
+    const response = await protectedAPI.post('/student/sessions/feedback', { bookingId, feedback, rating })
     return response.data
   },
 
-  // Session Management (endpoints exist but not in main flow)
-  getSessions: async () => {
-    const response = await protectedAPI.get('/student/sessions')
-    return response.data
-  },
-
-  getSessionById: async (id: number) => {
-    const response = await protectedAPI.get(`/student/sessions/${id}`)
-    return response.data
-  },
-
-  completeSession: async (id: number, feedback: string, rating: number) => {
-    const response = await protectedAPI.post(`/student/sessions/${id}/complete`, { feedback, rating })
+  getSessionStatus: async (bookingId: number) => {
+    const response = await protectedAPI.get(`/student/sessions/${bookingId}/status`)
     return response.data
   },
 
   // Notes Management (AI-generated notes)
   generateNotes: async (topicId: number, format: 'SHORT' | 'LONG' | 'REVISION_SHEET', language: string = 'en', customTitle?: string) => {
     const response = await protectedAPI.post('/student/notes/generate', { topicId, format, language, customTitle })
-    return response.data
+    return response.data?.data ?? response.data
   },
 
   getNotes: async (params?: { topicId?: number; subjectId?: number; format?: string; language?: string; isFavorite?: boolean; search?: string; page?: number; size?: number }) => {
     const response = await protectedAPI.get('/student/notes', { params })
-    return response.data
+    return response.data?.data ?? response.data
   },
 
   getNoteById: async (noteId: number) => {
     const response = await protectedAPI.get(`/student/notes/${noteId}`)
-    return response.data
+    return response.data?.data ?? response.data
   },
 
   getNoteVersions: async (noteId: number) => {
     const response = await protectedAPI.get(`/student/notes/${noteId}/versions`)
-    return response.data
+    return response.data?.data ?? response.data
   },
 
   getNotesStats: async () => {
     const response = await protectedAPI.get('/student/notes/stats')
-    return response.data
+    return response.data?.data ?? response.data
   },
 
   updateNote: async (noteId: number, data: { title?: string; isFavorite?: boolean }) => {
     const response = await protectedAPI.put(`/student/notes/${noteId}`, data)
-    return response.data
+    return response.data?.data ?? response.data
   },
 
   regenerateNote: async (noteId: number, language?: string) => {
     const response = await protectedAPI.post(`/student/notes/${noteId}/regenerate`, { noteId, language })
-    return response.data
+    return response.data?.data ?? response.data
   },
 
   archiveNote: async (noteId: number) => {
     const response = await protectedAPI.delete(`/student/notes/${noteId}`)
-    return response.data
+    return response.data?.data ?? response.data
   },
 
   toggleNoteFavorite: async (noteId: number) => {
     const response = await protectedAPI.post(`/student/notes/${noteId}/favorite`)
-    return response.data
+    return response.data?.data ?? response.data
   },
 
   exportNote: async (noteId: number) => {
@@ -597,15 +580,15 @@ export const studentAPI = {
   },
 
   // AI Tutor Chat
-  sendChatMessage: async (message: string, sessionId?: string, topicId?: number, subjectId?: number) => {
+  sendChatMessage: async (message: string, sessionId?: string, topicId?: number, subjectId?: number, language: string = 'en') => {
     const response = await protectedAPI.post('/student/ai/chat', {
       message,
       sessionId,
       topicId,
       subjectId,
-      language: 'en'
+      language
     })
-    return response.data
+    return response.data?.data ?? response.data
   },
 
   streamChatMessage: async (
@@ -620,8 +603,9 @@ export const studentAPI = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        'Accept': 'text/event-stream'
       },
+      credentials: 'include',
       body: JSON.stringify({
         message,
         sessionId,
@@ -630,6 +614,10 @@ export const studentAPI = {
         language: language || 'en-IN'
       })
     });
+
+    if (!response.ok) {
+      throw new Error(`Stream request failed: ${response.status}`)
+    }
 
     const reader = response.body?.getReader();
     const decoder = new TextDecoder();
@@ -660,12 +648,12 @@ export const studentAPI = {
 
   getAIHealth: async () => {
     const response = await protectedAPI.get('/student/ai/health')
-    return response.data
+    return response.data?.data ?? response.data
   },
 
   getAIUsage: async () => {
     const response = await protectedAPI.get('/student/ai/usage')
-    return response.data
+    return response.data?.data ?? response.data
   },
 
   // Voice AI
@@ -795,6 +783,101 @@ export const teacherAPI = {
 
   deleteQualification: async (id: number) => {
     const response = await protectedAPI.delete(`/teacher/profile/qualifications/${id}`)
+    return response.data
+  },
+
+  // Experiences
+  getExperiences: async () => {
+    const response = await protectedAPI.get('/teacher/profile/experiences')
+    return response.data
+  },
+
+  addExperience: async (experienceData: any) => {
+    const response = await protectedAPI.post('/teacher/profile/experiences', experienceData)
+    return response.data
+  },
+
+  updateExperience: async (id: number, experienceData: any) => {
+    const response = await protectedAPI.put(`/teacher/profile/experiences/${id}`, experienceData)
+    return response.data
+  },
+
+  deleteExperience: async (id: number) => {
+    const response = await protectedAPI.delete(`/teacher/profile/experiences/${id}`)
+    return response.data
+  },
+
+  // Certifications
+  getCertifications: async () => {
+    const response = await protectedAPI.get('/teacher/profile/certifications')
+    return response.data
+  },
+
+  addCertification: async (certificationData: any) => {
+    const response = await protectedAPI.post('/teacher/profile/certifications', certificationData)
+    return response.data
+  },
+
+  updateCertification: async (id: number, certificationData: any) => {
+    const response = await protectedAPI.put(`/teacher/profile/certifications/${id}`, certificationData)
+    return response.data
+  },
+
+  deleteCertification: async (id: number) => {
+    const response = await protectedAPI.delete(`/teacher/profile/certifications/${id}`)
+    return response.data
+  },
+
+  // Documents
+  getDocuments: async () => {
+    const response = await protectedAPI.get('/teacher/profile/documents')
+    return response.data
+  },
+
+  addDocument: async (documentData: any) => {
+    const response = await protectedAPI.post('/teacher/profile/documents', documentData)
+    return response.data
+  },
+
+  updateDocument: async (id: number, documentData: any) => {
+    const response = await protectedAPI.put(`/teacher/profile/documents/${id}`, documentData)
+    return response.data
+  },
+
+  deleteDocument: async (id: number) => {
+    const response = await protectedAPI.delete(`/teacher/profile/documents/${id}`)
+    return response.data
+  },
+
+  // Availability
+  getAvailability: async () => {
+    const response = await protectedAPI.get('/teacher/profile/availability')
+    return response.data
+  },
+
+  updateAvailability: async (availabilityData: any) => {
+    const response = await protectedAPI.put('/teacher/profile/availability', availabilityData)
+    return response.data
+  },
+
+  // Addresses
+  getAddresses: async () => {
+    const response = await protectedAPI.get('/teacher/profile/addresses')
+    return response.data
+  },
+
+  addAddress: async (addressData: any) => {
+    const response = await protectedAPI.post('/teacher/profile/addresses', addressData)
+    return response.data
+  },
+
+  updateAddress: async (id: number, addressData: any) => {
+    const response = await protectedAPI.put(`/teacher/profile/addresses/${id}`, addressData)
+    return response.data
+  },
+
+  deleteAddress: async (id: number) => {
+    const response = await protectedAPI.delete(`/teacher/profile/addresses/${id}`)
     return response.data
   },
 

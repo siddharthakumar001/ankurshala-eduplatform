@@ -17,7 +17,6 @@ import {
   Filter,
   Clock,
   Trash2,
-  ChevronRight,
   Sparkles,
   FileEdit,
   Eye,
@@ -112,7 +111,7 @@ function NotesContent() {
       if (showFavoritesOnly) params.isFavorite = true;
       
       const response = await studentAPI.getNotes(params);
-      setNotes(response.data?.notes || []);
+      setNotes(response?.notes || []);
     } catch (error) {
       console.error('Failed to load notes:', error);
       toast.error('Failed to load notes');
@@ -124,7 +123,7 @@ function NotesContent() {
   const loadStats = async () => {
     try {
       const response = await studentAPI.getNotesStats();
-      setStats(response.data);
+      setStats(response);
     } catch (error) {
       console.error('Failed to load stats:', error);
     }
@@ -134,13 +133,13 @@ function NotesContent() {
     try {
       // For CBSE, we need to get the board first, then grades, then subjects
       const boardsResponse = await contentAPI.getBoards();
-      const cbseBoard = boardsResponse.data?.find((b: any) => b.name === 'CBSE');
+      const cbseBoard = boardsResponse?.find((b: any) => b.name === 'CBSE');
       if (cbseBoard) {
         const gradesResponse = await contentAPI.getGradesByBoard(cbseBoard.id);
         // Get subjects for grade 9-12 (common for CBSE)
-        if (gradesResponse.data?.length > 0) {
-          const subjectsResponse = await contentAPI.getSubjectsByGrade(gradesResponse.data[0].id);
-          setSubjects(subjectsResponse.data || []);
+        if (gradesResponse?.length > 0) {
+          const subjectsResponse = await contentAPI.getSubjectsByGrade(gradesResponse[0].id);
+          setSubjects(subjectsResponse || []);
         }
       }
     } catch (error) {
@@ -151,7 +150,7 @@ function NotesContent() {
   const loadChapters = async (subjectId: number) => {
     try {
       const response = await contentAPI.getChaptersBySubject(subjectId);
-      setChapters(response.data || []);
+      setChapters(response || []);
     } catch (error) {
       console.error('Failed to load chapters:', error);
     }
@@ -160,7 +159,7 @@ function NotesContent() {
   const loadTopics = async (chapterId: number) => {
     try {
       const response = await contentAPI.getTopicsByChapter(chapterId);
-      setTopics(response.data || []);
+      setTopics(response || []);
     } catch (error) {
       console.error('Failed to load topics:', error);
     }
@@ -204,8 +203,8 @@ function NotesContent() {
       loadNotes();
       loadStats();
       // Open the newly generated note
-      if (response.data?.note) {
-        setSelectedNote(response.data.note);
+      if (response?.note) {
+        setSelectedNote(response.note);
       }
     } catch (error: any) {
       console.error('Failed to generate notes:', error);
@@ -265,8 +264,8 @@ function NotesContent() {
       setIsGenerating(true);
       const response = await studentAPI.regenerateNote(noteId);
       toast.success('Notes regenerated successfully!');
-      if (response.data?.note) {
-        setSelectedNote(response.data.note);
+      if (response?.note) {
+        setSelectedNote(response.note);
       }
       loadNotes();
     } catch (error) {
@@ -299,12 +298,10 @@ function NotesContent() {
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
-            <Card key={i} className="animate-pulse">
-              <CardContent className="p-6">
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                <div className="h-8 bg-gray-200 rounded w-1/2"></div>
-              </CardContent>
-            </Card>
+            <div key={i} className="glass-panel p-6">
+              <div className="skeleton h-4 rounded w-3/4 mb-2"></div>
+              <div className="skeleton h-8 rounded w-1/2"></div>
+            </div>
           ))}
         </div>
       </div>
@@ -314,7 +311,7 @@ function NotesContent() {
   return (
     <div className="space-y-6" data-testid="notes-page">
       {/* Header */}
-      <div className="bg-gradient-to-r from-violet-600 to-purple-600 rounded-2xl p-8 text-white shadow-lg">
+      <div className="page-header">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold mb-2 flex items-center gap-3">
@@ -327,7 +324,7 @@ function NotesContent() {
           </div>
           <Button 
             onClick={handleOpenGenerateModal}
-            className="bg-white text-purple-600 hover:bg-purple-50 font-semibold"
+            className="btn-primary"
             data-testid="generate-notes-btn"
           >
             <Plus className="h-5 w-5 mr-2" />
@@ -339,58 +336,58 @@ function NotesContent() {
       {/* Stats Cards */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <Card className="border-gray-100 shadow-sm">
+          <Card className="glass-panel">
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-10 w-10 bg-violet-100 rounded-lg flex items-center justify-center">
-                <FileText className="h-5 w-5 text-violet-600" />
+              <div className="h-10 w-10 bg-emerald-500/10 rounded-lg flex items-center justify-center">
+                <FileText className="h-5 w-5 text-emerald-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalNotes}</p>
-                <p className="text-xs text-gray-500">Total Notes</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.totalNotes}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-300">Total Notes</p>
               </div>
             </CardContent>
           </Card>
-          <Card className="border-gray-100 shadow-sm">
+          <Card className="glass-panel">
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Sparkles className="h-5 w-5 text-blue-600" />
+              <div className="h-10 w-10 bg-sky-500/10 rounded-lg flex items-center justify-center">
+                <Sparkles className="h-5 w-5 text-sky-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">{stats.shortNotes}</p>
-                <p className="text-xs text-gray-500">Quick Notes</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.shortNotes}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-300">Quick Notes</p>
               </div>
             </CardContent>
           </Card>
-          <Card className="border-gray-100 shadow-sm">
+          <Card className="glass-panel">
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                <FileEdit className="h-5 w-5 text-purple-600" />
+              <div className="h-10 w-10 bg-indigo-500/10 rounded-lg flex items-center justify-center">
+                <FileEdit className="h-5 w-5 text-indigo-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">{stats.longNotes}</p>
-                <p className="text-xs text-gray-500">Detailed</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.longNotes}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-300">Detailed</p>
               </div>
             </CardContent>
           </Card>
-          <Card className="border-gray-100 shadow-sm">
+          <Card className="glass-panel">
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-10 w-10 bg-amber-100 rounded-lg flex items-center justify-center">
-                <BookOpen className="h-5 w-5 text-amber-600" />
+              <div className="h-10 w-10 bg-amber-500/10 rounded-lg flex items-center justify-center">
+                <BookOpen className="h-5 w-5 text-amber-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">{stats.revisionSheets}</p>
-                <p className="text-xs text-gray-500">Revision Sheets</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.revisionSheets}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-300">Revision Sheets</p>
               </div>
             </CardContent>
           </Card>
-          <Card className="border-gray-100 shadow-sm">
+          <Card className="glass-panel">
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-10 w-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                <Star className="h-5 w-5 text-yellow-600" />
+              <div className="h-10 w-10 bg-yellow-500/10 rounded-lg flex items-center justify-center">
+                <Star className="h-5 w-5 text-yellow-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">{stats.favoriteNotes}</p>
-                <p className="text-xs text-gray-500">Favorites</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.favoriteNotes}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-300">Favorites</p>
               </div>
             </CardContent>
           </Card>
@@ -398,55 +395,54 @@ function NotesContent() {
       )}
 
       {/* Filters */}
-      <Card className="border-gray-100 shadow-sm">
+      <Card className="glass-panel border border-white/40">
         <CardContent className="p-4">
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex-1 min-w-[200px]">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
                   placeholder="Search notes..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="input-modern pl-10"
                 />
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-gray-500" />
+              <Filter className="h-4 w-4 text-slate-500" />
               <Button
-                variant={selectedFormat === null ? "default" : "outline"}
                 size="sm"
                 onClick={() => setSelectedFormat(null)}
+                className={selectedFormat === null ? 'btn-primary h-9 px-4 text-sm' : 'btn-outline h-9 px-4 text-sm'}
               >
                 All
               </Button>
               <Button
-                variant={selectedFormat === 'SHORT' ? "default" : "outline"}
                 size="sm"
                 onClick={() => setSelectedFormat('SHORT')}
+                className={selectedFormat === 'SHORT' ? 'btn-primary h-9 px-4 text-sm' : 'btn-outline h-9 px-4 text-sm'}
               >
                 Quick
               </Button>
               <Button
-                variant={selectedFormat === 'LONG' ? "default" : "outline"}
                 size="sm"
                 onClick={() => setSelectedFormat('LONG')}
+                className={selectedFormat === 'LONG' ? 'btn-primary h-9 px-4 text-sm' : 'btn-outline h-9 px-4 text-sm'}
               >
                 Detailed
               </Button>
               <Button
-                variant={selectedFormat === 'REVISION_SHEET' ? "default" : "outline"}
                 size="sm"
                 onClick={() => setSelectedFormat('REVISION_SHEET')}
+                className={selectedFormat === 'REVISION_SHEET' ? 'btn-primary h-9 px-4 text-sm' : 'btn-outline h-9 px-4 text-sm'}
               >
                 Revision
               </Button>
             </div>
             <Button
-              variant={showFavoritesOnly ? "default" : "outline"}
-              size="sm"
               onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+              className={showFavoritesOnly ? 'btn-primary h-9 px-4 text-sm' : 'btn-outline h-9 px-4 text-sm'}
             >
               <Star className={`h-4 w-4 mr-1 ${showFavoritesOnly ? 'fill-current' : ''}`} />
               Favorites
@@ -460,11 +456,11 @@ function NotesContent() {
         {/* Notes List */}
         <div className="lg:col-span-1 space-y-4">
           {notes.length === 0 ? (
-            <Card className="border-gray-100 shadow-sm" data-testid="notes-empty-state">
+            <Card className="glass-panel border border-white/40" data-testid="notes-empty-state">
               <CardContent className="p-8 text-center">
-                <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p className="text-gray-500 mb-4">No notes yet</p>
-                <Button onClick={handleOpenGenerateModal}>
+                <FileText className="h-12 w-12 mx-auto mb-4 text-slate-300" />
+                <p className="text-slate-500 dark:text-slate-300 mb-4">No notes yet</p>
+                <Button className="btn-primary" onClick={handleOpenGenerateModal}>
                   <Plus className="h-4 w-4 mr-2" />
                   Generate Your First Notes
                 </Button>
@@ -474,7 +470,7 @@ function NotesContent() {
             notes.map((note) => (
               <Card 
                 key={note.id} 
-                className={`border-gray-100 shadow-sm cursor-pointer hover:shadow-md transition-all ${selectedNote?.id === note.id ? 'ring-2 ring-purple-500' : ''}`}
+                className={`glass-panel border border-white/40 cursor-pointer hover-lift transition-all ${selectedNote?.id === note.id ? 'ring-2 ring-emerald-400/70' : ''}`}
                 onClick={() => setSelectedNote(note)}
                 data-testid={`note-card-${note.id}`}
               >
@@ -488,23 +484,23 @@ function NotesContent() {
                         {note.isFavorite ? (
                           <Star className="h-4 w-4 text-yellow-500 fill-current" />
                         ) : (
-                          <StarOff className="h-4 w-4 text-gray-400 hover:text-yellow-500" />
+                          <StarOff className="h-4 w-4 text-slate-400 hover:text-yellow-500" />
                         )}
                       </button>
                       <button onClick={(e) => handleExportNote(note.id, e)}>
-                        <Download className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                        <Download className="h-4 w-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" />
                       </button>
                       <button onClick={(e) => handleArchiveNote(note.id, e)}>
-                        <Trash2 className="h-4 w-4 text-gray-400 hover:text-red-500" />
+                        <Trash2 className="h-4 w-4 text-slate-400 hover:text-red-500" />
                       </button>
                     </div>
                   </div>
-                  <h3 className="font-semibold text-gray-900 mb-1 line-clamp-2">{note.title}</h3>
-                  <p className="text-sm text-gray-500 mb-2">{note.subjectName} • {note.topicTitle}</p>
+                  <h3 className="font-semibold text-slate-900 dark:text-white mb-1 line-clamp-2">{note.title}</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-300 mb-2">{note.subjectName} / {note.topicTitle}</p>
                   {note.preview && (
-                    <p className="text-xs text-gray-400 line-clamp-2">{note.preview}</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-300 line-clamp-2">{note.preview}</p>
                   )}
-                  <div className="flex items-center justify-between mt-3 text-xs text-gray-400">
+                  <div className="flex items-center justify-between mt-3 text-xs text-slate-400 dark:text-slate-300">
                     <span className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
                       {new Date(note.createdAt).toLocaleDateString()}
@@ -522,8 +518,8 @@ function NotesContent() {
         {/* Note Preview */}
         <div className="lg:col-span-2">
           {selectedNote ? (
-            <Card className="border-gray-100 shadow-sm sticky top-4">
-              <CardHeader className="border-b border-gray-100">
+            <Card className="glass-panel border border-white/40 sticky top-4">
+              <CardHeader className="border-b border-white/20">
                 <div className="flex items-start justify-between">
                   <div>
                     <Badge className={`${formatBadgeColor(selectedNote.format)} mb-2`}>
@@ -531,7 +527,7 @@ function NotesContent() {
                     </Badge>
                     <CardTitle className="text-xl">{selectedNote.title}</CardTitle>
                     <CardDescription>
-                      {selectedNote.subjectName} • {selectedNote.topicTitle}
+                      {selectedNote.subjectName} / {selectedNote.topicTitle}
                     </CardDescription>
                   </div>
                   <div className="flex items-center gap-2">
@@ -540,6 +536,7 @@ function NotesContent() {
                       size="sm"
                       onClick={() => handleRegenerateNote(selectedNote.id)}
                       disabled={isGenerating}
+                      className="btn-outline h-9 px-4 text-sm"
                     >
                       <RefreshCw className={`h-4 w-4 mr-1 ${isGenerating ? 'animate-spin' : ''}`} />
                       Regenerate
@@ -548,6 +545,7 @@ function NotesContent() {
                       variant="ghost"
                       size="sm"
                       onClick={() => setSelectedNote(null)}
+                      className="text-slate-500 hover:text-slate-700 dark:text-slate-300 dark:hover:text-white"
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -555,16 +553,16 @@ function NotesContent() {
                 </div>
               </CardHeader>
               <CardContent className="p-6 max-h-[70vh] overflow-y-auto">
-                <div className="prose prose-sm max-w-none">
+                <div className="prose prose-sm max-w-none dark:prose-invert">
                   <ReactMarkdown>{selectedNote.contentMd || 'Loading...'}</ReactMarkdown>
                 </div>
               </CardContent>
             </Card>
           ) : (
-            <Card className="border-gray-100 shadow-sm">
+            <Card className="glass-panel border border-white/40">
               <CardContent className="p-12 text-center">
-                <Eye className="h-16 w-16 mx-auto mb-4 text-gray-200" />
-                <p className="text-gray-500">Select a note to preview</p>
+                <Eye className="h-16 w-16 mx-auto mb-4 text-slate-300" />
+                <p className="text-slate-500 dark:text-slate-300">Select a note to preview</p>
               </CardContent>
             </Card>
           )}
@@ -573,11 +571,11 @@ function NotesContent() {
 
       {/* Generate Notes Modal */}
       {showGenerateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-lg">
-            <CardHeader className="border-b border-gray-100">
+        <div className="modal-overlay p-4">
+          <Card className="modal-content">
+            <CardHeader className="border-b border-white/20">
               <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-purple-600" />
+                <Sparkles className="h-5 w-5 text-emerald-500" />
                 Generate New Notes
               </CardTitle>
               <CardDescription>
@@ -587,9 +585,9 @@ function NotesContent() {
             <CardContent className="p-6 space-y-4">
               {/* Subject Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Subject</label>
                 <select
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  className="input-modern"
                   value={selectedSubject || ''}
                   onChange={(e) => handleSubjectChange(Number(e.target.value))}
                 >
@@ -603,9 +601,9 @@ function NotesContent() {
               {/* Chapter Selection */}
               {selectedSubject && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Chapter</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Chapter</label>
                   <select
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    className="input-modern"
                     value={selectedChapter || ''}
                     onChange={(e) => handleChapterChange(Number(e.target.value))}
                   >
@@ -620,9 +618,9 @@ function NotesContent() {
               {/* Topic Selection */}
               {selectedChapter && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Topic</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Topic</label>
                   <select
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    className="input-modern"
                     value={selectedTopic || ''}
                     onChange={(e) => setSelectedTopic(Number(e.target.value))}
                   >
@@ -636,56 +634,56 @@ function NotesContent() {
 
               {/* Format Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Notes Format</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">Notes Format</label>
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     className={`p-3 rounded-lg border text-center transition-all ${
                       generateFormat === 'SHORT' 
-                        ? 'border-purple-500 bg-purple-50 text-purple-700' 
-                        : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-[#0F9D58] bg-white/80 text-[#0F9D58]' 
+                        : 'border-white/30 bg-white/50 text-slate-700 dark:text-slate-100 hover:border-white/60'
                     }`}
                     onClick={() => setGenerateFormat('SHORT')}
                   >
                     <Sparkles className="h-5 w-5 mx-auto mb-1" />
                     <span className="text-sm font-medium">Quick</span>
-                    <p className="text-xs text-gray-500">5 min read</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-300">5 min read</p>
                   </button>
                   <button
                     className={`p-3 rounded-lg border text-center transition-all ${
                       generateFormat === 'LONG' 
-                        ? 'border-purple-500 bg-purple-50 text-purple-700' 
-                        : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-[#0F9D58] bg-white/80 text-[#0F9D58]' 
+                        : 'border-white/30 bg-white/50 text-slate-700 dark:text-slate-100 hover:border-white/60'
                     }`}
                     onClick={() => setGenerateFormat('LONG')}
                   >
                     <FileEdit className="h-5 w-5 mx-auto mb-1" />
                     <span className="text-sm font-medium">Detailed</span>
-                    <p className="text-xs text-gray-500">Deep study</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-300">Deep study</p>
                   </button>
                   <button
                     className={`p-3 rounded-lg border text-center transition-all ${
                       generateFormat === 'REVISION_SHEET' 
-                        ? 'border-purple-500 bg-purple-50 text-purple-700' 
-                        : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-[#0F9D58] bg-white/80 text-[#0F9D58]' 
+                        : 'border-white/30 bg-white/50 text-slate-700 dark:text-slate-100 hover:border-white/60'
                     }`}
                     onClick={() => setGenerateFormat('REVISION_SHEET')}
                   >
                     <BookOpen className="h-5 w-5 mx-auto mb-1" />
                     <span className="text-sm font-medium">Revision</span>
-                    <p className="text-xs text-gray-500">Exam prep</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-300">Exam prep</p>
                   </button>
                 </div>
               </div>
 
               {/* Language Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Language</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">Language</label>
                 <div className="flex gap-2">
                   <button
                     className={`flex-1 py-2 rounded-lg border transition-all ${
                       generateLanguage === 'en' 
-                        ? 'border-purple-500 bg-purple-50 text-purple-700' 
-                        : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-[#0F9D58] bg-white/80 text-[#0F9D58]' 
+                        : 'border-white/30 bg-white/50 text-slate-700 dark:text-slate-100 hover:border-white/60'
                     }`}
                     onClick={() => setGenerateLanguage('en')}
                   >
@@ -694,24 +692,24 @@ function NotesContent() {
                   <button
                     className={`flex-1 py-2 rounded-lg border transition-all ${
                       generateLanguage === 'hi' 
-                        ? 'border-purple-500 bg-purple-50 text-purple-700' 
-                        : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-[#0F9D58] bg-white/80 text-[#0F9D58]' 
+                        : 'border-white/30 bg-white/50 text-slate-700 dark:text-slate-100 hover:border-white/60'
                     }`}
                     onClick={() => setGenerateLanguage('hi')}
                   >
-                    हिंदी
+                    Hindi
                   </button>
                 </div>
               </div>
             </CardContent>
-            <div className="p-4 border-t border-gray-100 flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowGenerateModal(false)}>
+            <div className="p-4 border-t border-white/20 flex justify-end gap-2">
+              <Button variant="outline" className="btn-outline" onClick={() => setShowGenerateModal(false)}>
                 Cancel
               </Button>
               <Button 
                 onClick={handleGenerateNotes}
                 disabled={!selectedTopic || isGenerating}
-                className="bg-purple-600 hover:bg-purple-700"
+                className="btn-primary"
               >
                 {isGenerating ? (
                   <>

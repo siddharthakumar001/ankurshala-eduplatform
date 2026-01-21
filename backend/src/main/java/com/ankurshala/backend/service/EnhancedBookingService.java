@@ -45,6 +45,8 @@ public class EnhancedBookingService {
 
     @Autowired
     private TeacherAvailabilityRepository teacherAvailabilityRepository;
+    @Autowired
+    private TeacherWeeklyAvailabilityRepository teacherWeeklyAvailabilityRepository;
 
     @Autowired
     private KafkaTemplate<String, String> kafkaTemplate;
@@ -155,7 +157,7 @@ public class EnhancedBookingService {
             booking.setPriceMinCents(pricingRule.getHourlyRate().multiply(BigDecimal.valueOf(topic.getExpectedMinutes()).divide(BigDecimal.valueOf(60), 2, java.math.RoundingMode.HALF_UP)).intValue());
             booking.setPriceMaxCents(booking.getPriceMinCents() + 150);
             booking.setAppliedRuleId(pricingRule.getId());
-            booking.setState("REQUESTED");
+            booking.setStatus(BookingStatus.PENDING);
             booking.setNotes(request.getNotes());
 
             Booking savedBooking = bookingRepository.save(booking);
@@ -205,7 +207,7 @@ public class EnhancedBookingService {
                             org.springframework.http.HttpStatus.NOT_FOUND, "BOOKING_NOT_FOUND"));
 
             // Check if booking is still available
-            if (!"REQUESTED".equals(booking.getState())) {
+            if (booking.getStatus() != BookingStatus.PENDING) {
                 throw new BusinessException("Booking is no longer available", 
                         org.springframework.http.HttpStatus.CONFLICT, "BOOKING_UNAVAILABLE");
             }
@@ -276,7 +278,7 @@ public class EnhancedBookingService {
                             org.springframework.http.HttpStatus.NOT_FOUND, "BOOKING_NOT_FOUND"));
 
             // Check if booking is still available
-            if (!"REQUESTED".equals(booking.getState())) {
+            if (booking.getStatus() != BookingStatus.PENDING) {
                 throw new BusinessException("Booking is no longer available", 
                         org.springframework.http.HttpStatus.CONFLICT, "BOOKING_UNAVAILABLE");
             }
@@ -359,21 +361,34 @@ public class EnhancedBookingService {
 
         // Default pricing
         PricingRule defaultRule = new PricingRule();
-        defaultRule.setHourlyRate(java.math.BigDecimal.valueOf(500)); // Default ₹500/hour
+        defaultRule.setHourlyRate(java.math.BigDecimal.valueOf(500)); // Default INR 500/hour
         return defaultRule;
     }
 
     private boolean isTeacherAvailable(Long teacherId, ZonedDateTime startTime, ZonedDateTime endTime) {
-        // Check teacher availability slots
-        List<TeacherAvailability> availability = teacherAvailabilityRepository.findByTeacher_IdAndActive(teacherId, true);
-        
-        for (TeacherAvailability slot : availability) {
-            if (slot.getWeekday() == startTime.getDayOfWeek().getValue() % 7) {
-                // Check if time falls within slot
-                if (isTimeInSlot(startTime.toLocalTime(), endTime.toLocalTime(), 
-                        slot.getStartTime(), slot.getEndTime())) {
+        int dayOfWeek = startTime.getDayOfWeek().getValue() % 7;
+        List<TeacherWeeklyAvailability> weeklyAvailability = teacherWeeklyAvailabilityRepository
+                .findByTeacherIdAndIsAvailableTrue(teacherId);
+
+        if (!weeklyAvailability.isEmpty()) {
+            for (TeacherWeeklyAvailability slot : weeklyAvailability) {
+                if (slot.getDayOfWeek() == dayOfWeek &&
+                        isTimeInSlot(startTime.toLocalTime(), endTime.toLocalTime(),
+                                slot.getStartTime(), slot.getEndTime())) {
                     return true;
                 }
+            }
+            return false;
+        }
+
+        List<TeacherAvailability> legacyAvailability = teacherAvailabilityRepository
+                .findByTeacher_IdAndActive(teacherId, true);
+
+        for (TeacherAvailability slot : legacyAvailability) {
+            if (slot.getWeekday() == dayOfWeek &&
+                    isTimeInSlot(startTime.toLocalTime(), endTime.toLocalTime(),
+                            slot.getStartTime(), slot.getEndTime())) {
+                return true;
             }
         }
         return false;
@@ -389,12 +404,12 @@ public class EnhancedBookingService {
         long hoursUntilStart = ChronoUnit.HOURS.between(now, booking.getStartTs());
 
         if ("CANCEL".equals(action)) {
-            if (hoursUntilStart < 2) return 50; // ₹50 cancellation fee within 2 hours
-            if (hoursUntilStart < 24) return 25; // ₹25 cancellation fee within 24 hours
+            if (hoursUntilStart < 2) return 50; // INR 50 cancellation fee within 2 hours
+            if (hoursUntilStart < 24) return 25; // INR 25 cancellation fee within 24 hours
             return 0; // No fee if cancelled more than 24 hours in advance
         } else if ("RESCHEDULE".equals(action)) {
-            if (hoursUntilStart < 2) return 100; // ₹100 reschedule fee within 2 hours
-            if (hoursUntilStart < 24) return 50; // ₹50 reschedule fee within 24 hours
+            if (hoursUntilStart < 2) return 100; // INR 100 reschedule fee within 2 hours
+            if (hoursUntilStart < 24) return 50; // INR 50 reschedule fee within 24 hours
             return 0; // No fee if rescheduled more than 24 hours in advance
         }
 

@@ -82,7 +82,7 @@ const teacherSignupSchema = z.object({
   yearsExperience: z.number().min(0, 'Years of experience must be a positive number'),
   languages: z.array(z.string()).min(1, 'Please select at least one language'),
   categories: z.array(z.string()).min(1, 'Please select at least one category'),
-  hourlyRate: z.number().min(100, 'Hourly rate must be at least ₹100'),
+  hourlyRate: z.number().min(100, 'Hourly rate must be at least INR 100'),
   subjectExpertise: z.array(z.object({
     board: z.string(),
     grade: z.string(),
@@ -255,9 +255,9 @@ export default function RegisterTeacherPage() {
   ];
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex bg-transparent text-foreground">
       {/* Left Brand Section */}
-      <div className="hidden lg:flex lg:w-5/12 bg-gradient-to-br from-ankur-secondary via-[#1a3a5f] to-ankur-primary/80 p-12 flex-col justify-between relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-5/12 brand-gradient p-12 flex-col justify-between relative overflow-hidden">
         {/* Decorative elements */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-ankur-primary/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-ankur-accent/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
@@ -265,7 +265,7 @@ export default function RegisterTeacherPage() {
         <div className="relative z-10">
           <Link href="/" className="flex items-center gap-3 mb-12">
             <Image src="/ankurshala-logo-small.png" width={56} height={56} alt="Ankurshala" className="rounded-lg" />
-            <span className="text-2xl font-bold text-white">Ankurshala</span>
+            <span className="text-2xl font-display font-semibold text-white">Ankurshala</span>
           </Link>
           
           <h1 className="text-4xl font-bold text-white mb-4">
@@ -297,24 +297,24 @@ export default function RegisterTeacherPage() {
       </div>
 
       {/* Right Form Section */}
-      <div className="flex-1 flex items-center justify-center p-6 lg:p-12 bg-gray-50 overflow-y-auto">
+      <div className="flex-1 flex items-center justify-center p-6 lg:p-12 bg-transparent overflow-y-auto">
         <div className="w-full max-w-2xl">
           {/* Mobile header */}
           <div className="lg:hidden mb-8 text-center">
             <Link href="/" className="inline-flex items-center gap-2 mb-4">
               <Image src="/ankurshala-logo-small.png" width={40} height={40} alt="Ankurshala" className="rounded-lg" />
-              <span className="text-xl font-bold text-ankur-secondary">Ankurshala</span>
+              <span className="text-xl font-display font-semibold text-ankur-secondary dark:text-white">Ankurshala</span>
             </Link>
           </div>
 
-          <Card className="border-0 shadow-xl bg-white">
+          <Card className="border-0 shadow-xl glass-panel">
             <CardContent className="p-8">
               <div className="text-center mb-8">
                 <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-ankur-secondary/10 mb-4">
                   <Briefcase className="h-7 w-7 text-ankur-secondary" />
                 </div>
-                <h2 className="text-2xl font-bold text-ankur-secondary">Teacher Registration</h2>
-                <p className="text-gray-600 mt-1">Create your teaching profile in 4 steps</p>
+                <h2 className="text-2xl font-display font-semibold text-ankur-secondary dark:text-white">Teacher Registration</h2>
+                <p className="text-gray-600 dark:text-gray-300 mt-1 dark:text-gray-300">Create your teaching profile in 4 steps</p>
               </div>
 
               {/* Progress Steps */}
@@ -364,7 +364,7 @@ export default function RegisterTeacherPage() {
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="name" className="text-gray-700">Full Name</Label>
+                        <Label htmlFor="name" className="text-gray-700 dark:text-gray-200">Full Name</Label>
                         <Input
                           id="name"
                           {...register('name')}
@@ -377,7 +377,7 @@ export default function RegisterTeacherPage() {
                       </div>
 
                       <div>
-                        <Label htmlFor="email" className="text-gray-700">Email Address</Label>
+                        <Label htmlFor="email" className="text-gray-700 dark:text-gray-200">Email Address</Label>
                         <Input
                           id="email"
                           type="email"
@@ -393,7 +393,7 @@ export default function RegisterTeacherPage() {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="password" className="text-gray-700">Password</Label>
+                        <Label htmlFor="password" className="text-gray-700 dark:text-gray-200">Password</Label>
                         <Input
                           id="password"
                           type="password"
@@ -407,7 +407,7 @@ export default function RegisterTeacherPage() {
                       </div>
 
                       <div>
-                        <Label htmlFor="confirmPassword" className="text-gray-700">Confirm Password</Label>
+                        <Label htmlFor="confirmPassword" className="text-gray-700 dark:text-gray-200">Confirm Password</Label>
                         <Input
                           id="confirmPassword"
                           type="password"
@@ -422,7 +422,7 @@ export default function RegisterTeacherPage() {
                     </div>
 
                     <div>
-                      <Label htmlFor="bio" className="text-gray-700">Bio / About You</Label>
+                      <Label htmlFor="bio" className="text-gray-700 dark:text-gray-200">Bio / About You</Label>
                       <Textarea
                         id="bio"
                         {...register('bio')}
@@ -436,7 +436,7 @@ export default function RegisterTeacherPage() {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="yearsExperience" className="text-gray-700">Years of Experience</Label>
+                        <Label htmlFor="yearsExperience" className="text-gray-700 dark:text-gray-200">Years of Experience</Label>
                         <Input
                           id="yearsExperience"
                           type="number"
@@ -450,7 +450,7 @@ export default function RegisterTeacherPage() {
                       </div>
 
                       <div>
-                        <Label htmlFor="hourlyRate" className="text-gray-700">Hourly Rate (₹)</Label>
+                        <Label htmlFor="hourlyRate" className="text-gray-700 dark:text-gray-200">Hourly Rate (INR)</Label>
                         <Input
                           id="hourlyRate"
                           type="number"
@@ -465,7 +465,7 @@ export default function RegisterTeacherPage() {
                     </div>
 
                     <div>
-                      <Label className="text-gray-700 mb-2 block">Languages You Can Teach In</Label>
+                      <Label className="text-gray-700 dark:text-gray-200 mb-2 block">Languages You Can Teach In</Label>
                       <div className="flex flex-wrap gap-2">
                         {languages.map((language) => (
                           <div 
@@ -474,7 +474,7 @@ export default function RegisterTeacherPage() {
                             className={`px-4 py-2 rounded-full text-sm cursor-pointer transition-all border ${
                               watchedLanguages.includes(language)
                                 ? 'bg-ankur-secondary text-white border-ankur-secondary'
-                                : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-ankur-secondary'
+                                : 'bg-gray-50 text-gray-600 dark:text-gray-300 border-gray-200 hover:border-ankur-secondary'
                             }`}
                           >
                             {language}
@@ -487,7 +487,7 @@ export default function RegisterTeacherPage() {
                     </div>
 
                     <div>
-                      <Label className="text-gray-700 mb-2 block">Teaching Categories</Label>
+                      <Label className="text-gray-700 dark:text-gray-200 mb-2 block">Teaching Categories</Label>
                       <div className="flex flex-wrap gap-2">
                         {categories.map((category) => (
                           <div 
@@ -496,7 +496,7 @@ export default function RegisterTeacherPage() {
                             className={`px-4 py-2 rounded-full text-sm cursor-pointer transition-all border ${
                               watchedCategories.includes(category)
                                 ? 'bg-ankur-primary text-white border-ankur-primary'
-                                : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-ankur-primary'
+                                : 'bg-gray-50 text-gray-600 dark:text-gray-300 border-gray-200 hover:border-ankur-primary'
                             }`}
                           >
                             {category}
@@ -527,7 +527,7 @@ export default function RegisterTeacherPage() {
                     {watchedSubjectExpertise.map((expertise, index) => (
                       <div key={index} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
                         <div className="flex items-center justify-between mb-4">
-                          <span className="font-medium text-gray-700">Subject {index + 1}</span>
+                          <span className="font-medium text-gray-700 dark:text-gray-200">Subject {index + 1}</span>
                           {watchedSubjectExpertise.length > 1 && (
                             <Button
                               type="button"
@@ -543,7 +543,7 @@ export default function RegisterTeacherPage() {
 
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <Label className="text-gray-600 text-sm">Board</Label>
+                            <Label className="text-gray-600 dark:text-gray-300 text-sm">Board</Label>
                             <Select onValueChange={(value) => updateSubjectExpertise(index, 'board', value)}>
                               <SelectTrigger className="mt-1 h-10 border-gray-200">
                                 <SelectValue placeholder="Select board" />
@@ -557,7 +557,7 @@ export default function RegisterTeacherPage() {
                           </div>
 
                           <div>
-                            <Label className="text-gray-600 text-sm">Grade</Label>
+                            <Label className="text-gray-600 dark:text-gray-300 text-sm">Grade</Label>
                             <Select onValueChange={(value) => updateSubjectExpertise(index, 'grade', value)}>
                               <SelectTrigger className="mt-1 h-10 border-gray-200">
                                 <SelectValue placeholder="Select grade" />
@@ -571,7 +571,7 @@ export default function RegisterTeacherPage() {
                           </div>
 
                           <div>
-                            <Label className="text-gray-600 text-sm">Subject</Label>
+                            <Label className="text-gray-600 dark:text-gray-300 text-sm">Subject</Label>
                             <Select onValueChange={(value) => updateSubjectExpertise(index, 'subjectId', parseInt(value))}>
                               <SelectTrigger className="mt-1 h-10 border-gray-200">
                                 <SelectValue placeholder="Select subject" />
@@ -585,7 +585,7 @@ export default function RegisterTeacherPage() {
                           </div>
 
                           <div>
-                            <Label className="text-gray-600 text-sm">Language</Label>
+                            <Label className="text-gray-600 dark:text-gray-300 text-sm">Language</Label>
                             <Select onValueChange={(value) => updateSubjectExpertise(index, 'language', value)}>
                               <SelectTrigger className="mt-1 h-10 border-gray-200">
                                 <SelectValue placeholder="Select language" />
@@ -624,7 +624,7 @@ export default function RegisterTeacherPage() {
                     {watchedAvailability.map((slot, index) => (
                       <div key={index} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
                         <div className="flex items-center justify-between mb-4">
-                          <span className="font-medium text-gray-700">Time Slot {index + 1}</span>
+                          <span className="font-medium text-gray-700 dark:text-gray-200">Time Slot {index + 1}</span>
                           {watchedAvailability.length > 1 && (
                             <Button
                               type="button"
@@ -640,7 +640,7 @@ export default function RegisterTeacherPage() {
 
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                           <div>
-                            <Label className="text-gray-600 text-sm">Day</Label>
+                            <Label className="text-gray-600 dark:text-gray-300 text-sm">Day</Label>
                             <Select onValueChange={(value) => updateAvailability(index, 'weekday', parseInt(value))}>
                               <SelectTrigger className="mt-1 h-10 border-gray-200">
                                 <SelectValue placeholder="Select day" />
@@ -654,7 +654,7 @@ export default function RegisterTeacherPage() {
                           </div>
 
                           <div>
-                            <Label className="text-gray-600 text-sm">Start Time</Label>
+                            <Label className="text-gray-600 dark:text-gray-300 text-sm">Start Time</Label>
                             <Input
                               type="time"
                               value={slot.startTime}
@@ -664,7 +664,7 @@ export default function RegisterTeacherPage() {
                           </div>
 
                           <div>
-                            <Label className="text-gray-600 text-sm">End Time</Label>
+                            <Label className="text-gray-600 dark:text-gray-300 text-sm">End Time</Label>
                             <Input
                               type="time"
                               value={slot.endTime}
@@ -674,7 +674,7 @@ export default function RegisterTeacherPage() {
                           </div>
 
                           <div>
-                            <Label className="text-gray-600 text-sm">Timezone</Label>
+                            <Label className="text-gray-600 dark:text-gray-300 text-sm">Timezone</Label>
                             <Select onValueChange={(value) => updateAvailability(index, 'timezone', value)}>
                               <SelectTrigger className="mt-1 h-10 border-gray-200">
                                 <SelectValue placeholder="Select timezone" />
@@ -704,36 +704,36 @@ export default function RegisterTeacherPage() {
                       <h4 className="font-semibold text-ankur-secondary text-lg">Profile Summary</h4>
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
-                          <span className="text-gray-500">Name:</span>
-                          <p className="font-medium text-gray-700">{watch('name')}</p>
+                          <span className="text-gray-500 dark:text-gray-400">Name:</span>
+                          <p className="font-medium text-gray-700 dark:text-gray-200">{watch('name')}</p>
                         </div>
                         <div>
-                          <span className="text-gray-500">Email:</span>
-                          <p className="font-medium text-gray-700">{watch('email')}</p>
+                          <span className="text-gray-500 dark:text-gray-400">Email:</span>
+                          <p className="font-medium text-gray-700 dark:text-gray-200">{watch('email')}</p>
                         </div>
                         <div>
-                          <span className="text-gray-500">Experience:</span>
-                          <p className="font-medium text-gray-700">{watch('yearsExperience')} years</p>
+                          <span className="text-gray-500 dark:text-gray-400">Experience:</span>
+                          <p className="font-medium text-gray-700 dark:text-gray-200">{watch('yearsExperience')} years</p>
                         </div>
                         <div>
-                          <span className="text-gray-500">Hourly Rate:</span>
-                          <p className="font-medium text-gray-700">₹{watch('hourlyRate')}</p>
+                          <span className="text-gray-500 dark:text-gray-400">Hourly Rate:</span>
+                          <p className="font-medium text-gray-700 dark:text-gray-200">INR {watch('hourlyRate')}</p>
                         </div>
                         <div className="col-span-2">
-                          <span className="text-gray-500">Languages:</span>
-                          <p className="font-medium text-gray-700">{watchedLanguages.join(', ') || 'None selected'}</p>
+                          <span className="text-gray-500 dark:text-gray-400">Languages:</span>
+                          <p className="font-medium text-gray-700 dark:text-gray-200">{watchedLanguages.join(', ') || 'None selected'}</p>
                         </div>
                         <div className="col-span-2">
-                          <span className="text-gray-500">Categories:</span>
-                          <p className="font-medium text-gray-700">{watchedCategories.join(', ') || 'None selected'}</p>
+                          <span className="text-gray-500 dark:text-gray-400">Categories:</span>
+                          <p className="font-medium text-gray-700 dark:text-gray-200">{watchedCategories.join(', ') || 'None selected'}</p>
                         </div>
                         <div>
-                          <span className="text-gray-500">Subjects:</span>
-                          <p className="font-medium text-gray-700">{watchedSubjectExpertise.length} subject(s)</p>
+                          <span className="text-gray-500 dark:text-gray-400">Subjects:</span>
+                          <p className="font-medium text-gray-700 dark:text-gray-200">{watchedSubjectExpertise.length} subject(s)</p>
                         </div>
                         <div>
-                          <span className="text-gray-500">Availability:</span>
-                          <p className="font-medium text-gray-700">{watchedAvailability.length} time slot(s)</p>
+                          <span className="text-gray-500 dark:text-gray-400">Availability:</span>
+                          <p className="font-medium text-gray-700 dark:text-gray-200">{watchedAvailability.length} time slot(s)</p>
                         </div>
                       </div>
                     </div>
@@ -747,7 +747,7 @@ export default function RegisterTeacherPage() {
                         onCheckedChange={(checked) => setValue('acceptTerms', checked as boolean)}
                         className="mt-0.5"
                       />
-                      <Label htmlFor="acceptTerms" className="text-sm text-gray-600 cursor-pointer">
+                      <Label htmlFor="acceptTerms" className="text-sm text-gray-600 dark:text-gray-300 cursor-pointer">
                         I agree to the{' '}
                         <a href="#" className="text-ankur-secondary hover:underline font-medium">Terms and Conditions</a>
                         {' '}and{' '}
@@ -767,7 +767,7 @@ export default function RegisterTeacherPage() {
                     variant="outline"
                     onClick={prevStep}
                     disabled={currentStep === 1}
-                    className="border-gray-200 text-gray-600 hover:bg-gray-50"
+                    className="border-gray-200 text-gray-600 dark:text-gray-300 hover:bg-gray-50"
                   >
                     <ArrowLeft className="h-4 w-4 mr-2" />
                     Back
@@ -802,8 +802,8 @@ export default function RegisterTeacherPage() {
               </form>
 
               <div className="mt-8 pt-6 border-t border-gray-100 text-center">
-                <p className="text-gray-600">
-                  Already have an account?{' '}
+                <p className="text-gray-600 dark:text-gray-300">
+                  Already have an account? {' '}
                   <Link href="/login" className="text-ankur-secondary font-semibold hover:underline">
                     Sign in
                   </Link>
@@ -812,8 +812,8 @@ export default function RegisterTeacherPage() {
             </CardContent>
           </Card>
 
-          <p className="text-center text-gray-500 text-sm mt-6">
-            Looking to learn?{' '}
+          <p className="text-center text-gray-500 dark:text-gray-400 text-sm mt-6">
+            Looking to learn? {' '}
             <Link href="/register-student" className="text-ankur-primary hover:underline">
               Register as a student
             </Link>

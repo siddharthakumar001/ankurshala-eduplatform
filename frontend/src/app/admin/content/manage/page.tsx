@@ -6,10 +6,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import AuthGuard from '@/components/AuthGuard'
@@ -102,52 +103,50 @@ export default function ContentManagePage() {
 function ContentManagePageContent() {
   const [activeTab, setActiveTab] = useState('boards')
 
-  console.log('ContentManagePageContent: activeTab =', activeTab);
 
   const handleTabChange = (value: string) => {
-    console.log('ContentManagePageContent: Tab changing from', activeTab, 'to', value);
     setActiveTab(value);
   };
 
   return (
     <DashboardLayout role="admin">
-      <div className="min-h-screen bg-gray-50 relative">
+      <div className="min-h-screen bg-transparent text-foreground relative">
         <div className="pointer-events-none absolute inset-0 -z-10">
           <div className="absolute -top-24 right-0 h-80 w-80 rounded-full bg-ankur-primary/10 blur-3xl" />
           <div className="absolute bottom-10 left-8 h-72 w-72 rounded-full bg-ankur-accent/10 blur-3xl" />
         </div>
         <div className="container mx-auto p-6">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Content Management</h1>
-            <p className="text-gray-600 mt-2">
+          <div className="page-header mb-8">
+            <h1 className="text-3xl font-bold text-white">Content Management</h1>
+            <p className="text-white/80 mt-2">
               Manage educational content including boards, grades, subjects, chapters, topics, and notes
             </p>
           </div>
 
           <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2 md:grid-cols-6">
-              <TabsTrigger value="boards" className="flex items-center gap-2">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 glass-panel rounded-2xl p-2 border border-white/40 dark:border-white/10">
+              <TabsTrigger value="boards" className="flex items-center gap-2 data-[state=active]:bg-white/70 data-[state=active]:text-ankur-secondary dark:data-[state=active]:bg-slate-900/70">
                 <BookOpen className="w-4 h-4" />
                 Boards
               </TabsTrigger>
-              <TabsTrigger value="grades" className="flex items-center gap-2">
+              <TabsTrigger value="grades" className="flex items-center gap-2 data-[state=active]:bg-white/70 data-[state=active]:text-ankur-secondary dark:data-[state=active]:bg-slate-900/70">
                 <GraduationCap className="w-4 h-4" />
                 Grades
               </TabsTrigger>
-              <TabsTrigger value="subjects" className="flex items-center gap-2">
+              <TabsTrigger value="subjects" className="flex items-center gap-2 data-[state=active]:bg-white/70 data-[state=active]:text-ankur-secondary dark:data-[state=active]:bg-slate-900/70">
                 <Users className="w-4 h-4" />
                 Subjects
               </TabsTrigger>
-              <TabsTrigger value="chapters" className="flex items-center gap-2">
+              <TabsTrigger value="chapters" className="flex items-center gap-2 data-[state=active]:bg-white/70 data-[state=active]:text-ankur-secondary dark:data-[state=active]:bg-slate-900/70">
                 <FileText className="w-4 h-4" />
                 Chapters
               </TabsTrigger>
-              <TabsTrigger value="topics" className="flex items-center gap-2">
+              <TabsTrigger value="topics" className="flex items-center gap-2 data-[state=active]:bg-white/70 data-[state=active]:text-ankur-secondary dark:data-[state=active]:bg-slate-900/70">
                 <List className="w-4 h-4" />
                 Topics
               </TabsTrigger>
-              <TabsTrigger value="topicnotes" className="flex items-center gap-2">
+              <TabsTrigger value="topicnotes" className="flex items-center gap-2 data-[state=active]:bg-white/70 data-[state=active]:text-ankur-secondary dark:data-[state=active]:bg-slate-900/70">
                 <StickyNote className="w-4 h-4" />
                 Topic Notes
               </TabsTrigger>
@@ -505,7 +504,6 @@ function BoardsTab() {
 
 // Grades Tab Component
 function GradesTab() {
-  console.log('GradesTab: Component rendering');
   
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
@@ -523,7 +521,6 @@ function GradesTab() {
   })
 
   // API hooks
-  console.log('GradesTab: Calling useGrades hook');
   const { data: gradesData, isLoading, error, refetch } = useGrades({
     page: currentPage,
     size: pageSize,
@@ -532,7 +529,6 @@ function GradesTab() {
     boardId: selectedBoardFilter || undefined
   })
 
-  console.log('GradesTab: API response:', { gradesData, isLoading, error });
 
   const { data: boardsDropdown } = useBoardsDropdown()
   const createGradeMutation = useCreateGrade()
@@ -542,7 +538,6 @@ function GradesTab() {
   const grades = gradesData?.content || []
   const totalElements = gradesData?.totalElements || 0
 
-  console.log('GradesTab: Processed data:', { grades, totalElements });
 
   // Handle filter changes
   const onFilterChange = useCallback(() => {
@@ -615,7 +610,6 @@ function GradesTab() {
   }, [searchTerm, statusFilter, selectedBoardFilter, onFilterChange])
 
   if (isLoading) {
-    console.log('GradesTab: Showing loading state');
     return <div className="flex justify-center items-center h-64">Loading grades...</div>
   }
 
@@ -624,7 +618,6 @@ function GradesTab() {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     const errorName = error instanceof Error ? error.name : 'Unknown';
     const errorStack = error instanceof Error ? error.stack : 'No stack trace available';
-    console.log('GradesTab: Showing error state:', { errorMessage, errorName });
     return (
       <div className="text-red-500 text-center space-y-2">
         <div>Error loading grades: {errorMessage}</div>
@@ -640,7 +633,6 @@ function GradesTab() {
     )
   }
 
-  console.log('GradesTab: Rendering main content with', grades.length, 'grades');
 
   return (
     <Card className="glass">
@@ -2245,6 +2237,18 @@ function TopicNotesTab() {
   const [selectedTopic, setSelectedTopic] = useState<number>(0)
   const [currentPage, setCurrentPage] = useState(0)
   const [pageSize, setPageSize] = useState(10)
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
+  const [viewNote, setViewNote] = useState<TopicNoteDto | null>(null)
+  const [editingNote, setEditingNote] = useState<TopicNoteDto | null>(null)
+  const [formData, setFormData] = useState<CreateTopicNoteRequest>({
+    title: '',
+    content: '',
+    topicId: 0,
+    attachments: '',
+    active: true
+  })
 
   // API hooks
   const { data: topicNotesData, isLoading, error, refetch } = useTopicNotes({
@@ -2261,6 +2265,10 @@ function TopicNotesTab() {
   const { data: chaptersDropdown } = useChaptersDropdown(selectedSubject || undefined)
   const { data: topicsDropdown } = useTopicsDropdown(selectedChapter || undefined)
 
+  const createTopicNoteMutation = useCreateTopicNote()
+  const updateTopicNoteMutation = useUpdateTopicNote()
+  const deleteTopicNoteMutation = useDeleteTopicNote()
+
   const topicNotes = topicNotesData?.content || []
   const totalElements = topicNotesData?.totalElements || 0
 
@@ -2270,12 +2278,28 @@ function TopicNotesTab() {
     refetch()
   }
 
+  const handleCreateClick = () => {
+    if (!selectedTopic) return
+    setFormData({
+      title: '',
+      content: '',
+      topicId: selectedTopic,
+      attachments: '',
+      active: true,
+      boardId: selectedBoard || undefined,
+      gradeId: selectedGrade || undefined,
+      subjectId: selectedSubject || undefined,
+      chapterId: selectedChapter || undefined
+    })
+    setIsCreateDialogOpen(true)
+  }
+
   return (
     <Card className="glass">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>Topic Notes Management</span>
-          <Button disabled={!selectedTopic}>
+          <Button onClick={handleCreateClick} disabled={!selectedTopic}>
             <Plus className="w-4 h-4 mr-2" />
             Add Topic Note
           </Button>
@@ -2423,6 +2447,21 @@ function TopicNotesTab() {
                       <Button 
                         variant="ghost" 
                         size="sm"
+                        onClick={() => {
+                          setEditingNote(note)
+                          setFormData({
+                            title: note.title,
+                            content: note.content,
+                            topicId: note.topicId,
+                            attachments: note.attachments || '',
+                            active: note.active,
+                            boardId: note.boardId,
+                            gradeId: note.gradeId,
+                            subjectId: note.subjectId,
+                            chapterId: note.chapterId
+                          })
+                          setIsEditDialogOpen(true)
+                        }}
                         aria-label={`Edit ${note.title}`}
                         title={`Edit ${note.title}`}
                       >
@@ -2431,6 +2470,16 @@ function TopicNotesTab() {
                       <Button 
                         variant="ghost" 
                         size="sm" 
+                        onClick={() => {
+                          if (confirm(`Are you sure you want to delete "${note.title}"?`)) {
+                            deleteTopicNoteMutation.mutateAsync({ id: note.id }).then(() => {
+                              refetch()
+                              toast.success('Topic note deleted successfully')
+                            }).catch(() => {
+                              toast.error('Failed to delete topic note')
+                            })
+                          }
+                        }}
                         className="text-red-600 hover:text-red-700"
                         aria-label={`Delete ${note.title}`}
                         title={`Delete ${note.title}`}
@@ -2449,7 +2498,14 @@ function TopicNotesTab() {
                     <Badge variant={note.active ? 'default' : 'secondary'}>
                       {note.active ? 'Active' : 'Inactive'}
                     </Badge>
-                    <Button variant="outline" size="sm">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setViewNote(note)
+                        setIsViewDialogOpen(true)
+                      }}
+                    >
                       View Full
                     </Button>
                   </div>
@@ -2459,6 +2515,197 @@ function TopicNotesTab() {
           </div>
         )}
       </CardContent>
+
+      {/* Create Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Create Topic Note</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+              <div>Board: {selectedBoard ? boardsDropdown?.find((board) => board.id === selectedBoard)?.name : 'Not selected'}</div>
+              <div>Grade: {selectedGrade ? gradesDropdown?.find((grade) => grade.id === selectedGrade)?.displayName : 'Not selected'}</div>
+              <div>Subject: {selectedSubject ? subjectsDropdown?.find((subject) => subject.id === selectedSubject)?.name : 'Not selected'}</div>
+              <div>Topic: {selectedTopic ? topicsDropdown?.find((topic) => topic.id === selectedTopic)?.title : 'Not selected'}</div>
+            </div>
+            <div>
+              <Label htmlFor="note-title">Title</Label>
+              <Input
+                id="note-title"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder="Enter note title"
+              />
+            </div>
+            <div>
+              <Label htmlFor="note-content">Content</Label>
+              <Textarea
+                id="note-content"
+                rows={6}
+                value={formData.content}
+                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                placeholder="Enter topic note content"
+              />
+            </div>
+            <div>
+              <Label htmlFor="note-attachments">Attachments (Optional)</Label>
+              <Input
+                id="note-attachments"
+                value={formData.attachments || ''}
+                onChange={(e) => setFormData({ ...formData, attachments: e.target.value })}
+                placeholder="Paste attachment URLs or references"
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="note-active"
+                checked={formData.active}
+                onCheckedChange={(checked) => setFormData({ ...formData, active: checked })}
+              />
+              <Label htmlFor="note-active">Active</Label>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={async () => {
+                  try {
+                    await createTopicNoteMutation.mutateAsync({
+                      ...formData,
+                      topicId: selectedTopic,
+                      boardId: selectedBoard || undefined,
+                      gradeId: selectedGrade || undefined,
+                      subjectId: selectedSubject || undefined,
+                      chapterId: selectedChapter || undefined
+                    })
+                    setIsCreateDialogOpen(false)
+                    setFormData({
+                      title: '',
+                      content: '',
+                      topicId: 0,
+                      attachments: '',
+                      active: true
+                    })
+                    refetch()
+                    toast.success('Topic note created successfully')
+                  } catch (error) {
+                    console.error('Create topic note failed:', error)
+                    toast.error('Failed to create topic note')
+                  }
+                }}
+                disabled={!formData.title.trim() || !formData.content.trim() || createTopicNoteMutation.isPending}
+              >
+                {createTopicNoteMutation.isPending ? 'Creating...' : 'Create Note'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Edit Topic Note</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-note-title">Title</Label>
+              <Input
+                id="edit-note-title"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder="Enter note title"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-note-content">Content</Label>
+              <Textarea
+                id="edit-note-content"
+                rows={6}
+                value={formData.content}
+                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                placeholder="Enter topic note content"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-note-attachments">Attachments (Optional)</Label>
+              <Input
+                id="edit-note-attachments"
+                value={formData.attachments || ''}
+                onChange={(e) => setFormData({ ...formData, attachments: e.target.value })}
+                placeholder="Paste attachment URLs or references"
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="edit-note-active"
+                checked={formData.active}
+                onCheckedChange={(checked) => setFormData({ ...formData, active: checked })}
+              />
+              <Label htmlFor="edit-note-active">Active</Label>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={async () => {
+                  if (!editingNote) return
+                  try {
+                    await updateTopicNoteMutation.mutateAsync({
+                      id: editingNote.id,
+                      request: {
+                        title: formData.title,
+                        content: formData.content,
+                        attachments: formData.attachments,
+                        active: formData.active,
+                        topicId: formData.topicId,
+                        boardId: formData.boardId,
+                        gradeId: formData.gradeId,
+                        subjectId: formData.subjectId,
+                        chapterId: formData.chapterId
+                      }
+                    })
+                    setIsEditDialogOpen(false)
+                    setEditingNote(null)
+                    refetch()
+                    toast.success('Topic note updated successfully')
+                  } catch (error) {
+                    console.error('Update topic note failed:', error)
+                    toast.error('Failed to update topic note')
+                  }
+                }}
+                disabled={!formData.title.trim() || !formData.content.trim() || updateTopicNoteMutation.isPending}
+              >
+                {updateTopicNoteMutation.isPending ? 'Updating...' : 'Update Note'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{viewNote?.title || 'Topic Note'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="text-sm text-gray-600">
+              <div>Topic: {viewNote?.topicTitle || 'Unknown'}</div>
+              {viewNote?.attachments && (
+                <div className="mt-1">Attachments: {viewNote.attachments}</div>
+              )}
+            </div>
+            <div className="rounded-lg border border-gray-200 bg-white/70 dark:bg-slate-900/70 p-4 text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
+              {viewNote?.content || 'No content available.'}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }

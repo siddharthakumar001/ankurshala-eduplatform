@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
  * All endpoints require STUDENT role and validate ownership.
  */
 @RestController
-@RequestMapping("/api/student/practice")
+@RequestMapping("/student/practice")
 @PreAuthorize("hasRole('STUDENT')")
 @Slf4j
 public class StudentPracticeController {

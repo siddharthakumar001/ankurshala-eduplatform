@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { api } from '@/utils/api'
 import { useAuth } from '@/hooks/useAuth'
 import Image from 'next/image'
-import { Eye, EyeOff, Lock, Mail, AlertCircle } from 'lucide-react'
+import { Eye, EyeOff, Lock, Mail, AlertCircle, GraduationCap, Users } from 'lucide-react'
 
 interface LoginFormData {
   email: string
@@ -43,9 +43,6 @@ function LoginForm() {
   const { login, isAuthenticated, isLoading, user } = useAuth()
 
   useEffect(() => {
-    // Debug authentication state
-    console.log('🔍 Login page auth state:', { isLoading, isAuthenticated, user })
-    
     // Remove any exposed credentials from URL params immediately for security
     const urlParams = new URLSearchParams(window.location.search)
     if (urlParams.has('email') || urlParams.has('password')) {
@@ -79,7 +76,6 @@ function LoginForm() {
     // 4. User has valid user data
     if (redirectParam && !isLoading && isAuthenticated && user?.id) {
       // User came here with a redirect param and is authenticated - send them to the intended destination
-      console.log('🚀 Redirecting authenticated user to:', redirectParam)
       router.push(redirectParam)
       return
     }
@@ -151,20 +147,14 @@ function LoginForm() {
     setError('')
 
     try {
-      console.log('🔐 Starting login...')
       const response = await api.post('/auth/signin', {
         email: formData.email,
         password: formData.password
       }, { requireAuth: false })
 
-      console.log('📥 Raw response:', response)
-      console.log('📦 Response data:', response.data)
-
       // The API client already extracts the data from the API response
       // So response.data contains the user data directly
       const userData = response.data as any
-      
-      console.log('✅ User data received:', userData)
       
       if (userData && userData.userId && userData.role) {
         const processedUserData = {
@@ -174,24 +164,19 @@ function LoginForm() {
           role: userData.role || ''
         }
 
-        console.log('✨ Processed user data:', processedUserData)
-
         if (!processedUserData.id || !processedUserData.role) {
-          console.error('❌ Invalid user data - missing id or role')
+          console.error('Login failed: invalid user data - missing id or role')
           setError('Invalid response from server. Please try again.')
           setIsSubmitting(false)
           return
         }
 
         // Update authentication state
-        console.log('🔑 Setting authentication state...')
         login(processedUserData)
 
         // Get redirect URL from search params or determine based on role
         const redirectTo = searchParams.get('redirect') || 
           USER_DASHBOARD_ROUTES[processedUserData.role as keyof typeof USER_DASHBOARD_ROUTES] || '/'
-        
-        console.log('🚀 Redirecting to:', redirectTo)
         
         // Small delay to ensure auth state is persisted before redirect
         // This prevents the redirect from happening before state is saved
@@ -202,7 +187,7 @@ function LoginForm() {
         }, 100)
         
       } else {
-        console.error('❌ Login failed - invalid user data')
+        console.error('Login failed: invalid user data')
         console.error('User data:', userData)
         setError('Login failed. Please check your credentials.')
         setIsSubmitting(false)
@@ -230,9 +215,9 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex bg-transparent text-foreground">
       {/* Left Side - Brand Section */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-ankur-secondary via-[#1a3050] to-ankur-secondary-dark relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 brand-gradient relative overflow-hidden">
         {/* Decorative Elements */}
         <div className="absolute inset-0">
           <div className="absolute top-20 -left-20 w-96 h-96 bg-ankur-primary/10 rounded-full blur-3xl" />
@@ -253,7 +238,7 @@ function LoginForm() {
                 priority
               />
             </div>
-            <h1 className="text-4xl font-bold mb-4">
+            <h1 className="text-4xl font-display font-semibold mb-4">
               Welcome to <span className="text-ankur-accent">AnkurShala</span>
             </h1>
             <p className="text-xl text-white/70 leading-relaxed">
@@ -301,8 +286,8 @@ function LoginForm() {
       </div>
 
       {/* Right Side - Login Form */}
-      <div className="flex-1 flex items-center justify-center bg-surface px-6 py-12">
-        <div className="w-full max-w-md">
+      <div className="flex-1 flex items-center justify-center bg-transparent px-6 py-12">
+        <div className="w-full max-w-md glass-panel rounded-3xl p-8 border border-white/40 dark:border-white/10">
           {/* Mobile Logo */}
           <div className="lg:hidden text-center mb-8">
             <div className="inline-flex items-center gap-3 mb-4">
@@ -316,14 +301,14 @@ function LoginForm() {
                   priority
                 />
               </div>
-              <span className="text-2xl font-bold text-ankur-secondary">AnkurShala</span>
-            </div>
+            <span className="text-2xl font-display font-semibold text-ankur-secondary dark:text-white">AnkurShala</span>
+          </div>
           </div>
 
           {/* Form Header */}
           <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-gray-900">Sign in to your account</h2>
-            <p className="mt-2 text-gray-600">
+            <h2 className="text-2xl font-display font-semibold text-gray-900 dark:text-white">Sign in to your account</h2>
+            <p className="mt-2 text-gray-600 dark:text-gray-300">
               Welcome back! Please enter your credentials.
             </p>
           </div>
@@ -332,7 +317,7 @@ function LoginForm() {
           <form className="space-y-5" onSubmit={handleSubmit}>
             {/* Email Field */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                 Email Address
               </label>
               <div className="relative">
@@ -353,7 +338,7 @@ function LoginForm() {
 
             {/* Password Field */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                 Password
               </label>
               <div className="relative">
@@ -390,7 +375,7 @@ function LoginForm() {
                   onChange={handleInputChange}
                   className="w-4 h-4 rounded border-gray-300 text-ankur-primary focus:ring-ankur-primary"
                 />
-                <span className="text-sm text-gray-600">Remember me</span>
+                <span className="text-sm text-gray-600 dark:text-gray-300">Remember me</span>
               </label>
               <button
                 type="button"
@@ -403,10 +388,10 @@ function LoginForm() {
 
             {/* Error Message */}
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-4 animate-fade-in">
+              <div className="bg-red-50/80 border border-red-200 rounded-xl p-4 animate-fade-in dark:bg-red-500/10 dark:border-red-500/30">
                 <div className="flex items-start gap-3">
                   <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-red-700">{error}</p>
+                  <p className="text-sm text-red-700 dark:text-red-200">{error}</p>
                 </div>
               </div>
             )}
@@ -431,10 +416,10 @@ function LoginForm() {
           {/* Divider */}
           <div className="relative my-8">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200"></div>
+              <div className="w-full border-t border-gray-200/60 dark:border-white/10"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-surface text-gray-500">New to AnkurShala?</span>
+              <span className="px-4 bg-white/70 text-gray-500 dark:bg-slate-900/80 dark:text-gray-300">New to AnkurShala?</span>
             </div>
           </div>
 
@@ -444,22 +429,23 @@ function LoginForm() {
               onClick={() => router.push('/register-student')}
               className="btn-outline flex items-center justify-center gap-2 py-3"
             >
-              <span>👨‍🎓</span>
+              <GraduationCap className="h-4 w-4" />
               <span>Student</span>
             </button>
             <button
               onClick={() => router.push('/register-teacher')}
               className="btn-outline flex items-center justify-center gap-2 py-3"
             >
-              <span>👩‍🏫</span>
+              <Users className="h-4 w-4" />
               <span>Teacher</span>
             </button>
           </div>
 
           {/* Security Notice */}
-          <p className="mt-8 text-center text-xs text-gray-500">
-            🔒 Your connection is secured with enterprise-grade encryption
+          <p className="mt-8 text-center text-xs text-gray-500 dark:text-gray-400">
+            Your connection is secured with enterprise-grade encryption
           </p>
+
         </div>
       </div>
     </div>

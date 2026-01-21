@@ -19,4 +19,8 @@ public class BroadcastNotificationRequest {
 
     @NotNull(message = "Delivery method is required")
     private String delivery;
+
+    private Long targetUserId;
+
+    private String targetEmail;
 }

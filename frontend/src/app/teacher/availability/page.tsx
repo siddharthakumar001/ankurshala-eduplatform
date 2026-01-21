@@ -3,21 +3,18 @@
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { 
   Calendar, 
-  Clock, 
   Plus, 
   Edit, 
   Trash2, 
   Save, 
   X,
   Check,
-  AlertCircle,
   Loader2,
   Settings
 } from 'lucide-react'
@@ -72,7 +69,7 @@ export default function TeacherAvailabilityPage() {
     cancellationPolicyHours: 24
   })
   const [editingSlot, setEditingSlot] = useState<WeeklyAvailability | null>(null)
-  const [showAddDialog, setShowAddDialog] = useState(false)
+  const [addDay, setAddDay] = useState<number | null>(null)
 
   useEffect(() => {
     fetchAvailabilityData()
@@ -126,7 +123,7 @@ export default function TeacherAvailabilityPage() {
 
   const addAvailabilitySlot = (slot: WeeklyAvailability) => {
     setWeeklyAvailability([...weeklyAvailability, slot])
-    setShowAddDialog(false)
+    setAddDay(null)
   }
 
   const updateAvailabilitySlot = (updatedSlot: WeeklyAvailability) => {
@@ -153,12 +150,10 @@ export default function TeacherAvailabilityPage() {
   if (loading) {
     return (
       <TeacherRoute>
-        <div className="min-h-screen bg-gray-50 py-8">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-              <span className="ml-2 text-gray-600">Loading availability...</span>
-            </div>
+        <div className="space-y-6">
+          <div className="glass-panel p-6 flex items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
+            <span className="ml-2 text-slate-600 dark:text-slate-200">Loading availability...</span>
           </div>
         </div>
       </TeacherRoute>
@@ -167,20 +162,18 @@ export default function TeacherAvailabilityPage() {
 
   return (
     <TeacherRoute>
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Availability & Preferences</h1>
-            <p className="text-gray-600">Manage your teaching schedule and booking preferences</p>
-          </div>
+      <div className="space-y-6">
+        <div className="page-header">
+          <h1 className="text-2xl md:text-3xl font-bold text-white">Availability & Preferences</h1>
+          <p className="text-white/80">Manage your teaching schedule and booking preferences</p>
+        </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Weekly Availability */}
-            <Card>
+            <Card className="glass-panel border border-white/40">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-blue-600" />
+                  <Calendar className="h-5 w-5 text-emerald-500" />
                   Weekly Availability
                 </CardTitle>
                 <CardDescription>Set your available time slots for each day of the week</CardDescription>
@@ -190,45 +183,45 @@ export default function TeacherAvailabilityPage() {
                   {DAYS_OF_WEEK.map((day) => {
                     const daySlots = getAvailabilityForDay(day.value)
                     return (
-                      <div key={day.value} className="border rounded-lg p-4">
+                      <div key={day.value} className="glass rounded-2xl p-4 border border-white/30">
                         <div className="flex justify-between items-center mb-4">
-                          <h3 className="font-medium">{day.label}</h3>
-                          <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+                          <h3 className="font-medium text-slate-900 dark:text-white">{day.label}</h3>
+                          <Dialog open={addDay === day.value} onOpenChange={(open) => setAddDay(open ? day.value : null)}>
                             <DialogTrigger asChild>
-                              <Button size="sm" variant="outline">
+                              <Button size="sm" variant="outline" className="btn-outline">
                                 <Plus className="h-4 w-4 mr-1" />
                                 Add Slot
                               </Button>
                             </DialogTrigger>
-                            <DialogContent>
+                            <DialogContent className="modal-content">
                               <DialogHeader>
                                 <DialogTitle>Add Availability Slot</DialogTitle>
                               </DialogHeader>
                               <AddAvailabilitySlotForm
                                 dayOfWeek={day.value}
                                 onAdd={addAvailabilitySlot}
-                                onCancel={() => setShowAddDialog(false)}
+                                onCancel={() => setAddDay(null)}
                               />
                             </DialogContent>
                           </Dialog>
                         </div>
                         
                         {daySlots.length === 0 ? (
-                          <p className="text-gray-500 text-center py-4">No availability set</p>
+                          <p className="text-slate-500 dark:text-slate-300 text-center py-4">No availability set</p>
                         ) : (
                           <div className="space-y-2">
                             {daySlots.map((slot) => (
-                              <div key={slot.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                              <div key={slot.id} className="flex items-center justify-between p-3 glass rounded-xl border border-white/30">
                                 <div className="flex items-center gap-4">
                                   <Switch
                                     checked={slot.isAvailable}
                                     onCheckedChange={() => slot.id && toggleAvailability(slot.id)}
                                   />
                                   <div>
-                                    <span className="font-medium">
+                                    <span className="font-medium text-slate-900 dark:text-white">
                                       {slot.startTime} - {slot.endTime}
                                     </span>
-                                    <span className={`ml-2 text-sm ${slot.isAvailable ? 'text-green-600' : 'text-red-600'}`}>
+                                    <span className={`ml-2 text-sm ${slot.isAvailable ? 'text-emerald-600' : 'text-red-600'}`}>
                                       {slot.isAvailable ? 'Available' : 'Unavailable'}
                                     </span>
                                   </div>
@@ -237,6 +230,7 @@ export default function TeacherAvailabilityPage() {
                                   <Button
                                     size="sm"
                                     variant="outline"
+                                    className="btn-outline"
                                     onClick={() => setEditingSlot(slot)}
                                   >
                                     <Edit className="h-4 w-4" />
@@ -245,7 +239,7 @@ export default function TeacherAvailabilityPage() {
                                     size="sm"
                                     variant="outline"
                                     onClick={() => slot.id && removeAvailabilitySlot(slot.id)}
-                                    className="text-red-600 hover:text-red-700"
+                                    className="btn-outline text-red-600 border-red-200 hover:border-red-300 hover:text-red-700"
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
@@ -263,7 +257,7 @@ export default function TeacherAvailabilityPage() {
                   <Button 
                     onClick={handleSaveAvailability}
                     disabled={saving}
-                    className="w-full"
+                    className="btn-primary w-full"
                   >
                     {saving ? (
                       <>
@@ -282,10 +276,10 @@ export default function TeacherAvailabilityPage() {
             </Card>
 
             {/* Booking Preferences */}
-            <Card>
+            <Card className="glass-panel border border-white/40">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Settings className="h-5 w-5 text-gray-600" />
+                  <Settings className="h-5 w-5 text-emerald-500" />
                   Booking Preferences
                 </CardTitle>
                 <CardDescription>Configure how students can book sessions with you</CardDescription>
@@ -295,7 +289,7 @@ export default function TeacherAvailabilityPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <Label htmlFor="auto-accept">Auto-accept bookings</Label>
-                      <p className="text-sm text-gray-500">Automatically accept booking requests</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-300">Automatically accept booking requests</p>
                     </div>
                     <Switch
                       id="auto-accept"
@@ -314,7 +308,7 @@ export default function TeacherAvailabilityPage() {
                         setBookingPreferences({ ...bookingPreferences, advanceBookingDays: parseInt(value) })
                       }
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="input-modern">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -335,7 +329,7 @@ export default function TeacherAvailabilityPage() {
                         setBookingPreferences({ ...bookingPreferences, minimumSessionDuration: parseInt(value) })
                       }
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="input-modern">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -356,7 +350,7 @@ export default function TeacherAvailabilityPage() {
                         setBookingPreferences({ ...bookingPreferences, maximumSessionDuration: parseInt(value) })
                       }
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="input-modern">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -377,7 +371,7 @@ export default function TeacherAvailabilityPage() {
                         setBookingPreferences({ ...bookingPreferences, cancellationPolicyHours: parseInt(value) })
                       }
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="input-modern">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -396,7 +390,7 @@ export default function TeacherAvailabilityPage() {
                   <Button 
                     onClick={handleSavePreferences}
                     disabled={saving}
-                    className="w-full"
+                    className="btn-primary w-full"
                   >
                     {saving ? (
                       <>
@@ -418,7 +412,7 @@ export default function TeacherAvailabilityPage() {
           {/* Edit Slot Dialog */}
           {editingSlot && (
             <Dialog open={!!editingSlot} onOpenChange={() => setEditingSlot(null)}>
-              <DialogContent>
+              <DialogContent className="modal-content">
                 <DialogHeader>
                   <DialogTitle>Edit Availability Slot</DialogTitle>
                 </DialogHeader>
@@ -430,7 +424,6 @@ export default function TeacherAvailabilityPage() {
               </DialogContent>
             </Dialog>
           )}
-        </div>
       </div>
     </TeacherRoute>
   )
@@ -465,9 +458,9 @@ function AddAvailabilitySlotForm({
       <div>
         <Label htmlFor="start-time">Start Time</Label>
         <Select value={startTime} onValueChange={setStartTime}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
+        <SelectTrigger className="input-modern">
+          <SelectValue />
+        </SelectTrigger>
           <SelectContent>
             {TIME_SLOTS.map((time) => (
               <SelectItem key={time} value={time}>{time}</SelectItem>
@@ -479,9 +472,9 @@ function AddAvailabilitySlotForm({
       <div>
         <Label htmlFor="end-time">End Time</Label>
         <Select value={endTime} onValueChange={setEndTime}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
+        <SelectTrigger className="input-modern">
+          <SelectValue />
+        </SelectTrigger>
           <SelectContent>
             {TIME_SLOTS.map((time) => (
               <SelectItem key={time} value={time}>{time}</SelectItem>
@@ -500,11 +493,11 @@ function AddAvailabilitySlotForm({
       </div>
 
       <div className="flex gap-2">
-        <Button type="submit" className="flex-1">
+        <Button type="submit" className="btn-primary flex-1">
           <Check className="h-4 w-4 mr-2" />
           Add Slot
         </Button>
-        <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
+        <Button type="button" variant="outline" onClick={onCancel} className="btn-outline flex-1">
           <X className="h-4 w-4 mr-2" />
           Cancel
         </Button>
@@ -542,9 +535,9 @@ function EditAvailabilitySlotForm({
       <div>
         <Label htmlFor="start-time">Start Time</Label>
         <Select value={startTime} onValueChange={setStartTime}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
+        <SelectTrigger className="input-modern">
+          <SelectValue />
+        </SelectTrigger>
           <SelectContent>
             {TIME_SLOTS.map((time) => (
               <SelectItem key={time} value={time}>{time}</SelectItem>
@@ -556,9 +549,9 @@ function EditAvailabilitySlotForm({
       <div>
         <Label htmlFor="end-time">End Time</Label>
         <Select value={endTime} onValueChange={setEndTime}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
+        <SelectTrigger className="input-modern">
+          <SelectValue />
+        </SelectTrigger>
           <SelectContent>
             {TIME_SLOTS.map((time) => (
               <SelectItem key={time} value={time}>{time}</SelectItem>
@@ -577,11 +570,11 @@ function EditAvailabilitySlotForm({
       </div>
 
       <div className="flex gap-2">
-        <Button type="submit" className="flex-1">
+        <Button type="submit" className="btn-primary flex-1">
           <Check className="h-4 w-4 mr-2" />
           Update Slot
         </Button>
-        <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
+        <Button type="button" variant="outline" onClick={onCancel} className="btn-outline flex-1">
           <X className="h-4 w-4 mr-2" />
           Cancel
         </Button>

@@ -71,14 +71,14 @@ export default function AdminLayoutSimple({ children }: AdminLayoutProps) {
   ]
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-transparent text-foreground">
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-gray-800 text-white transform ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-950/95 via-slate-950/95 to-slate-900/95 text-white transform backdrop-blur-xl border-r border-white/10 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         } md:relative md:translate-x-0 transition-transform duration-200 ease-in-out`}
       >
-        <div className="flex items-center justify-between p-4 border-b border-gray-700">
+        <div className="flex items-center justify-between p-4 border-b border-white/10">
           <Link href="/admin" className="flex items-center gap-2">
             <Image 
               src="/ankurshala-logo-small.png" 
@@ -87,7 +87,7 @@ export default function AdminLayoutSimple({ children }: AdminLayoutProps) {
               height={32} 
               className="rounded-lg"
             />
-            <span className="text-xl font-semibold">Admin Panel</span>
+            <span className="text-xl font-display font-semibold">Admin Panel</span>
           </Link>
           <Button
             variant="ghost"
@@ -98,15 +98,15 @@ export default function AdminLayoutSimple({ children }: AdminLayoutProps) {
             <X className="h-6 w-6" />
           </Button>
         </div>
-        <nav className="mt-5">
+        <nav className="mt-5 space-y-1 px-3">
           {navItems.map((item) => (
             <Link
               key={item.name}
               href={item.href}
-              className={`flex items-center gap-3 px-4 py-2 text-sm font-medium ${
+              className={`flex items-center gap-3 px-4 py-2.5 text-sm font-semibold rounded-2xl border ${
                 pathname === item.href
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                  ? 'bg-white/15 text-white border-white/20 shadow-lg shadow-emerald-500/10'
+                  : 'text-white/70 border-transparent hover:bg-white/10 hover:text-white'
               }`}
               onClick={() => setSidebarOpen(false)}
             >
@@ -120,7 +120,7 @@ export default function AdminLayoutSimple({ children }: AdminLayoutProps) {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col md:ml-64">
         {/* Topbar */}
-        <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b bg-white px-4 md:px-6 shadow-sm dark:bg-gray-900 dark:text-white">
+        <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b bg-white/70 px-4 md:px-6 shadow-sm backdrop-blur-2xl dark:bg-slate-900/70 dark:border-white/10 dark:text-white">
           <Button
             variant="ghost"
             size="icon"
@@ -130,7 +130,7 @@ export default function AdminLayoutSimple({ children }: AdminLayoutProps) {
             <Menu className="h-6 w-6" />
           </Button>
           <div className="flex-1">
-            <h2 className="text-lg font-semibold">
+            <h2 className="text-lg font-display font-semibold">
               {navItems.find(item => pathname.startsWith(item.href))?.name || 'Admin Dashboard'}
             </h2>
           </div>
@@ -156,7 +156,7 @@ export default function AdminLayoutSimple({ children }: AdminLayoutProps) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-4 md:p-6 bg-gray-100 dark:bg-gray-800">
+        <main className="flex-1 p-4 md:p-6 bg-transparent">
           {children}
         </main>
       </div>

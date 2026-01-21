@@ -13,10 +13,10 @@ export default function AdminPage() {
   }, [router])
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="mt-4 text-gray-600 dark:text-gray-400">Redirecting to dashboard...</p>
+    <div className="min-h-screen flex items-center justify-center bg-transparent">
+      <div className="text-center glass-panel rounded-2xl border border-white/40 px-8 py-6">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ankur-primary mx-auto"></div>
+        <p className="mt-4 text-gray-600 dark:text-gray-300">Redirecting to dashboard...</p>
       </div>
     </div>
   )

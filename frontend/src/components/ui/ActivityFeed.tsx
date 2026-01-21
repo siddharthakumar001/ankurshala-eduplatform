@@ -80,7 +80,7 @@ export default function ActivityFeed({
                     <span className="text-xs text-gray-400">{item.timestamp}</span>
                     {item.user && (
                       <>
-                        <span className="text-gray-300">•</span>
+                        <span className="text-gray-300">|</span>
                         <span className="text-xs text-gray-500">{item.user}</span>
                       </>
                     )}
@@ -98,7 +98,7 @@ export default function ActivityFeed({
             onClick={onViewAll}
             className="text-sm text-ankur-primary hover:text-ankur-primary-dark font-medium"
           >
-            View all activity →
+            View all activity >
           </button>
         </div>
       )}

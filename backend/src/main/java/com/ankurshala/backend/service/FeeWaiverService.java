@@ -47,7 +47,9 @@ public class FeeWaiverService {
         }
 
         // Check if booking is eligible for waiver (not completed/cancelled)
-        if (!"REQUESTED".equals(booking.getState()) && !"ACCEPTED".equals(booking.getState())) {
+        if (booking.getStatus() != BookingStatus.PENDING &&
+            booking.getStatus() != BookingStatus.ACCEPTED &&
+            booking.getStatus() != BookingStatus.CONFIRMED) {
             throw new BusinessException("Booking is not eligible for fee waiver", HttpStatus.BAD_REQUEST, "BOOKING_NOT_ELIGIBLE");
         }
 

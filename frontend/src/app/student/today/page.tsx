@@ -152,9 +152,9 @@ function TodayPageContent() {
   if (!dailyPlan) {
     return (
       <div className="flex items-center justify-center h-96" data-testid="today-no-data">
-        <div className="text-center">
-          <p className="text-gray-500 mb-4">Unable to load your daily plan</p>
-          <Button onClick={() => queryClient.invalidateQueries({ queryKey: ['dailyPlan'] })}>
+        <div className="glass-panel p-8 text-center">
+          <p className="text-slate-500 dark:text-slate-300 mb-4">Unable to load your daily plan</p>
+          <Button className="btn-primary" onClick={() => queryClient.invalidateQueries({ queryKey: ['dailyPlan'] })}>
             Retry
           </Button>
         </div>
@@ -163,49 +163,51 @@ function TodayPageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6" data-testid="today-page">
+    <div className="space-y-6" data-testid="today-page">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2" data-testid="today-header">
-              <Sparkles className="w-8 h-8 text-emerald-500" />
-              Today's Plan
-            </h1>
-            <p className="text-slate-600 mt-1">Your personalized learning journey for {new Date(dailyPlan.planDate).toLocaleDateString()}</p>
+        <div className="page-header">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-white flex items-center gap-2" data-testid="today-header">
+                <Sparkles className="w-8 h-8 text-white" />
+                Today's Plan
+              </h1>
+              <p className="text-white/80 mt-1">Your personalized learning journey for {new Date(dailyPlan.planDate).toLocaleDateString()}</p>
+            </div>
           </div>
         </div>
 
         {/* Progress Summary */}
-        <Card className="border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50" data-testid="today-progress">
+        <Card className="glass-panel border border-white/40" data-testid="today-progress">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-emerald-600" />
+              <TrendingUp className="w-5 h-5 text-emerald-500" />
               Daily Progress
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid md:grid-cols-4 gap-4">
               <div>
-                <p className="text-sm text-slate-600">Completed Today</p>
-                <p className="text-2xl font-bold text-emerald-600" data-testid="progress-completed">
+                <p className="text-sm text-slate-500 dark:text-slate-300">Completed Today</p>
+                <p className="text-2xl font-bold text-emerald-500" data-testid="progress-completed">
                   {dailyPlan.progress.todayStepsCompleted} / {dailyPlan.progress.totalStepsToday}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-slate-600">Completion</p>
-                <p className="text-2xl font-bold text-emerald-600" data-testid="progress-percentage">
+                <p className="text-sm text-slate-500 dark:text-slate-300">Completion</p>
+                <p className="text-2xl font-bold text-emerald-500" data-testid="progress-percentage">
                   {dailyPlan.progress.completionPercentage}%
                 </p>
               </div>
               <div>
-                <p className="text-sm text-slate-600">Current Streak</p>
-                <p className="text-2xl font-bold text-orange-600" data-testid="progress-streak">
+                <p className="text-sm text-slate-500 dark:text-slate-300">Current Streak</p>
+                <p className="text-2xl font-bold text-amber-500" data-testid="progress-streak">
                   {dailyPlan.progress.currentStreak} days
                 </p>
               </div>
               <div className="flex items-center">
-                <p className="text-sm text-slate-700 italic" data-testid="progress-motivation">
+                <p className="text-sm text-slate-600 dark:text-slate-200 italic" data-testid="progress-motivation">
                   "{dailyPlan.progress.motivationalMessage}"
                 </p>
               </div>
@@ -216,31 +218,31 @@ function TodayPageContent() {
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Upcoming Class */}
           {dailyPlan.nextClass && (
-            <Card data-testid="today-next-class">
+            <Card className="glass-panel border border-white/40" data-testid="today-next-class">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-blue-600" />
+                  <Calendar className="w-5 h-5 text-sky-500" />
                   Upcoming Class
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   <div>
-                    <p className="text-sm text-slate-600">Topic</p>
-                    <p className="font-semibold" data-testid="next-class-topic">{dailyPlan.nextClass.topicName}</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-300">Topic</p>
+                    <p className="font-semibold text-slate-900 dark:text-white" data-testid="next-class-topic">{dailyPlan.nextClass.topicName}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-slate-600">Teacher</p>
-                    <p className="font-medium" data-testid="next-class-teacher">{dailyPlan.nextClass.teacherName}</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-300">Teacher</p>
+                    <p className="font-medium text-slate-900 dark:text-white" data-testid="next-class-teacher">{dailyPlan.nextClass.teacherName}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-slate-600">Time</p>
-                    <p className="font-medium" data-testid="next-class-time">
+                    <p className="text-sm text-slate-500 dark:text-slate-300">Time</p>
+                    <p className="font-medium text-slate-900 dark:text-white" data-testid="next-class-time">
                       {new Date(dailyPlan.nextClass.scheduledTime).toLocaleString()}
                     </p>
                   </div>
                   <Button 
-                    className="w-full" 
+                    className="btn-primary w-full" 
                     onClick={() => handlePrepareForClass(dailyPlan.nextClass!.bookingId)}
                     data-testid="next-class-prepare-btn"
                   >
@@ -254,10 +256,10 @@ function TodayPageContent() {
 
           {/* Weak Topic Recommendation */}
           {dailyPlan.weakTopicRecommendation && (
-            <Card data-testid="today-weak-topic">
+            <Card className="glass-panel border border-white/40" data-testid="today-weak-topic">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Target className="w-5 h-5 text-orange-600" />
+                  <Target className="w-5 h-5 text-amber-500" />
                   Recommended Focus Area
                 </CardTitle>
                 <CardDescription>AI-powered recommendation</CardDescription>
@@ -265,21 +267,21 @@ function TodayPageContent() {
               <CardContent>
                 <div className="space-y-3">
                   <div>
-                    <p className="font-semibold text-lg" data-testid="weak-topic-name">
+                    <p className="font-semibold text-lg text-slate-900 dark:text-white" data-testid="weak-topic-name">
                       {dailyPlan.weakTopicRecommendation.topicName}
                     </p>
-                    <Badge variant="outline" className="mt-1">
+                    <Badge variant="outline" className="mt-1 border-white/40 bg-white/70 text-slate-700">
                       {Math.round(dailyPlan.weakTopicRecommendation.confidenceScore * 100)}% confidence
                     </Badge>
                   </div>
-                  <p className="text-sm text-slate-600" data-testid="weak-topic-reason">
+                  <p className="text-sm text-slate-600 dark:text-slate-200" data-testid="weak-topic-reason">
                     {dailyPlan.weakTopicRecommendation.reason}
                   </p>
                   {dailyPlan.weakTopicRecommendation.prerequisiteGaps && 
                    dailyPlan.weakTopicRecommendation.prerequisiteGaps.length > 0 && (
                     <div>
-                      <p className="text-sm font-medium text-slate-700 mb-1">Prerequisites to review:</p>
-                      <ul className="text-sm text-slate-600 list-disc list-inside">
+                      <p className="text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Prerequisites to review:</p>
+                      <ul className="text-sm text-slate-600 dark:text-slate-300 list-disc list-inside">
                         {dailyPlan.weakTopicRecommendation.prerequisiteGaps.map((gap, idx) => (
                           <li key={idx}>{gap}</li>
                         ))}
@@ -287,7 +289,7 @@ function TodayPageContent() {
                     </div>
                   )}
                   <Button 
-                    className="w-full" 
+                    className="btn-outline w-full" 
                     variant="outline"
                     onClick={() => handleExploreWeakTopic(dailyPlan.weakTopicRecommendation!.topicId)}
                     data-testid="weak-topic-explore-btn"
@@ -303,10 +305,10 @@ function TodayPageContent() {
 
         {/* Practice Items */}
         {dailyPlan.practiceItems.length > 0 && (
-          <Card data-testid="today-practice">
+          <Card className="glass-panel border border-white/40" data-testid="today-practice">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-purple-600" />
+                <BookOpen className="w-5 h-5 text-emerald-500" />
                 Today's Practice ({dailyPlan.practiceItems.length})
               </CardTitle>
               <CardDescription>Spaced repetition for optimal learning</CardDescription>
@@ -316,7 +318,7 @@ function TodayPageContent() {
                 {dailyPlan.practiceItems.map((item, idx) => (
                   <div 
                     key={item.practiceId}
-                    className="flex items-center justify-between p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
+                    className="flex items-center justify-between p-4 glass rounded-lg hover:bg-white/60 transition-colors"
                     data-testid={`practice-item-${idx}`}
                   >
                     <div className="flex items-center gap-3">
@@ -326,10 +328,10 @@ function TodayPageContent() {
                         <Circle className="w-5 h-5 text-slate-400" />
                       )}
                       <div>
-                        <p className="font-medium" data-testid={`practice-item-${idx}-topic`}>{item.topicName}</p>
+                        <p className="font-medium text-slate-900 dark:text-white" data-testid={`practice-item-${idx}-topic`}>{item.topicName}</p>
                         <div className="flex items-center gap-2 mt-1">
                           <Badge variant="secondary">{item.difficulty}</Badge>
-                          <span className="text-sm text-slate-600 flex items-center gap-1">
+                          <span className="text-sm text-slate-600 dark:text-slate-200 flex items-center gap-1">
                             <Clock className="w-3 h-3" />
                             {item.estimatedMinutes} min
                           </span>
@@ -339,6 +341,7 @@ function TodayPageContent() {
                     {item.status !== 'COMPLETED' && (
                       <Button 
                         size="sm"
+                        className="btn-primary h-9 px-4 text-sm"
                         onClick={() => handleStartPractice(item.practiceId)}
                         data-testid={`practice-item-${idx}-start-btn`}
                       >
@@ -356,20 +359,20 @@ function TodayPageContent() {
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Revise Note */}
           {dailyPlan.reviseNoteSuggestion && (
-            <Card data-testid="today-revise-note">
+            <Card className="glass-panel border border-white/40" data-testid="today-revise-note">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-indigo-600" />
+                  <FileText className="w-5 h-5 text-emerald-500" />
                   Revise Your Notes
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   <div>
-                    <p className="font-semibold" data-testid="revise-note-topic">
+                    <p className="font-semibold text-slate-900 dark:text-white" data-testid="revise-note-topic">
                       {dailyPlan.reviseNoteSuggestion.topicName}
                     </p>
-                    <p className="text-sm text-slate-600 mt-1">
+                    <p className="text-sm text-slate-600 dark:text-slate-200 mt-1">
                       Last revised {dailyPlan.reviseNoteSuggestion.lastRevisedDaysAgo} days ago
                     </p>
                     <Badge className="mt-2" variant={
@@ -379,7 +382,7 @@ function TodayPageContent() {
                     </Badge>
                   </div>
                   <Button 
-                    className="w-full" 
+                    className="btn-outline w-full" 
                     variant="outline"
                     onClick={() => handleReviseNote(dailyPlan.reviseNoteSuggestion!.noteId)}
                     data-testid="revise-note-btn"
@@ -394,10 +397,10 @@ function TodayPageContent() {
 
           {/* Focus Sprint */}
           {dailyPlan.focusSprint && (
-            <Card data-testid="today-focus-sprint">
+            <Card className="glass-panel border border-white/40" data-testid="today-focus-sprint">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Zap className="w-5 h-5 text-yellow-600" />
+                  <Zap className="w-5 h-5 text-amber-500" />
                   Quick Focus Sprint
                 </CardTitle>
                 <CardDescription>{dailyPlan.focusSprint.durationMinutes}-minute deep focus session</CardDescription>
@@ -405,15 +408,15 @@ function TodayPageContent() {
               <CardContent>
                 <div className="space-y-3">
                   <div>
-                    <p className="font-semibold" data-testid="focus-sprint-topic">
+                    <p className="font-semibold text-slate-900 dark:text-white" data-testid="focus-sprint-topic">
                       {dailyPlan.focusSprint.suggestedTopicName}
                     </p>
-                    <p className="text-sm text-slate-600 mt-1" data-testid="focus-sprint-reason">
+                    <p className="text-sm text-slate-600 dark:text-slate-200 mt-1" data-testid="focus-sprint-reason">
                       {dailyPlan.focusSprint.reason}
                     </p>
                   </div>
                   <Button 
-                    className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600"
+                    className="btn-primary w-full"
                     onClick={() => handleStartFocus(dailyPlan.focusSprint!.suggestedTopicId)}
                     data-testid="focus-sprint-start-btn"
                   >

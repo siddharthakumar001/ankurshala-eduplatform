@@ -243,19 +243,21 @@ function ProfileContent() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" data-testid="student-profile-loading">
-        <div className="text-lg">Loading...</div>
+        <div className="glass-panel rounded-2xl border border-white/40 px-6 py-4 text-slate-600 dark:text-slate-200">
+          Loading...
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8" data-testid="student-profile-root">
+    <div className="min-h-screen bg-transparent py-8" data-testid="student-profile-root">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Stage-1 FE complete: Header with navigation */}
-        <div className="mb-8 flex justify-between items-center">
+        <div className="page-header mb-8 flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Student Profile</h1>
-            <p className="text-gray-600">Welcome, {user?.name}</p>
+            <h1 className="text-3xl font-bold text-white">Student Profile</h1>
+            <p className="text-white/80">Welcome, {user?.name}</p>
           </div>
           <div className="space-x-4">
             <Button variant="outline" onClick={handleLogout}>
@@ -266,13 +268,13 @@ function ProfileContent() {
 
         {/* Stage-1 FE complete: Tab navigation */}
         <div className="mb-6">
-          <nav className="flex space-x-8">
+          <nav className="flex space-x-4 glass-panel rounded-2xl p-2 border border-white/40 dark:border-white/10">
             <button
               onClick={() => setActiveTab('personal')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'personal'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-ankur-primary text-ankur-secondary dark:text-white'
+                  : 'border-transparent text-slate-500 dark:text-slate-300 dark:text-slate-300 hover:text-ankur-secondary'
               }`}
             >
               Personal Information
@@ -281,8 +283,8 @@ function ProfileContent() {
               onClick={() => setActiveTab('academic')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'academic'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-ankur-primary text-ankur-secondary dark:text-white'
+                  : 'border-transparent text-slate-500 dark:text-slate-300 dark:text-slate-300 hover:text-ankur-secondary'
               }`}
             >
               Academic Information
@@ -291,8 +293,8 @@ function ProfileContent() {
               onClick={() => setActiveTab('documents')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'documents'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-ankur-primary text-ankur-secondary dark:text-white'
+                  : 'border-transparent text-slate-500 dark:text-slate-300 dark:text-slate-300 hover:text-ankur-secondary'
               }`}
               data-testid="tab-documents"
               role="tab"
@@ -304,7 +306,7 @@ function ProfileContent() {
 
         {/* Stage-1 FE complete: Personal Information Tab */}
         {activeTab === 'personal' && (
-          <Card>
+          <Card className="glass-panel border border-white/40">
             <CardHeader>
               <CardTitle>Personal Information</CardTitle>
               <CardDescription>Your basic personal details</CardDescription>
@@ -313,14 +315,14 @@ function ProfileContent() {
               <form onSubmit={personalForm.handleSubmit(onPersonalSubmit)} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
                       First Name *
                     </label>
                     <input
                       {...personalForm.register('firstName')}
                       type="text"
-                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        personalForm.formState.errors.firstName ? 'border-red-300' : 'border-gray-300'
+                      className={`input-modern ${
+                        personalForm.formState.errors.firstName ? 'border-red-300' : ''
                       }`}
                       placeholder="Enter your first name"
                       data-testid="input-first-name"
@@ -333,26 +335,26 @@ function ProfileContent() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
                       Middle Name
                     </label>
                     <input
                       {...personalForm.register('middleName')}
                       type="text"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="input-modern"
                       placeholder="Enter your middle name"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
                       Last Name *
                     </label>
                     <input
                       {...personalForm.register('lastName')}
                       type="text"
-                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        personalForm.formState.errors.lastName ? 'border-red-300' : 'border-gray-300'
+                      className={`input-modern ${
+                        personalForm.formState.errors.lastName ? 'border-red-300' : ''
                       }`}
                       placeholder="Enter your last name"
                     />
@@ -364,14 +366,14 @@ function ProfileContent() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
                       Date of Birth *
                     </label>
                     <input
                       {...personalForm.register('dateOfBirth')}
                       type="date"
-                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        personalForm.formState.errors.dateOfBirth ? 'border-red-300' : 'border-gray-300'
+                      className={`input-modern ${
+                        personalForm.formState.errors.dateOfBirth ? 'border-red-300' : ''
                       }`}
                     />
                     {personalForm.formState.errors.dateOfBirth && (
@@ -382,14 +384,14 @@ function ProfileContent() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
                       Mobile Number *
                     </label>
                     <input
                       {...personalForm.register('mobileNumber')}
                       type="tel"
-                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        personalForm.formState.errors.mobileNumber ? 'border-red-300' : 'border-gray-300'
+                      className={`input-modern ${
+                        personalForm.formState.errors.mobileNumber ? 'border-red-300' : ''
                       }`}
                       placeholder="Enter your mobile number"
                     />
@@ -401,13 +403,13 @@ function ProfileContent() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
                       Alternate Mobile Number
                     </label>
                     <input
                       {...personalForm.register('alternateMobileNumber')}
                       type="tel"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="input-modern"
                       placeholder="Enter alternate mobile number"
                     />
                   </div>
@@ -417,7 +419,7 @@ function ProfileContent() {
                   <Button
                     type="submit"
                     disabled={loading}
-                    className="px-6 py-2"
+                    className="btn-primary"
                     data-testid="save-personal-info"
                   >
                     {loading ? 'Saving...' : 'Save Personal Information'}
@@ -430,7 +432,7 @@ function ProfileContent() {
 
         {/* Stage-1 FE complete: Academic Information Tab */}
         {activeTab === 'academic' && (
-          <Card>
+          <Card className="glass-panel border border-white/40">
             <CardHeader>
               <CardTitle>Academic Information</CardTitle>
               <CardDescription>Your educational background</CardDescription>
@@ -439,14 +441,14 @@ function ProfileContent() {
               <form onSubmit={academicForm.handleSubmit(onAcademicSubmit)} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
                       School Name *
                     </label>
                     <input
                       {...academicForm.register('schoolName')}
                       type="text"
-                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        academicForm.formState.errors.schoolName ? 'border-red-300' : 'border-gray-300'
+                      className={`input-modern ${
+                        academicForm.formState.errors.schoolName ? 'border-red-300' : ''
                       }`}
                       placeholder="Enter your school name"
                       data-testid="input-school-name"
@@ -459,13 +461,13 @@ function ProfileContent() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
                       Educational Board *
                     </label>
                     <select
                       {...academicForm.register('educationalBoard')}
-                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        academicForm.formState.errors.educationalBoard ? 'border-red-300' : 'border-gray-300'
+                      className={`input-modern ${
+                        academicForm.formState.errors.educationalBoard ? 'border-red-300' : ''
                       }`}
                     >
                       <option value="CBSE">CBSE</option>
@@ -483,13 +485,13 @@ function ProfileContent() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
                       Class Level *
                     </label>
                     <select
                       {...academicForm.register('classLevel')}
-                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        academicForm.formState.errors.classLevel ? 'border-red-300' : 'border-gray-300'
+                      className={`input-modern ${
+                        academicForm.formState.errors.classLevel ? 'border-red-300' : ''
                       }`}
                     >
                       <option value="GRADE_7">Grade 7</option>
@@ -507,13 +509,13 @@ function ProfileContent() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
                       School Address
                     </label>
                     <textarea
                       {...academicForm.register('schoolAddress')}
                       rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="input-modern"
                       placeholder="Enter your school address"
                     />
                   </div>
@@ -523,7 +525,7 @@ function ProfileContent() {
                   <Button
                     type="submit"
                     disabled={loading}
-                    className="px-6 py-2"
+                    className="btn-primary"
                   >
                     {loading ? 'Saving...' : 'Save Academic Information'}
                   </Button>
@@ -537,7 +539,7 @@ function ProfileContent() {
         {activeTab === 'documents' && (
           <div className="space-y-6" data-testid="panel-documents" role="tabpanel">
             {/* Add Document Form */}
-            <Card>
+            <Card className="glass-panel border border-white/40">
               <CardHeader>
                 <CardTitle>Add New Document</CardTitle>
                 <CardDescription>Upload documents by providing URLs</CardDescription>
@@ -546,14 +548,14 @@ function ProfileContent() {
                 <form onSubmit={documentForm.handleSubmit(onDocumentSubmit)} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
                         Document Type *
                       </label>
                       <input
                         {...documentForm.register('documentName')}
                         type="text"
-                        className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                          documentForm.formState.errors.documentName ? 'border-red-300' : 'border-gray-300'
+                        className={`input-modern ${
+                          documentForm.formState.errors.documentName ? 'border-red-300' : ''
                         }`}
                         placeholder="e.g., Report Card, ID Card"
                         data-testid="input-document-name"
@@ -566,14 +568,14 @@ function ProfileContent() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
                         Document URL *
                       </label>
                       <input
                         {...documentForm.register('documentUrl')}
                         type="url"
-                        className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                          documentForm.formState.errors.documentUrl ? 'border-red-300' : 'border-gray-300'
+                        className={`input-modern ${
+                          documentForm.formState.errors.documentUrl ? 'border-red-300' : ''
                         }`}
                         placeholder="https://example.com/document.pdf"
                         data-testid="student-documents-add-url"
@@ -590,7 +592,7 @@ function ProfileContent() {
                     <Button
                       type="submit"
                       disabled={loading}
-                      className="px-6 py-2"
+                      className="btn-primary"
                     >
                       {loading ? 'Adding...' : 'Add Document'}
                     </Button>
@@ -600,22 +602,22 @@ function ProfileContent() {
             </Card>
 
             {/* Documents List */}
-            <Card>
+            <Card className="glass-panel border border-white/40">
               <CardHeader>
                 <CardTitle>Your Documents</CardTitle>
                 <CardDescription>Manage your uploaded documents</CardDescription>
               </CardHeader>
               <CardContent>
                 {documentsLoading ? (
-                  <div className="text-center py-4">Loading documents...</div>
+                  <div className="text-center py-4 text-slate-500 dark:text-slate-300">Loading documents...</div>
                 ) : documents.length > 0 ? (
                   <div className="space-y-3">
                     {documents.map((doc) => (
-                      <div key={doc.id} className="flex justify-between items-center p-4 border rounded-lg">
+                      <div key={doc.id} className="flex justify-between items-center p-4 glass rounded-lg border border-white/30">
                         <div className="flex-1">
-                          <h4 className="font-medium text-gray-900">{doc.documentType || doc.documentName}</h4>
-                          <p className="text-sm text-gray-500">{doc.documentUrl}</p>
-                          <p className="text-xs text-gray-400">
+                          <h4 className="font-medium text-slate-900 dark:text-white">{doc.documentType || doc.documentName}</h4>
+                          <p className="text-sm text-slate-500 dark:text-slate-300">{doc.documentUrl}</p>
+                          <p className="text-xs text-slate-400 dark:text-slate-300">
                             Added: {new Date(doc.uploadDate).toLocaleDateString()}
                           </p>
                         </div>
@@ -624,13 +626,13 @@ function ProfileContent() {
                             href={doc.documentUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                            className="btn-outline h-8 px-3 text-sm"
                           >
                             View
                           </a>
                           <button
                             onClick={() => deleteDocument(doc.id)}
-                            className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200"
+                            className="btn-outline h-8 px-3 text-sm text-red-600 hover:text-red-700"
                           >
                             Delete
                           </button>
@@ -639,7 +641,7 @@ function ProfileContent() {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className="text-center py-8 text-slate-500 dark:text-slate-300">
                     <p>No documents uploaded yet</p>
                     <p className="text-sm">Add your first document using the form above</p>
                   </div>

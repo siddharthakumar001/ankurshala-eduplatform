@@ -23,7 +23,6 @@ import { toast } from 'sonner'
 import { useAuthStore } from '@/store/auth'
 import { api } from '@/utils/api'
 import { StudentRoute } from '@/components/route-guard'
-import StudentNavigation from '@/components/student-navigation'
 
 interface StudentBillingSummary {
   totalAmount: number
@@ -132,7 +131,7 @@ function PaymentContent() {
       const response = await api.post('/student/payments/process', {
         bookingId: paymentId,
         amount: amount,
-        paymentMethodId: billingSummary?.defaultPaymentMethod.id || 1
+        paymentMethodId: String(billingSummary?.defaultPaymentMethod.id || 1)
       })
       
       const responseData = response.data as any
@@ -211,35 +210,32 @@ function PaymentContent() {
 
   if (loading) {
     return (
-      <>
-        <StudentNavigation />
-        <div className="min-h-screen bg-gray-50 py-8">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-              <span className="ml-2 text-gray-600">Loading payment data...</span>
+      <div className="min-h-screen bg-transparent py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-center h-64">
+            <div className="glass-panel rounded-2xl border border-white/40 px-6 py-4 flex items-center">
+              <Loader2 className="h-8 w-8 animate-spin text-ankur-primary" />
+              <span className="ml-2 text-gray-600 dark:text-gray-300">Loading payment data...</span>
             </div>
           </div>
         </div>
-      </>
+      </div>
     )
   }
 
   return (
-    <>
-      <StudentNavigation />
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-transparent py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Payments & Billing</h1>
-            <p className="text-gray-600">Manage your payments and billing information</p>
+          <div className="page-header mb-8">
+            <h1 className="text-3xl font-bold text-white">Payments & Billing</h1>
+            <p className="text-white/80">Manage your payments and billing information</p>
           </div>
 
           {/* Billing Summary Cards */}
           {billingSummary && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              <Card>
+              <Card className="glass-panel border border-white/40">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Spent</CardTitle>
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -252,7 +248,7 @@ function PaymentContent() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="glass-panel border border-white/40">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Monthly Spending</CardTitle>
                   <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -265,7 +261,7 @@ function PaymentContent() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="glass-panel border border-white/40">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Pending Payments</CardTitle>
                   <Clock className="h-4 w-4 text-muted-foreground" />
@@ -278,7 +274,7 @@ function PaymentContent() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="glass-panel border border-white/40">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Overdue</CardTitle>
                   <AlertCircle className="h-4 w-4 text-muted-foreground" />
@@ -295,7 +291,7 @@ function PaymentContent() {
 
           {/* Main Content Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-3 glass-panel rounded-2xl p-2 border border-white/40 dark:border-white/10">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="history">Payment History</TabsTrigger>
               <TabsTrigger value="methods">Payment Methods</TabsTrigger>
@@ -305,7 +301,7 @@ function PaymentContent() {
             <TabsContent value="overview" className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Recent Payments */}
-                <Card>
+                <Card className="glass-panel border border-white/40">
                   <CardHeader>
                     <CardTitle>Recent Payments</CardTitle>
                     <CardDescription>Your latest payment transactions</CardDescription>
@@ -316,7 +312,7 @@ function PaymentContent() {
                     ) : (
                       <div className="space-y-4">
                         {payments.slice(0, 5).map((payment) => (
-                          <div key={payment.id} className="border rounded-lg p-4">
+                          <div key={payment.id} className="border border-white/40 dark:border-white/10 rounded-lg p-4 bg-white/70 dark:bg-slate-900/70">
                             <div className="flex justify-between items-start mb-2">
                               <div>
                                 <h4 className="font-medium">{payment.bookingTitle}</h4>
@@ -348,14 +344,14 @@ function PaymentContent() {
                 </Card>
 
                 {/* Default Payment Method */}
-                <Card>
+                <Card className="glass-panel border border-white/40">
                   <CardHeader>
                     <CardTitle>Default Payment Method</CardTitle>
                     <CardDescription>Your preferred payment method</CardDescription>
                   </CardHeader>
                   <CardContent>
                     {billingSummary?.defaultPaymentMethod ? (
-                      <div className="border rounded-lg p-4">
+                      <div className="border border-white/40 dark:border-white/10 rounded-lg p-4 bg-white/70 dark:bg-slate-900/70">
                         <div className="flex items-center gap-3">
                           {getPaymentMethodIcon(billingSummary.defaultPaymentMethod.type)}
                           <div>
@@ -366,7 +362,7 @@ function PaymentContent() {
                           </div>
                           <Badge variant="outline" className="ml-auto">Default</Badge>
                         </div>
-                        <Button variant="outline" className="w-full mt-4">
+                        <Button variant="outline" className="w-full mt-4 border-white/40 hover:bg-white/60 dark:hover:bg-slate-900/60">
                           <Settings className="h-4 w-4 mr-2" />
                           Manage Payment Methods
                         </Button>
@@ -389,7 +385,7 @@ function PaymentContent() {
 
             {/* Payment History Tab */}
             <TabsContent value="history" className="space-y-6">
-              <Card>
+              <Card className="glass-panel border border-white/40">
                 <CardHeader>
                   <CardTitle>Payment History</CardTitle>
                   <CardDescription>All your payment transactions</CardDescription>
@@ -397,7 +393,7 @@ function PaymentContent() {
                 <CardContent>
                   <div className="space-y-4">
                     {payments.map((payment) => (
-                      <div key={payment.id} className="border rounded-lg p-4">
+                      <div key={payment.id} className="border border-white/40 dark:border-white/10 rounded-lg p-4 bg-white/70 dark:bg-slate-900/70">
                         <div className="flex justify-between items-start mb-2">
                           <div>
                             <h4 className="font-medium">{payment.bookingTitle}</h4>
@@ -467,7 +463,7 @@ function PaymentContent() {
 
             {/* Payment Methods Tab */}
             <TabsContent value="methods" className="space-y-6">
-              <Card>
+              <Card className="glass-panel border border-white/40">
                 <CardHeader>
                   <CardTitle>Payment Methods</CardTitle>
                   <CardDescription>Manage your payment methods</CardDescription>
@@ -475,7 +471,7 @@ function PaymentContent() {
                 <CardContent>
                   <div className="space-y-4">
                     {paymentMethods.map((method) => (
-                      <div key={method.id} className="border rounded-lg p-4">
+                      <div key={method.id} className="border border-white/40 dark:border-white/10 rounded-lg p-4 bg-white/70 dark:bg-slate-900/70">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             {getPaymentMethodIcon(method.type)}
@@ -515,8 +511,7 @@ function PaymentContent() {
               </Card>
             </TabsContent>
           </Tabs>
-        </div>
       </div>
-    </>
+    </div>
   )
 }

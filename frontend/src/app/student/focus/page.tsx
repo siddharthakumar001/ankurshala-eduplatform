@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,12 +12,9 @@ import {
   Target, 
   Clock, 
   Play, 
-  Pause, 
   StopCircle,
   CheckCircle,
-  ChevronRight,
   Settings,
-  History,
   Zap,
   Timer,
   Send,
@@ -228,7 +225,7 @@ function FocusContent() {
       }
       setShowStartModal(false);
       setGoalText('');
-      toast.success('Focus session started! 🎯');
+      toast.success('Focus session started!');
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to start session');
     } finally {
@@ -250,7 +247,7 @@ function FocusContent() {
       if (response.data.sessionComplete) {
         setActiveSession(null);
         setCurrentCheckin(null);
-        toast.success('Focus session completed! Great work! 🎉');
+        toast.success('Focus session completed! Great work!');
         loadInitialData();
       } else if (response.data.nextCheckin) {
         setCurrentCheckin(response.data.nextCheckin);
@@ -309,10 +306,10 @@ function FocusContent() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="animate-pulse bg-gray-200 h-48 rounded-2xl"></div>
+        <div className="skeleton h-48 rounded-3xl"></div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="animate-pulse bg-gray-200 h-24 rounded-xl"></div>
+            <div key={i} className="skeleton h-24 rounded-2xl"></div>
           ))}
         </div>
       </div>
@@ -322,7 +319,7 @@ function FocusContent() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-indigo-600 to-blue-600 rounded-2xl p-8 text-white shadow-lg">
+      <div className="page-header">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold mb-2 flex items-center gap-3">
@@ -333,19 +330,19 @@ function FocusContent() {
               AI-powered study sprints to help you stay focused and learn effectively
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <Button 
-              variant="outline"
-              className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-              onClick={() => setShowSettingsModal(true)}
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button 
+                variant="outline"
+                className="btn-outline border-white/40 bg-white/10 text-white hover:bg-white/20"
+                onClick={() => setShowSettingsModal(true)}
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Settings
+              </Button>
             {!activeSession && (
               <Button 
                 onClick={handleOpenStartModal}
-                className="bg-white text-indigo-600 hover:bg-indigo-50 font-semibold"
+                className="btn-primary"
               >
                 <Play className="h-5 w-5 mr-2" />
                 Start Sprint
@@ -357,30 +354,30 @@ function FocusContent() {
 
       {/* Active Session */}
       {activeSession && (
-        <Card className="border-indigo-200 shadow-lg">
-          <CardHeader className="bg-gradient-to-r from-indigo-50 to-blue-50 border-b border-indigo-100">
+        <Card className="glass-panel border border-white/40">
+          <CardHeader className="border-b border-white/20">
             <div className="flex items-center justify-between">
               <div>
-                <Badge className="bg-green-100 text-green-700 mb-2">
+                <Badge className="badge-success mb-2">
                   <Zap className="h-3 w-3 mr-1" /> ACTIVE
                 </Badge>
                 <CardTitle className="text-xl">{activeSession.topicTitle}</CardTitle>
                 <CardDescription>{activeSession.goalText}</CardDescription>
               </div>
               <div className="text-right">
-                <div className="text-3xl font-mono font-bold text-indigo-600">
+                <div className="text-3xl font-mono font-bold text-emerald-500 dark:text-emerald-300">
                   {formatTime(elapsedTime)}
                 </div>
-                <p className="text-sm text-gray-500">of {activeSession.sprintMinutes} min</p>
+                <p className="text-sm text-slate-500 dark:text-slate-300">of {activeSession.sprintMinutes} min</p>
               </div>
             </div>
           </CardHeader>
           <CardContent className="p-6">
             <div className="mb-6">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-600">Progress</span>
-                <span className="text-sm text-gray-500">
-                  Step {activeSession.currentStep} • {activeSession.stepsCompleted} completed
+                <span className="text-sm font-medium text-slate-600 dark:text-slate-200">Progress</span>
+                <span className="text-sm text-slate-500 dark:text-slate-300">
+                  Step {activeSession.currentStep} / {activeSession.stepsCompleted} completed
                 </span>
               </div>
               <Progress 
@@ -391,19 +388,19 @@ function FocusContent() {
 
             {currentCheckin && (
               <div className="space-y-4">
-                <div className="bg-indigo-50 rounded-xl p-4">
-                  <h4 className="font-semibold text-indigo-900 mb-2">
+                <div className="glass rounded-xl p-4">
+                  <h4 className="font-semibold text-slate-900 dark:text-white mb-2">
                     Step {currentCheckin.stepNumber}
                   </h4>
-                  <p className="text-indigo-800">{currentCheckin.explanation}</p>
+                  <p className="text-slate-700 dark:text-slate-200">{currentCheckin.explanation}</p>
                 </div>
 
-                <div className="bg-white border border-gray-200 rounded-xl p-4">
-                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                    <Target className="h-4 w-4 text-indigo-600" />
+                <div className="glass-panel rounded-xl p-4">
+                  <h4 className="font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+                    <Target className="h-4 w-4 text-emerald-500" />
                     Check-in Question
                   </h4>
-                  <p className="text-gray-700 mb-4">{currentCheckin.question}</p>
+                  <p className="text-slate-700 dark:text-slate-200 mb-4">{currentCheckin.question}</p>
 
                   <div className="flex gap-2">
                     <Input
@@ -411,12 +408,12 @@ function FocusContent() {
                       value={responseText}
                       onChange={(e) => setResponseText(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleSubmitResponse()}
-                      className="flex-1"
+                      className="input-modern flex-1"
                     />
                     <Button 
                       onClick={handleSubmitResponse}
                       disabled={!responseText.trim() || isSubmitting}
-                      className="bg-indigo-600 hover:bg-indigo-700"
+                      className="btn-primary"
                     >
                       {isSubmitting ? (
                         <Timer className="h-4 w-4 animate-spin" />
@@ -432,7 +429,7 @@ function FocusContent() {
             <div className="flex justify-end mt-6">
               <Button 
                 variant="outline" 
-                className="text-red-600 border-red-200 hover:bg-red-50"
+                className="btn-outline text-red-600 hover:text-red-700"
                 onClick={handleEndSession}
               >
                 <StopCircle className="h-4 w-4 mr-2" />
@@ -446,47 +443,47 @@ function FocusContent() {
       {/* Stats Cards */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="border-gray-100 shadow-sm">
+          <Card className="glass-panel">
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-10 w-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-                <Target className="h-5 w-5 text-indigo-600" />
+              <div className="h-10 w-10 bg-emerald-500/10 rounded-lg flex items-center justify-center">
+                <Target className="h-5 w-5 text-emerald-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">{stats.completedSessions}</p>
-                <p className="text-xs text-gray-500">Sessions</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.completedSessions}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-300">Sessions</p>
               </div>
             </CardContent>
           </Card>
-          <Card className="border-gray-100 shadow-sm">
+          <Card className="glass-panel">
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Clock className="h-5 w-5 text-blue-600" />
+              <div className="h-10 w-10 bg-sky-500/10 rounded-lg flex items-center justify-center">
+                <Clock className="h-5 w-5 text-sky-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalFocusTimeMinutes}</p>
-                <p className="text-xs text-gray-500">Minutes</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.totalFocusTimeMinutes}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-300">Minutes</p>
               </div>
             </CardContent>
           </Card>
-          <Card className="border-gray-100 shadow-sm">
+          <Card className="glass-panel">
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <CheckCircle className="h-5 w-5 text-green-600" />
+              <div className="h-10 w-10 bg-emerald-500/10 rounded-lg flex items-center justify-center">
+                <CheckCircle className="h-5 w-5 text-emerald-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalQuestionsCorrect}</p>
-                <p className="text-xs text-gray-500">Correct</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.totalQuestionsCorrect}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-300">Correct</p>
               </div>
             </CardContent>
           </Card>
-          <Card className="border-gray-100 shadow-sm">
+          <Card className="glass-panel">
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-10 w-10 bg-amber-100 rounded-lg flex items-center justify-center">
-                <TrendingUp className="h-5 w-5 text-amber-600" />
+              <div className="h-10 w-10 bg-amber-500/10 rounded-lg flex items-center justify-center">
+                <TrendingUp className="h-5 w-5 text-amber-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">{stats.averageAccuracy}%</p>
-                <p className="text-xs text-gray-500">Accuracy</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.averageAccuracy}%</p>
+                <p className="text-xs text-slate-500 dark:text-slate-300">Accuracy</p>
               </div>
             </CardContent>
           </Card>
@@ -495,42 +492,42 @@ function FocusContent() {
 
       {/* How It Works */}
       {!activeSession && (
-        <Card className="border-gray-100 shadow-sm">
+        <Card className="glass-panel">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-indigo-600" />
+              <Sparkles className="h-5 w-5 text-emerald-500" />
               How Focus Mode Works
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="text-center">
-                <div className="h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <Target className="h-6 w-6 text-indigo-600" />
+                <div className="h-12 w-12 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Target className="h-6 w-6 text-emerald-500" />
                 </div>
                 <h4 className="font-semibold mb-1">1. Set Goal</h4>
-                <p className="text-sm text-gray-500">Pick a topic and define what you want to learn</p>
+                <p className="text-sm text-slate-500 dark:text-slate-300">Pick a topic and define what you want to learn</p>
               </div>
               <div className="text-center">
-                <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <Timer className="h-6 w-6 text-blue-600" />
+                <div className="h-12 w-12 bg-sky-500/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Timer className="h-6 w-6 text-sky-500" />
                 </div>
                 <h4 className="font-semibold mb-1">2. Sprint</h4>
-                <p className="text-sm text-gray-500">Focus for 10-20 minutes with AI guidance</p>
+                <p className="text-sm text-slate-500 dark:text-slate-300">Focus for 10-20 minutes with AI guidance</p>
               </div>
               <div className="text-center">
-                <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <CheckCircle className="h-6 w-6 text-green-600" />
+                <div className="h-12 w-12 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <CheckCircle className="h-6 w-6 text-emerald-500" />
                 </div>
                 <h4 className="font-semibold mb-1">3. Check-ins</h4>
-                <p className="text-sm text-gray-500">Answer quick questions to stay on track</p>
+                <p className="text-sm text-slate-500 dark:text-slate-300">Answer quick questions to stay on track</p>
               </div>
               <div className="text-center">
-                <div className="h-12 w-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <Award className="h-6 w-6 text-amber-600" />
+                <div className="h-12 w-12 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Award className="h-6 w-6 text-amber-500" />
                 </div>
                 <h4 className="font-semibold mb-1">4. Progress</h4>
-                <p className="text-sm text-gray-500">Build mastery and track improvements</p>
+                <p className="text-sm text-slate-500 dark:text-slate-300">Build mastery and track improvements</p>
               </div>
             </div>
           </CardContent>
@@ -539,11 +536,11 @@ function FocusContent() {
 
       {/* Start Session Modal */}
       {showStartModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-lg">
-            <CardHeader className="border-b border-gray-100">
+        <div className="modal-overlay p-4">
+          <Card className="modal-content">
+            <CardHeader className="border-b border-white/20">
               <CardTitle className="flex items-center gap-2">
-                <Play className="h-5 w-5 text-indigo-600" />
+                <Play className="h-5 w-5 text-emerald-500" />
                 Start Focus Sprint
               </CardTitle>
               <CardDescription>
@@ -552,9 +549,9 @@ function FocusContent() {
             </CardHeader>
             <CardContent className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Subject</label>
                 <select
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  className="input-modern"
                   value={selectedSubject || ''}
                   onChange={(e) => handleSubjectChange(Number(e.target.value))}
                 >
@@ -567,9 +564,9 @@ function FocusContent() {
 
               {selectedSubject && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Chapter</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Chapter</label>
                   <select
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    className="input-modern"
                     value={selectedChapter || ''}
                     onChange={(e) => handleChapterChange(Number(e.target.value))}
                   >
@@ -583,9 +580,9 @@ function FocusContent() {
 
               {selectedChapter && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Topic</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Topic</label>
                   <select
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    className="input-modern"
                     value={selectedTopic || ''}
                     onChange={(e) => setSelectedTopic(Number(e.target.value))}
                   >
@@ -598,26 +595,27 @@ function FocusContent() {
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Your Goal</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Your Goal</label>
                 <Input
                   placeholder="What do you want to learn today?"
                   value={goalText}
                   onChange={(e) => setGoalText(e.target.value)}
                   maxLength={500}
+                  className="input-modern"
                 />
-                <p className="text-xs text-gray-400 mt-1">{goalText.length}/500</p>
+                <p className="text-xs text-slate-400 mt-1">{goalText.length}/500</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Sprint Duration</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">Sprint Duration</label>
                 <div className="flex gap-2">
                   {[10, 15, 20].map((mins) => (
                     <button
                       key={mins}
                       className={`flex-1 py-2 rounded-lg border transition-all ${
                         sprintMinutes === mins 
-                          ? 'border-indigo-500 bg-indigo-50 text-indigo-700' 
-                          : 'border-gray-200 hover:border-gray-300'
+                          ? 'border-[#0F9D58] bg-white/80 text-[#0F9D58]' 
+                          : 'border-white/30 bg-white/50 text-slate-700 dark:text-slate-100 hover:border-white/60'
                       }`}
                       onClick={() => setSprintMinutes(mins)}
                     >
@@ -627,14 +625,14 @@ function FocusContent() {
                 </div>
               </div>
             </CardContent>
-            <div className="p-4 border-t border-gray-100 flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowStartModal(false)}>
+            <div className="p-4 border-t border-white/20 flex justify-end gap-2">
+              <Button variant="outline" className="btn-outline" onClick={() => setShowStartModal(false)}>
                 Cancel
               </Button>
               <Button 
                 onClick={handleStartSession}
                 disabled={!selectedTopic || !goalText.trim() || isStarting}
-                className="bg-indigo-600 hover:bg-indigo-700"
+                className="btn-primary"
               >
                 {isStarting ? 'Starting...' : 'Start Sprint'}
               </Button>
@@ -645,11 +643,11 @@ function FocusContent() {
 
       {/* Settings Modal */}
       {showSettingsModal && settings && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader className="border-b border-gray-100">
+        <div className="modal-overlay p-4">
+          <Card className="modal-content max-w-md">
+            <CardHeader className="border-b border-white/20">
               <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5 text-gray-600" />
+                <Settings className="h-5 w-5 text-slate-600 dark:text-slate-200" />
                 Focus Settings
               </CardTitle>
             </CardHeader>
@@ -657,7 +655,7 @@ function FocusContent() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">Focus Mode Enabled</p>
-                  <p className="text-sm text-gray-500">Enable AI focus coaching</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-300">Enable AI focus coaching</p>
                 </div>
                 <Switch
                   checked={settings.focusEnabled}
@@ -666,15 +664,15 @@ function FocusContent() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Default Sprint Duration</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">Default Sprint Duration</label>
                 <div className="flex gap-2">
                   {[10, 15, 20].map((mins) => (
                     <button
                       key={mins}
                       className={`flex-1 py-2 rounded-lg border transition-all ${
                         settings.defaultSprintMinutes === mins 
-                          ? 'border-indigo-500 bg-indigo-50 text-indigo-700' 
-                          : 'border-gray-200 hover:border-gray-300'
+                          ? 'border-[#0F9D58] bg-white/80 text-[#0F9D58]' 
+                          : 'border-white/30 bg-white/50 text-slate-700 dark:text-slate-100 hover:border-white/60'
                       }`}
                       onClick={() => handleUpdateSettings({ defaultSprintMinutes: mins })}
                     >
@@ -685,13 +683,13 @@ function FocusContent() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Language</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">Language</label>
                 <div className="flex gap-2">
                   <button
                     className={`flex-1 py-2 rounded-lg border transition-all ${
                       settings.languagePref === 'en' 
-                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700' 
-                        : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-[#0F9D58] bg-white/80 text-[#0F9D58]' 
+                        : 'border-white/30 bg-white/50 text-slate-700 dark:text-slate-100 hover:border-white/60'
                     }`}
                     onClick={() => handleUpdateSettings({ languagePref: 'en' })}
                   >
@@ -700,12 +698,12 @@ function FocusContent() {
                   <button
                     className={`flex-1 py-2 rounded-lg border transition-all ${
                       settings.languagePref === 'hi' 
-                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700' 
-                        : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-[#0F9D58] bg-white/80 text-[#0F9D58]' 
+                        : 'border-white/30 bg-white/50 text-slate-700 dark:text-slate-100 hover:border-white/60'
                     }`}
                     onClick={() => handleUpdateSettings({ languagePref: 'hi' })}
                   >
-                    हिंदी
+                    Hindi
                   </button>
                 </div>
               </div>
@@ -713,7 +711,7 @@ function FocusContent() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">Reminders</p>
-                  <p className="text-sm text-gray-500">Get notified before sprint ends</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-300">Get notified before sprint ends</p>
                 </div>
                 <Switch
                   checked={settings.reminderEnabled}
@@ -724,7 +722,7 @@ function FocusContent() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">Sound Effects</p>
-                  <p className="text-sm text-gray-500">Play sounds for check-ins</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-300">Play sounds for check-ins</p>
                 </div>
                 <Switch
                   checked={settings.soundEnabled}
@@ -732,8 +730,8 @@ function FocusContent() {
                 />
               </div>
             </CardContent>
-            <div className="p-4 border-t border-gray-100 flex justify-end">
-              <Button onClick={() => setShowSettingsModal(false)}>
+            <div className="p-4 border-t border-white/20 flex justify-end">
+              <Button className="btn-primary" onClick={() => setShowSettingsModal(false)}>
                 Done
               </Button>
             </div>

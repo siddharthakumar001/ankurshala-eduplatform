@@ -57,8 +57,8 @@ public class TeacherBookingManagementService {
             throw new RuntimeException("Unauthorized to accept this booking");
         }
         
-        if (!booking.getState().equals("REQUESTED")) {
-            throw new RuntimeException("Booking is not in REQUESTED status");
+        if (booking.getStatus() != BookingStatus.PENDING) {
+            throw new RuntimeException("Booking is not in PENDING status");
         }
         
         // Check if teacher has auto-accept enabled
@@ -68,7 +68,7 @@ public class TeacherBookingManagementService {
         }
         
         // Update booking status
-        booking.setState("ACCEPTED");
+        booking.setStatus(BookingStatus.ACCEPTED);
         booking.setAcceptedAt(ZonedDateTime.now());
         
         Booking saved = bookingRepository.save(booking);
@@ -93,12 +93,12 @@ public class TeacherBookingManagementService {
             throw new RuntimeException("Unauthorized to decline this booking");
         }
         
-        if (!booking.getState().equals("REQUESTED")) {
-            throw new RuntimeException("Booking is not in REQUESTED status");
+        if (booking.getStatus() != BookingStatus.PENDING) {
+            throw new RuntimeException("Booking is not in PENDING status");
         }
         
         // Update booking status
-        booking.setState("CANCELLED");
+        booking.setStatus(BookingStatus.CANCELLED);
         booking.setCancelledAt(ZonedDateTime.now());
         booking.setCancellationReason(reason);
         
@@ -121,14 +121,14 @@ public class TeacherBookingManagementService {
             throw new RuntimeException("Unauthorized to reschedule this booking");
         }
         
-        if (!booking.getState().equals("ACCEPTED")) {
+        if (booking.getStatus() != BookingStatus.ACCEPTED) {
             throw new RuntimeException("Booking must be ACCEPTED to reschedule");
         }
         
         // Update booking times
         booking.setStartTs(ZonedDateTime.of(newStartTime, ZoneId.systemDefault()));
         booking.setEndTs(ZonedDateTime.of(newEndTime, ZoneId.systemDefault()));
-        booking.setState("RESCHEDULED");
+        booking.setStatus(BookingStatus.ACCEPTED);
         
         Booking saved = bookingRepository.save(booking);
         
@@ -148,8 +148,8 @@ public class TeacherBookingManagementService {
             throw new RuntimeException("Unauthorized to start this session");
         }
         
-        if (!booking.getState().equals("ACCEPTED")) {
-            throw new RuntimeException("Booking must be ACCEPTED to start session");
+        if (booking.getStatus() != BookingStatus.ACCEPTED && booking.getStatus() != BookingStatus.CONFIRMED) {
+            throw new RuntimeException("Booking must be ACCEPTED or CONFIRMED to start session");
         }
         
         // Check if session time is appropriate (within 15 minutes of start time)
@@ -160,7 +160,6 @@ public class TeacherBookingManagementService {
         
         // Update booking status to IN_PROGRESS
         booking.setStatus(BookingStatus.IN_PROGRESS);
-        booking.setState("ACTIVE");
         
         Booking saved = bookingRepository.save(booking);
         
@@ -186,7 +185,6 @@ public class TeacherBookingManagementService {
         // Update booking with session notes
         booking.setTeacherNotes(sessionNotes);
         booking.setStatus(BookingStatus.COMPLETED);
-        booking.setState("COMPLETED");
         
         Booking saved = bookingRepository.save(booking);
         

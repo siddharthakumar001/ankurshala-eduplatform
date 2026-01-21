@@ -291,14 +291,14 @@ export default function AdminTeachersPage() {
   }
 
   const renderStarRating = (rating?: number, totalReviews?: number) => {
-    if (!rating) return <span className="text-gray-400">No rating</span>
+    if (!rating) return <span className="text-gray-400 dark:text-gray-300">No rating</span>
     
     return (
       <div className="flex items-center">
         <Star className="h-4 w-4 text-yellow-400 fill-current" />
         <span className="ml-1 text-sm font-medium">{rating.toFixed(1)}</span>
         {totalReviews && (
-          <span className="ml-1 text-xs text-gray-500">({totalReviews})</span>
+          <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">({totalReviews})</span>
         )}
       </div>
     )
@@ -316,8 +316,8 @@ export default function AdminTeachersPage() {
           </div>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Manage Teachers</h1>
-                  <p className="text-gray-600 dark:text-gray-400">View and manage teacher accounts</p>
+                  <h1 className="text-2xl font-bold text-ankur-secondary dark:text-white">Manage Teachers</h1>
+                  <p className="text-gray-600 dark:text-gray-300">View and manage teacher accounts</p>
                 </div>
               </div>
               <Card className="p-6 glass">
@@ -346,8 +346,8 @@ export default function AdminTeachersPage() {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Manage Teachers</h1>
-                <p className="text-gray-600 dark:text-gray-400">View and manage teacher accounts</p>
+                <h1 className="text-2xl font-bold text-ankur-secondary dark:text-white">Manage Teachers</h1>
+                <p className="text-gray-600 dark:text-gray-300">View and manage teacher accounts</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button 
@@ -363,7 +363,7 @@ export default function AdminTeachersPage() {
                   <Download className="h-4 w-4" />
                   <span>Export</span>
                 </Button>
-                <Button className="flex items-center space-x-2">
+                <Button className="flex items-center space-x-2 btn-primary">
                   <Plus className="h-4 w-4" />
                   <span>Add Teacher</span>
                 </Button>
@@ -372,12 +372,12 @@ export default function AdminTeachersPage() {
 
             {/* Error Display */}
             {error && (
-              <Card className="p-6 border-red-200 bg-red-50 dark:bg-red-900/20">
-                <div className="flex items-center space-x-2 text-red-600 dark:text-red-400">
+              <Card className="p-6 glass border border-red-200/60 dark:border-red-500/30 bg-red-50/70 dark:bg-red-500/10">
+                <div className="flex items-center space-x-2 text-red-600 dark:text-red-200">
                   <AlertCircle className="h-5 w-5" />
                   <span className="font-medium">Error loading teachers</span>
                 </div>
-                <p className="text-red-600 dark:text-red-400 mt-2">{error}</p>
+                <p className="text-red-600 dark:text-red-200 mt-2">{error}</p>
                 <Button 
                   onClick={fetchTeachers} 
                   variant="outline" 
@@ -432,8 +432,8 @@ export default function AdminTeachersPage() {
         <Card className="p-6 glass">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Teachers</h3>
-              <div className="text-sm text-gray-500 dark:text-gray-400">
+              <h3 className="text-lg font-semibold text-ankur-secondary dark:text-white">Teachers</h3>
+              <div className="text-sm text-gray-500 dark:text-gray-300">
                 Showing {currentPage * pageSize + 1}-{Math.min((currentPage + 1) * pageSize, totalElements)} of {totalElements} teachers
               </div>
             </div>
@@ -457,39 +457,39 @@ export default function AdminTeachersPage() {
             ) : (
               <>
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-800">
+                  <table className="data-table">
+                    <thead>
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                           Teacher
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                           Specialization
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                           Experience/Rate
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                           Rating
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                           Status
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                           Joined
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                           Actions
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody className="divide-y divide-white/40 dark:divide-white/10">
                       {teachers.map((teacher) => (
-                        <tr key={teacher.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                        <tr key={teacher.id} className="hover:bg-white/60 dark:hover:bg-slate-900/60">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <div className="flex-shrink-0 h-10 w-10">
-                                <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                                <div className="h-10 w-10 rounded-full bg-blue-100/80 dark:bg-blue-900/40 flex items-center justify-center">
                                   <GraduationCap className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                                 </div>
                               </div>
@@ -497,7 +497,7 @@ export default function AdminTeachersPage() {
                                 <div className="text-sm font-medium text-gray-900 dark:text-white">
                                   {teacher.firstName} {teacher.middleName} {teacher.lastName}
                                 </div>
-                                <div className="text-sm text-gray-500 dark:text-gray-400">
+                                <div className="text-sm text-gray-500 dark:text-gray-300">
                                   {teacher.email}
                                 </div>
                               </div>
@@ -513,7 +513,7 @@ export default function AdminTeachersPage() {
                                 {teacher.yearsOfExperience || 0} years
                               </div>
                               {teacher.hourlyRate && (
-                                <div className="flex items-center text-xs text-gray-500">
+                                <div className="flex items-center text-xs text-gray-500 dark:text-gray-300">
                                   <DollarSign className="h-3 w-3 mr-1" />
                                   {formatCurrency(teacher.hourlyRate)}/hr
                                 </div>
@@ -548,7 +548,7 @@ export default function AdminTeachersPage() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
                             {new Date(teacher.createdAt).toLocaleDateString()}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
@@ -623,7 +623,7 @@ export default function AdminTeachersPage() {
 
         {/* View Teacher Dialog */}
         <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto glass-panel border border-white/30 dark:border-white/10">
             <DialogHeader>
               <DialogTitle>Teacher Details</DialogTitle>
             </DialogHeader>
@@ -703,7 +703,7 @@ export default function AdminTeachersPage() {
 
         {/* Edit Teacher Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto glass-panel border border-white/30 dark:border-white/10">
             <DialogHeader>
               <DialogTitle>Edit Teacher</DialogTitle>
             </DialogHeader>
@@ -756,7 +756,7 @@ export default function AdminTeachersPage() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="hourlyRate">Hourly Rate (₹)</Label>
+                      <Label htmlFor="hourlyRate">Hourly Rate (INR)</Label>
                       <Input
                         id="hourlyRate"
                         type="number"

@@ -43,33 +43,89 @@ interface DashboardMetrics {
   totalTopics: number
   activeCourses: number
   completedCourses: number
+  totalRevenueCents: number
+  revenueLast30DaysCents: number
+  revenuePrevious30DaysCents: number
+}
+
+interface DashboardActivityItem {
+  id: string
+  type: ActivityType
+  title: string
+  description?: string
+  timestamp: string
+  user?: string
+}
+
+interface SystemStatusItem {
+  name: string
+  status: SystemStatus
+  latency?: string
+  uptime?: string
 }
 
 export default function AdminDashboard() {
   const user = useAuthStore((state) => state.user)
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null)
+  const [recentActivity, setRecentActivity] = useState<DashboardActivityItem[]>([])
+  const [systemStatusItems, setSystemStatusItems] = useState<SystemStatusItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [activityError, setActivityError] = useState<string | null>(null)
+  const [statusError, setStatusError] = useState<string | null>(null)
   const [hasFetchedMetrics, setHasFetchedMetrics] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
+
+  const resolveErrorMessage = (err: unknown, fallback: string) => {
+    if (err instanceof Error && err.message) {
+      return err.message
+    }
+    return fallback
+  }
 
   const fetchMetrics = async (isRefresh = false) => {
     try {
       if (isRefresh) setIsRefreshing(true)
       else setLoading(true)
       setError(null)
-      
-      const response = await api.get('/admin/dashboard/metrics')
-      const metricsData = response.data as DashboardMetrics
-      setMetrics(metricsData)
-      
-    } catch (err: any) {
-      console.error('Admin Dashboard - Error fetching metrics:', err)
-      if (err?.message?.includes('Unauthorized') || err?.message?.includes('401')) {
-        setError('Session expired or unauthorized. Please login again.')
+      setActivityError(null)
+      setStatusError(null)
+
+      const results = await Promise.allSettled([
+        api.get<DashboardMetrics>('/admin/dashboard/metrics'),
+        api.get<DashboardActivityItem[]>('/admin/dashboard/activity?limit=10'),
+        api.get<SystemStatusItem[]>('/admin/dashboard/status'),
+      ])
+
+      const [metricsResult, activityResult, statusResult] = results
+
+      if (metricsResult.status === 'fulfilled') {
+        setMetrics(metricsResult.value.data as DashboardMetrics)
       } else {
-        setError(err?.message || 'Failed to load dashboard metrics')
+        const message = resolveErrorMessage(metricsResult.reason, 'Failed to load dashboard metrics')
+        if (message.includes('Unauthorized') || message.includes('401')) {
+          setError('Session expired or unauthorized. Please login again.')
+        } else {
+          setError(message)
+        }
       }
+
+      if (activityResult.status === 'fulfilled') {
+        setRecentActivity(activityResult.value.data as DashboardActivityItem[])
+      } else {
+        setRecentActivity([])
+        setActivityError(resolveErrorMessage(activityResult.reason, 'Unable to load recent activity'))
+      }
+
+      if (statusResult.status === 'fulfilled') {
+        setSystemStatusItems(statusResult.value.data as SystemStatusItem[])
+      } else {
+        setSystemStatusItems([])
+        setStatusError(resolveErrorMessage(statusResult.reason, 'Unable to load system status'))
+      }
+    } catch (err: unknown) {
+      console.error('Admin Dashboard - Error fetching data:', err)
+      setError(resolveErrorMessage(err, 'Failed to load dashboard data'))
     } finally {
       setLoading(false)
       setIsRefreshing(false)
@@ -82,30 +138,43 @@ export default function AdminDashboard() {
     fetchMetrics()
   }, [user, hasFetchedMetrics])
 
-  // Calculate percentage changes (mock data for demonstration)
+  const formatRelativeTime = (timestamp: string) => {
+    const date = new Date(timestamp)
+    if (Number.isNaN(date.getTime())) return timestamp
+    const diffMs = Math.max(0, Date.now() - date.getTime())
+    const diffMinutes = Math.floor(diffMs / 60000)
+    if (diffMinutes < 1) return 'just now'
+    if (diffMinutes < 60) return `${diffMinutes} min ago`
+    const diffHours = Math.floor(diffMinutes / 60)
+    if (diffHours < 24) return `${diffHours} hr ago`
+    const diffDays = Math.floor(diffHours / 24)
+    return `${diffDays}d ago`
+  }
+
+  const formatInr = (cents: number) => {
+    const rupees = Math.round(cents / 100)
+    return `INR ${new Intl.NumberFormat('en-IN').format(rupees)}`
+  }
+
+  // Calculate percentage changes (real data from metrics)
   const studentGrowth = metrics?.newStudentsLast7Days && metrics?.totalStudents 
     ? Math.round((metrics.newStudentsLast7Days / metrics.totalStudents) * 100 * 10) / 10
     : 0
   const teacherGrowth = metrics?.newTeachersLast7Days && metrics?.totalTeachers
     ? Math.round((metrics.newTeachersLast7Days / metrics.totalTeachers) * 100 * 10) / 10
     : 0
-
-  // Recent activity data (mock - would come from API)
-  const recentActivity = [
-    { id: '1', type: 'success' as ActivityType, title: 'New student registered', description: 'John Doe enrolled in Class 10 Physics', timestamp: '2 min ago', user: 'System' },
-    { id: '2', type: 'info' as ActivityType, title: 'Booking confirmed', description: 'Class scheduled for tomorrow at 4 PM', timestamp: '15 min ago', user: 'Priya Sharma' },
-    { id: '3', type: 'warning' as ActivityType, title: 'Payment pending', description: 'Invoice #INV-2024-001 awaiting payment', timestamp: '1 hour ago', user: 'Rahul Kumar' },
-    { id: '4', type: 'success' as ActivityType, title: 'Teacher approved', description: 'Dr. Amit Singh is now verified', timestamp: '2 hours ago', user: 'Admin' },
-    { id: '5', type: 'info' as ActivityType, title: 'Course content updated', description: 'New chapter added to Class 12 Mathematics', timestamp: '3 hours ago', user: 'Content Team' },
-  ]
-
-  // System status data (would come from API in production)
-  const systemStatus = [
-    { name: 'Backend API', status: 'operational' as SystemStatus, latency: '45ms', uptime: '99.9%' },
-    { name: 'Database', status: 'operational' as SystemStatus, latency: '12ms', uptime: '99.99%' },
-    { name: 'Redis Cache', status: 'operational' as SystemStatus, latency: '2ms', uptime: '99.9%' },
-    { name: 'Payment Gateway', status: 'operational' as SystemStatus, latency: '120ms', uptime: '99.8%' },
-  ]
+  const revenueChange = metrics?.revenuePrevious30DaysCents
+    ? Math.round(((metrics.revenueLast30DaysCents - metrics.revenuePrevious30DaysCents) / metrics.revenuePrevious30DaysCents) * 100 * 10) / 10
+    : undefined
+  const activityItems = recentActivity.map((item) => ({
+    ...item,
+    timestamp: formatRelativeTime(item.timestamp),
+  }))
+  const systemStatusDisplay = systemStatusItems.length
+    ? systemStatusItems
+    : statusError
+      ? [{ name: 'System Status', status: 'degraded' as SystemStatus, latency: 'unavailable', uptime: '--' }]
+      : []
 
   // Loading skeleton
   if (loading && !metrics) {
@@ -114,10 +183,10 @@ export default function AdminDashboard() {
         <SessionManager showSessionInfo={false}>
           <DashboardLayout role="admin">
             <div className="space-y-6 animate-pulse">
-              <div className="h-32 bg-gray-200 rounded-2xl" />
+              <div className="h-32 bg-white/70 dark:bg-slate-900/70 rounded-2xl border border-white/40 dark:border-white/10" />
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[...Array(4)].map((_, i) => (
-                  <div key={i} className="h-36 bg-gray-200 rounded-xl" />
+                  <div key={i} className="h-36 bg-white/70 dark:bg-slate-900/70 rounded-xl border border-white/40 dark:border-white/10" />
                 ))}
               </div>
             </div>
@@ -137,7 +206,7 @@ export default function AdminDashboard() {
               <div className="absolute bottom-10 left-6 h-72 w-72 rounded-full bg-ankur-primary/10 blur-3xl" />
             </div>
             {/* Page Header */}
-            <div className="bg-gradient-to-r from-ankur-secondary to-[#2a4a73] rounded-2xl p-8 text-white">
+            <div className="page-header rounded-2xl p-8 text-white">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                   <h1 className="text-2xl md:text-3xl font-bold mb-2">
@@ -148,15 +217,15 @@ export default function AdminDashboard() {
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => fetchMetrics(true)}
-                    disabled={isRefreshing}
-                    className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2.5 rounded-lg transition-colors disabled:opacity-50"
-                  >
+                    <button
+                      onClick={() => fetchMetrics(true)}
+                      disabled={isRefreshing}
+                      className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2.5 rounded-xl transition-colors disabled:opacity-50"
+                    >
                     <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                     {isRefreshing ? 'Refreshing...' : 'Refresh'}
                   </button>
-                  <div className="flex items-center gap-2 bg-white/10 px-4 py-2.5 rounded-lg text-sm">
+                  <div className="flex items-center gap-2 bg-white/10 px-4 py-2.5 rounded-xl text-sm">
                     <Clock className="w-4 h-4" />
                     <span>{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
                   </div>
@@ -166,15 +235,15 @@ export default function AdminDashboard() {
 
             {/* Error Alert */}
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
+              <div className="glass rounded-2xl p-4 border border-red-200/60 dark:border-red-500/30 flex items-center gap-3 bg-red-50/70 dark:bg-red-500/10">
                 <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
                 <div className="flex-1">
-                  <p className="text-red-800 font-medium">Error loading dashboard</p>
-                  <p className="text-red-600 text-sm">{error}</p>
+                  <p className="text-red-800 dark:text-red-200 font-medium">Error loading dashboard</p>
+                  <p className="text-red-600 dark:text-red-200 text-sm">{error}</p>
                 </div>
                 <button
                   onClick={() => fetchMetrics(true)}
-                  className="text-red-600 hover:text-red-800 font-medium text-sm"
+                  className="text-red-600 dark:text-red-200 hover:text-red-800 font-medium text-sm"
                 >
                   Retry
                 </button>
@@ -200,18 +269,16 @@ export default function AdminDashboard() {
                 iconBgColor="bg-ankur-primary"
               />
               <MetricCard
-                title="Active Courses"
-                value={metrics?.totalSubjects?.toLocaleString() || '0'}
-                change={5}
-                changeLabel="new this month"
+                title="Active Subjects"
+                value={metrics?.activeCourses?.toLocaleString() || '0'}
                 icon={BookOpen}
                 iconBgColor="bg-purple-500"
               />
               <MetricCard
-                title="Revenue"
-                value="INR 4,52,000"
-                change={12.5}
-                changeLabel="vs last month"
+                title="Revenue (30 days)"
+                value={formatInr(metrics?.revenueLast30DaysCents || 0)}
+                change={revenueChange}
+                changeLabel="vs previous 30 days"
                 icon={DollarSign}
                 iconBgColor="bg-ankur-accent"
                 iconColor="text-gray-900"
@@ -221,7 +288,7 @@ export default function AdminDashboard() {
             {/* Quick Actions */}
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
+                <h2 className="text-lg font-semibold text-ankur-secondary dark:text-white">Quick Actions</h2>
                 <a href="/admin/profile" className="text-sm text-ankur-primary hover:underline flex items-center gap-1">
                   View profile <ChevronRight className="w-4 h-4" />
                 </a>
@@ -276,8 +343,13 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Activity Feed */}
               <div className="lg:col-span-2">
+                {activityError && (
+                  <div className="mb-3 text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    {activityError}
+                  </div>
+                )}
                 <ActivityFeed
-                  items={recentActivity}
+                  items={activityItems}
                   maxItems={5}
                   onViewAll={() => window.location.href = '/admin/content/analytics'}
                 />
@@ -285,17 +357,22 @@ export default function AdminDashboard() {
 
               {/* System Status */}
               <div>
-                <SystemStatusCard items={systemStatus} />
+                {statusError && (
+                  <div className="mb-3 text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    {statusError}
+                  </div>
+                )}
+                <SystemStatusCard items={systemStatusDisplay} />
               </div>
             </div>
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Content Statistics */}
-              <div className="glass rounded-xl border border-white/30 dark:border-white/10 shadow-sm p-6">
+              <div className="glass-panel rounded-2xl border border-white/40 dark:border-white/10 shadow-sm p-6">
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="font-semibold text-gray-900">Content Statistics</h3>
-                  <FileText className="w-5 h-5 text-gray-400" />
+                  <h3 className="font-semibold text-ankur-secondary dark:text-white">Content Statistics</h3>
+                  <FileText className="w-5 h-5 text-gray-400 dark:text-gray-300" />
                 </div>
                 <div className="space-y-4">
                   {[
@@ -308,53 +385,53 @@ export default function AdminDashboard() {
                     <div key={index} className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className={`w-2 h-2 rounded-full ${item.color}`} />
-                        <span className="text-sm text-gray-600">{item.label}</span>
+                        <span className="text-sm text-gray-600 dark:text-gray-300">{item.label}</span>
                       </div>
-                      <span className="font-semibold text-gray-900">{item.value.toLocaleString()}</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">{item.value.toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
               {/* User Growth */}
-              <div className="glass rounded-xl border border-white/30 dark:border-white/10 shadow-sm p-6">
+              <div className="glass-panel rounded-2xl border border-white/40 dark:border-white/10 shadow-sm p-6">
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="font-semibold text-gray-900">User Growth</h3>
+                  <h3 className="font-semibold text-ankur-secondary dark:text-white">User Growth</h3>
                   <TrendingUp className="w-5 h-5 text-green-500" />
                 </div>
                 <div className="space-y-4">
-                  <div className="p-4 bg-blue-50 rounded-xl">
+                  <div className="p-4 bg-blue-50/80 dark:bg-blue-900/20 rounded-xl">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-blue-900">New Students</span>
-                      <span className="text-xs text-blue-600">Last 30 days</span>
+                      <span className="text-sm font-medium text-blue-900 dark:text-blue-100">New Students</span>
+                      <span className="text-xs text-blue-600 dark:text-blue-200">Last 30 days</span>
                     </div>
                     <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-bold text-blue-900">{metrics?.newStudentsLast30Days || 0}</span>
-                      <span className="text-sm text-blue-600">
+                      <span className="text-2xl font-bold text-blue-900 dark:text-blue-100">{metrics?.newStudentsLast30Days || 0}</span>
+                      <span className="text-sm text-blue-600 dark:text-blue-200">
                         (+{metrics?.newStudentsLast7Days || 0} this week)
                       </span>
                     </div>
                   </div>
-                  <div className="p-4 bg-green-50 rounded-xl">
+                  <div className="p-4 bg-green-50/80 dark:bg-green-900/20 rounded-xl">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-green-900">New Teachers</span>
-                      <span className="text-xs text-green-600">Last 30 days</span>
+                      <span className="text-sm font-medium text-green-900 dark:text-green-100">New Teachers</span>
+                      <span className="text-xs text-green-600 dark:text-green-200">Last 30 days</span>
                     </div>
                     <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-bold text-green-900">{metrics?.newTeachersLast30Days || 0}</span>
-                      <span className="text-sm text-green-600">
+                      <span className="text-2xl font-bold text-green-900 dark:text-green-100">{metrics?.newTeachersLast30Days || 0}</span>
+                      <span className="text-sm text-green-600 dark:text-green-200">
                         (+{metrics?.newTeachersLast7Days || 0} this week)
                       </span>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="p-3 bg-gray-50 rounded-xl text-center">
-                      <p className="text-2xl font-bold text-gray-900">{metrics?.activeStudents || 0}</p>
-                      <p className="text-xs text-gray-500">Active Students</p>
+                    <div className="p-3 bg-gray-50/80 dark:bg-slate-800/60 rounded-xl text-center">
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">{metrics?.activeStudents || 0}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Active Students</p>
                     </div>
-                    <div className="p-3 bg-gray-50 rounded-xl text-center">
-                      <p className="text-2xl font-bold text-gray-900">{metrics?.activeTeachers || 0}</p>
-                      <p className="text-xs text-gray-500">Active Teachers</p>
+                    <div className="p-3 bg-gray-50/80 dark:bg-slate-800/60 rounded-xl text-center">
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">{metrics?.activeTeachers || 0}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Active Teachers</p>
                     </div>
                   </div>
                 </div>

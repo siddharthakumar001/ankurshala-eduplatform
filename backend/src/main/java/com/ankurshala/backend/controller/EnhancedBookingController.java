@@ -25,11 +25,11 @@ import java.util.Map;
  * Enhanced Booking Controller
  * Implements Uber-style booking system with real-time teacher matching
  * Handles booking lifecycle, pricing, and availability validation
+ *
+ * Deprecated: use StudentBookingController at /student/bookings.
  */
 @Slf4j
-@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "https://ankurshala.com", "https://www.ankurshala.com"}, maxAge = 3600)
-@RestController
-@RequestMapping("/booking")
+@Deprecated(forRemoval = true)
 public class EnhancedBookingController {
 
     @Autowired

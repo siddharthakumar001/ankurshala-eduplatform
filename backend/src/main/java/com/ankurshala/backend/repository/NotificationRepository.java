@@ -1,6 +1,8 @@
 package com.ankurshala.backend.repository;
 
 import com.ankurshala.backend.entity.Notification;
+import com.ankurshala.backend.entity.NotificationAudience;
+import com.ankurshala.backend.entity.NotificationStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -33,4 +35,14 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     // Method for compatibility with User entity
     @Query("SELECT n FROM Notification n WHERE n.userId = :userId ORDER BY n.createdAt DESC")
     Page<Notification> findByUserOrderByCreatedAtDesc(@Param("userId") Long userId, Pageable pageable);
+
+    @Query("SELECT n FROM Notification n WHERE (:userId IS NULL OR n.userId = :userId) " +
+           "AND (:audience IS NULL OR n.audience = :audience) " +
+           "AND (:status IS NULL OR n.status = :status)")
+    Page<Notification> findFiltered(
+            @Param("userId") Long userId,
+            @Param("audience") NotificationAudience audience,
+            @Param("status") NotificationStatus status,
+            Pageable pageable
+    );
 }

@@ -4,71 +4,78 @@
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 210 30% 98%;
+    --foreground: 222 25% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 222 25% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 160 84% 39%;
+    --popover-foreground: 222 25% 12%;
+    --primary: 150 70% 42%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222.2 84% 4.9%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 45 93% 47%;
-    --accent-foreground: 222.2 84% 4.9%;
-    --destructive: 0 84.2% 60.2%;
+    --secondary: 210 28% 94%;
+    --secondary-foreground: 222 25% 12%;
+    --muted: 210 25% 95%;
+    --muted-foreground: 215 16% 42%;
+    --accent: 44 95% 54%;
+    --accent-foreground: 222 25% 12%;
+    --destructive: 0 76% 56%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 160 84% 39%;
-    --radius: 0.75rem;
+    --border: 210 24% 88%;
+    --input: 210 24% 88%;
+    --ring: 150 70% 42%;
+    --radius: 1rem;
     
     /* AnkurShala Brand Colors - Based on provided design */
-    --ankur-primary: 160 84% 39%;
-    --ankur-primary-dark: 160 84% 29%;
-    --ankur-secondary: 220 70% 25%;
-    --ankur-secondary-dark: 220 70% 18%;
-    --ankur-accent: 45 93% 47%;
-    --ankur-accent-light: 45 93% 67%;
-    --ankur-success: 158 64% 52%;
-    --ankur-warning: 38 92% 50%;
-    --ankur-error: 0 84% 60%;
+    --ankur-primary: 150 70% 42%;
+    --ankur-primary-dark: 150 70% 34%;
+    --ankur-secondary: 220 55% 20%;
+    --ankur-secondary-dark: 220 60% 16%;
+    --ankur-accent: 44 95% 54%;
+    --ankur-accent-light: 44 95% 68%;
+    --ankur-success: 150 68% 44%;
+    --ankur-warning: 36 92% 52%;
+    --ankur-error: 0 76% 56%;
     --ankur-info: 199 89% 48%;
     
     /* Surface colors */
-    --ankur-surface: 210 20% 98%;
+    --ankur-surface: 210 30% 98%;
     --ankur-surface-elevated: 0 0% 100%;
     --ankur-surface-overlay: 0 0% 100%;
     
     /* Text colors */
-    --ankur-text-primary: 220 13% 18%;
-    --ankur-text-secondary: 220 9% 46%;
-    --ankur-text-muted: 220 9% 64%;
+    --ankur-text-primary: 222 25% 12%;
+    --ankur-text-secondary: 220 12% 40%;
+    --ankur-text-muted: 220 10% 55%;
     --ankur-text-inverse: 0 0% 100%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 8%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 8%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 160 84% 45%;
-    --primary-foreground: 222.2 84% 4.9%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 45 93% 47%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 160 84% 45%;
+    --background: 222 24% 10%;
+    --foreground: 210 30% 96%;
+    --card: 222 24% 13%;
+    --card-foreground: 210 30% 96%;
+    --popover: 222 24% 13%;
+    --popover-foreground: 210 30% 96%;
+    --primary: 150 70% 48%;
+    --primary-foreground: 222 25% 12%;
+    --secondary: 215 25% 18%;
+    --secondary-foreground: 210 30% 96%;
+    --muted: 215 25% 18%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 44 95% 54%;
+    --accent-foreground: 210 30% 96%;
+    --destructive: 0 62% 38%;
+    --destructive-foreground: 210 30% 96%;
+    --border: 215 20% 22%;
+    --input: 215 20% 22%;
+    --ring: 150 70% 48%;
+
+    --ankur-surface: 222 24% 10%;
+    --ankur-surface-elevated: 222 24% 13%;
+    --ankur-surface-overlay: 222 24% 15%;
+    --ankur-text-primary: 210 30% 96%;
+    --ankur-text-secondary: 215 20% 70%;
+    --ankur-text-muted: 215 15% 60%;
   }
 }
 
@@ -77,15 +84,36 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background text-foreground antialiased font-sans;
     font-feature-settings: "rlig" 1, "calt" 1;
+    background-image:
+      radial-gradient(1200px circle at 8% 4%, rgba(15, 157, 88, 0.12), transparent 45%),
+      radial-gradient(900px circle at 92% 2%, rgba(245, 184, 0, 0.16), transparent 40%),
+      radial-gradient(700px circle at 80% 80%, rgba(14, 165, 233, 0.08), transparent 45%);
+    background-attachment: fixed;
+  }
+
+  .dark body {
+    background-image:
+      radial-gradient(1200px circle at 8% 4%, rgba(15, 157, 88, 0.18), transparent 45%),
+      radial-gradient(900px circle at 92% 2%, rgba(245, 184, 0, 0.12), transparent 40%),
+      radial-gradient(700px circle at 80% 80%, rgba(14, 165, 233, 0.12), transparent 45%);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5 {
+    @apply font-display;
   }
 }
 
 @layer components {
   /* Modern Card Styles */
   .card-elevated {
-    @apply bg-white rounded-xl shadow-sm border border-gray-100 transition-all duration-200;
+    @apply bg-white/80 rounded-2xl shadow-sm border border-white/60 transition-all duration-200 backdrop-blur;
+    @apply dark:bg-slate-900/70 dark:border-white/10;
   }
   
   .card-elevated:hover {
@@ -93,7 +121,8 @@
   }
   
   .card-metric {
-    @apply bg-white rounded-xl p-6 border border-gray-100 shadow-sm;
+    @apply bg-white/90 rounded-2xl p-6 border border-white/60 shadow-sm backdrop-blur;
+    @apply dark:bg-slate-900/70 dark:border-white/10;
   }
   
   .card-metric-icon {
@@ -102,7 +131,8 @@
 
   /* Sidebar Styles */
   .sidebar {
-    @apply fixed left-0 top-0 h-full w-64 bg-gradient-to-b from-[#1E3A5F] to-[#152A45] text-white;
+    @apply fixed left-0 top-0 h-full w-64 text-white;
+    background: linear-gradient(160deg, rgba(18, 35, 58, 0.98), rgba(11, 24, 40, 0.98));
   }
   
   .sidebar-logo {
@@ -136,24 +166,26 @@
 
   /* Button Styles */
   .btn-primary {
-    @apply bg-[#0F9D58] hover:bg-[#0d8a4d] text-white font-medium py-2.5 px-5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md;
+    @apply bg-[#0F9D58] hover:bg-[#0d8a4d] text-white font-semibold py-2.5 px-5 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md;
   }
   
   .btn-secondary {
-    @apply bg-[#1E3A5F] hover:bg-[#152A45] text-white font-medium py-2.5 px-5 rounded-lg transition-all duration-200;
+    @apply bg-[#1E3A5F] hover:bg-[#152A45] text-white font-semibold py-2.5 px-5 rounded-xl transition-all duration-200;
   }
   
   .btn-accent {
-    @apply bg-[#F5B800] hover:bg-[#e0a800] text-gray-900 font-medium py-2.5 px-5 rounded-lg transition-all duration-200;
+    @apply bg-[#F5B800] hover:bg-[#e0a800] text-gray-900 font-semibold py-2.5 px-5 rounded-xl transition-all duration-200;
   }
   
   .btn-outline {
-    @apply border-2 border-gray-200 hover:border-[#0F9D58] text-gray-700 hover:text-[#0F9D58] font-medium py-2.5 px-5 rounded-lg transition-all duration-200;
+    @apply border border-white/50 bg-white/60 text-gray-800 hover:text-[#0F9D58] font-semibold py-2.5 px-5 rounded-xl transition-all duration-200 backdrop-blur;
+    @apply dark:bg-slate-900/60 dark:text-white dark:border-white/10;
   }
 
   /* Quick Action Card */
   .quick-action-card {
-    @apply bg-white rounded-xl p-5 border border-gray-100 shadow-sm hover:shadow-md hover:border-[#0F9D58]/30 transition-all duration-200 cursor-pointer flex flex-col items-center justify-center gap-3 min-h-[120px];
+    @apply bg-white/80 rounded-2xl p-5 border border-white/60 shadow-sm hover:shadow-md hover:border-[#0F9D58]/30 transition-all duration-200 cursor-pointer flex flex-col items-center justify-center gap-3 min-h-[120px] backdrop-blur;
+    @apply dark:bg-slate-900/70 dark:border-white/10;
   }
   
   .quick-action-icon {
@@ -184,7 +216,8 @@
 
   /* Input Styles */
   .input-modern {
-    @apply w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#0F9D58]/20 focus:border-[#0F9D58] transition-all duration-200 outline-none;
+    @apply w-full px-4 py-3 border border-white/60 bg-white/80 rounded-xl focus:ring-2 focus:ring-[#0F9D58]/20 focus:border-[#0F9D58] transition-all duration-200 outline-none backdrop-blur;
+    @apply dark:bg-slate-900/60 dark:border-white/10 dark:text-white;
   }
   
   .input-with-icon {
@@ -193,20 +226,24 @@
 
   /* Page Header */
   .page-header {
-    @apply bg-gradient-to-r from-[#1E3A5F] to-[#2a4a73] text-white rounded-2xl p-8 mb-8;
+    @apply text-white rounded-3xl p-8 mb-8;
+    background: linear-gradient(135deg, rgba(15, 157, 88, 0.95), rgba(13, 138, 77, 0.95), rgba(17, 94, 163, 0.95));
   }
 
   /* Data Table */
   .data-table {
-    @apply w-full bg-white rounded-xl border border-gray-100 overflow-hidden;
+    @apply w-full bg-white/85 rounded-2xl border border-white/60 overflow-hidden backdrop-blur;
+    @apply dark:bg-slate-900/70 dark:border-white/10;
   }
   
   .data-table th {
-    @apply px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50;
+    @apply px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50/70;
+    @apply dark:bg-slate-800/50 dark:text-gray-300;
   }
   
   .data-table td {
-    @apply px-6 py-4 text-sm text-gray-900 border-t border-gray-100;
+    @apply px-6 py-4 text-sm text-gray-900 border-t border-gray-100/80;
+    @apply dark:text-gray-100 dark:border-white/5;
   }
 
   /* Modal/Dialog */
@@ -215,7 +252,8 @@
   }
   
   .modal-content {
-    @apply bg-white rounded-2xl shadow-2xl max-w-lg w-full mx-4 max-h-[90vh] overflow-auto;
+    @apply bg-white/90 rounded-3xl shadow-2xl max-w-lg w-full mx-4 max-h-[90vh] overflow-auto backdrop-blur;
+    @apply dark:bg-slate-900/80;
   }
 
   /* Loading States */
@@ -258,8 +296,17 @@
 
   /* Glass Effect */
   .glass {
-    @apply bg-white/80 backdrop-blur-lg border border-white/30 shadow-sm;
-    @apply dark:bg-slate-900/60 dark:border-white/10;
+    @apply bg-white/75 backdrop-blur-xl border border-white/40 shadow-sm;
+    @apply dark:bg-slate-900/70 dark:border-white/10;
+  }
+
+  .glass-panel {
+    @apply bg-white/70 backdrop-blur-2xl border border-white/30 shadow-xl;
+    @apply dark:bg-slate-900/65 dark:border-white/10;
+  }
+
+  .brand-gradient {
+    background: linear-gradient(135deg, rgba(15, 157, 88, 0.95), rgba(13, 138, 77, 0.95), rgba(17, 94, 163, 0.95));
   }
 }
 

@@ -14,10 +14,8 @@ import {
   MessageSquare, 
   Star, 
   Clock, 
-  User, 
   BookOpen,
   CheckCircle,
-  AlertCircle,
   Loader2,
   ThumbsUp,
   ThumbsDown,
@@ -31,18 +29,17 @@ interface SessionBooking {
   id: number
   studentId: number
   studentName: string
-  studentEmail: string
   topicId: number
   topicTitle: string
-  subjectName: string
+  subjectName?: string
   startTime: string
   endTime: string
   durationMinutes: number
   status: string
   priceMin: number
   priceMax: number
+  priceCurrency?: string
   studentNotes?: string
-  createdAt: string
 }
 
 interface SessionFeedback {
@@ -77,16 +74,17 @@ export default function TeacherSessionManagementPage() {
     try {
       setLoading(true)
       
-      // Fetch accepted and completed sessions
-      const response = await api.get('/teacher/bookings')
-      const allBookings = (response.data as any) || []
+      const response = await api.get<SessionBooking[]>('/teacher/bookings')
+      const allBookings = response.data || []
       
-      // Filter for sessions that can be managed (accepted, completed)
-      const sessionBookings = allBookings.filter((booking: SessionBooking) => 
-        booking.status === 'ACCEPTED' || booking.status === 'COMPLETED'
+      // Filter for sessions that can be managed (accepted, in progress, completed)
+      const sessionBookings = allBookings.filter((booking) => 
+        booking.status === 'ACCEPTED' || booking.status === 'IN_PROGRESS' || booking.status === 'COMPLETED'
       )
       
       setSessions(sessionBookings)
+      const inProgress = sessionBookings.find((booking) => booking.status === 'IN_PROGRESS')
+      setActiveSession(inProgress || null)
       
     } catch (error) {
       console.error('Error fetching sessions:', error)
@@ -153,21 +151,24 @@ export default function TeacherSessionManagementPage() {
     })
   }
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number | string | null | undefined, currency: string = 'INR') => {
+    const safeAmount = typeof amount === 'number' ? amount : Number(amount || 0)
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'INR'
-    }).format(amount)
+      currency
+    }).format(safeAmount || 0)
   }
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'ACCEPTED':
-        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Ready to Start</Badge>
+        return <Badge className="badge-warning">Ready to Start</Badge>
+      case 'IN_PROGRESS':
+        return <Badge className="badge-info">In Progress</Badge>
       case 'COMPLETED':
-        return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Completed</Badge>
+        return <Badge className="badge-success">Completed</Badge>
       default:
-        return <Badge variant="outline">{status}</Badge>
+        return <Badge variant="outline" className="border-white/40 bg-white/70 text-slate-700">{status}</Badge>
     }
   }
 
@@ -184,12 +185,10 @@ export default function TeacherSessionManagementPage() {
   if (loading) {
     return (
       <TeacherRoute>
-        <div className="min-h-screen bg-gray-50 py-8">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-              <span className="ml-2 text-gray-600">Loading sessions...</span>
-            </div>
+        <div className="space-y-6">
+          <div className="glass-panel p-6 flex items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
+            <span className="ml-2 text-slate-600 dark:text-slate-200">Loading sessions...</span>
           </div>
         </div>
       </TeacherRoute>
@@ -198,31 +197,30 @@ export default function TeacherSessionManagementPage() {
 
   return (
     <TeacherRoute>
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Session Management</h1>
-            <p className="text-gray-600">Start, manage, and provide feedback for your teaching sessions</p>
-          </div>
+      <div className="space-y-6">
+        <div className="page-header">
+          <h1 className="text-2xl md:text-3xl font-bold text-white">Session Management</h1>
+          <p className="text-white/80">Start, manage, and provide feedback for your teaching sessions</p>
+        </div>
 
           {/* Active Session Alert */}
           {activeSession && (
-            <Card className="mb-6 border-green-200 bg-green-50">
+            <Card className="glass-panel border border-emerald-200/40">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                    <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
                     <div>
-                      <h3 className="font-medium text-green-900">Session in Progress</h3>
-                      <p className="text-sm text-green-700">
+                      <h3 className="font-medium text-slate-900 dark:text-white">Session in Progress</h3>
+                      <p className="text-sm text-slate-600 dark:text-slate-300">
                         Teaching {activeSession.studentName} - {activeSession.topicTitle}
                       </p>
                     </div>
                   </div>
                   <Button
                     onClick={() => handleEndSession(activeSession.id)}
-                    className="bg-red-600 hover:bg-red-700"
+                    variant="outline"
+                    className="btn-outline text-red-600 border-red-200 hover:border-red-300 hover:text-red-700"
                   >
                     <Square className="h-4 w-4 mr-2" />
                     End Session
@@ -234,7 +232,7 @@ export default function TeacherSessionManagementPage() {
 
           {/* Session Notes for Active Session */}
           {activeSession && (
-            <Card className="mb-6">
+            <Card className="glass-panel border border-white/40">
               <CardHeader>
                 <CardTitle>Session Notes</CardTitle>
                 <CardDescription>Add notes during the session</CardDescription>
@@ -244,6 +242,7 @@ export default function TeacherSessionManagementPage() {
                   placeholder="Add session notes, student progress, or important observations..."
                   value={sessionNotes}
                   onChange={(e) => setSessionNotes(e.target.value)}
+                  className="input-modern min-h-[120px] resize-none"
                   rows={4}
                 />
               </CardContent>
@@ -253,25 +252,27 @@ export default function TeacherSessionManagementPage() {
           {/* Sessions List */}
           <div className="space-y-4">
             {sessions.length === 0 ? (
-              <Card>
+              <Card className="glass-panel border border-white/40">
                 <CardContent className="text-center py-12">
-                  <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No sessions found</h3>
-                  <p className="text-gray-500">No accepted or completed sessions available.</p>
+                  <BookOpen className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">No sessions found</h3>
+                  <p className="text-slate-500 dark:text-slate-300">No accepted or completed sessions available.</p>
                 </CardContent>
               </Card>
             ) : (
               sessions.map((session) => (
-                <Card key={session.id}>
+                <Card key={session.id} className="glass-panel border border-white/40">
                   <CardContent className="p-6">
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-medium">{session.studentName}</h3>
+                          <h3 className="text-lg font-medium text-slate-900 dark:text-white">{session.studentName}</h3>
                           {getStatusBadge(session.status)}
                         </div>
-                        <p className="text-gray-600 mb-1">{session.topicTitle} - {session.subjectName}</p>
-                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                        <p className="text-slate-600 dark:text-slate-300 mb-1">
+                          {session.topicTitle}{session.subjectName ? ` • ${session.subjectName}` : ''}
+                        </p>
+                        <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-300">
                           <span className="flex items-center gap-1">
                             <Clock className="h-4 w-4" />
                             {formatDateTime(session.startTime)}
@@ -282,12 +283,12 @@ export default function TeacherSessionManagementPage() {
                           </span>
                           <span className="flex items-center gap-1">
                             <DollarSign className="h-4 w-4" />
-                            {formatCurrency(session.priceMin)} - {formatCurrency(session.priceMax)}
+                            {formatCurrency(session.priceMin, session.priceCurrency)} - {formatCurrency(session.priceMax, session.priceCurrency)}
                           </span>
                         </div>
                         {session.studentNotes && (
-                          <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                            <p className="text-sm text-gray-600">
+                          <div className="mt-3 p-3 glass rounded-lg border border-white/30">
+                            <p className="text-sm text-slate-600 dark:text-slate-300">
                               <strong>Student Notes:</strong> {session.studentNotes}
                             </p>
                           </div>
@@ -298,7 +299,7 @@ export default function TeacherSessionManagementPage() {
                         {session.status === 'ACCEPTED' && canStartSession(session) && (
                           <Button
                             onClick={() => handleStartSession(session.id)}
-                            className="bg-green-600 hover:bg-green-700"
+                            className="btn-primary"
                           >
                             <Play className="h-4 w-4 mr-2" />
                             Start Session
@@ -306,7 +307,7 @@ export default function TeacherSessionManagementPage() {
                         )}
                         
                         {session.status === 'ACCEPTED' && !canStartSession(session) && (
-                          <div className="text-sm text-gray-500 text-center">
+                          <div className="text-sm text-slate-500 dark:text-slate-300 text-center">
                             <p>Session can be started</p>
                             <p>15 min before/after</p>
                             <p>scheduled time</p>
@@ -316,12 +317,23 @@ export default function TeacherSessionManagementPage() {
                         {session.status === 'COMPLETED' && (
                           <Dialog open={showFeedbackDialog === session.id} onOpenChange={(open) => setShowFeedbackDialog(open ? session.id : null)}>
                             <DialogTrigger asChild>
-                              <Button variant="outline">
+                              <Button
+                                variant="outline"
+                                className="btn-outline"
+                                onClick={() => setFeedback({
+                                  bookingId: session.id,
+                                  sessionRating: 5,
+                                  studentEngagement: '',
+                                  sessionNotes: '',
+                                  improvementSuggestions: '',
+                                  wouldRecommend: true
+                                })}
+                              >
                                 <MessageSquare className="h-4 w-4 mr-2" />
                                 Add Feedback
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="max-w-2xl">
+                            <DialogContent className="modal-content max-w-2xl">
                               <DialogHeader>
                                 <DialogTitle>Session Feedback</DialogTitle>
                               </DialogHeader>
@@ -342,7 +354,6 @@ export default function TeacherSessionManagementPage() {
               ))
             )}
           </div>
-        </div>
       </div>
     </TeacherRoute>
   )
@@ -381,14 +392,14 @@ function SessionFeedbackForm({
               onClick={() => handleRatingChange(rating)}
               className={`p-2 rounded-full transition-colors ${
                 feedback.sessionRating >= rating
-                  ? 'text-yellow-400 bg-yellow-50'
-                  : 'text-gray-300 hover:text-yellow-400'
+                  ? 'text-yellow-400 bg-yellow-100/70'
+                  : 'text-slate-300 hover:text-yellow-400'
               }`}
             >
               <Star className="h-6 w-6 fill-current" />
             </button>
           ))}
-          <span className="ml-2 text-sm text-gray-600">
+          <span className="ml-2 text-sm text-slate-600 dark:text-slate-300">
             {feedback.sessionRating}/5 stars
           </span>
         </div>
@@ -401,6 +412,7 @@ function SessionFeedbackForm({
           placeholder="How was the student's engagement during the session?"
           value={feedback.studentEngagement}
           onChange={(e) => setFeedback({ ...feedback, studentEngagement: e.target.value })}
+          className="input-modern min-h-[100px] resize-none"
           rows={3}
         />
       </div>
@@ -412,6 +424,7 @@ function SessionFeedbackForm({
           placeholder="Key points covered, student progress, areas of improvement..."
           value={feedback.sessionNotes}
           onChange={(e) => setFeedback({ ...feedback, sessionNotes: e.target.value })}
+          className="input-modern min-h-[120px] resize-none"
           rows={4}
         />
       </div>
@@ -423,6 +436,7 @@ function SessionFeedbackForm({
           placeholder="Suggestions for the student's continued learning..."
           value={feedback.improvementSuggestions}
           onChange={(e) => setFeedback({ ...feedback, improvementSuggestions: e.target.value })}
+          className="input-modern min-h-[100px] resize-none"
           rows={3}
         />
       </div>
@@ -434,8 +448,8 @@ function SessionFeedbackForm({
             onClick={() => handleRecommendationChange(true)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
               feedback.wouldRecommend
-                ? 'bg-green-50 border-green-200 text-green-700'
-                : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                ? 'bg-emerald-500/10 border-emerald-300/40 text-emerald-600'
+                : 'border-white/40 text-slate-600 dark:text-slate-300 hover:bg-white/40'
             }`}
           >
             <ThumbsUp className="h-4 w-4" />
@@ -445,8 +459,8 @@ function SessionFeedbackForm({
             onClick={() => handleRecommendationChange(false)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
               !feedback.wouldRecommend
-                ? 'bg-red-50 border-red-200 text-red-700'
-                : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                ? 'bg-red-500/10 border-red-300/40 text-red-600'
+                : 'border-white/40 text-slate-600 dark:text-slate-300 hover:bg-white/40'
             }`}
           >
             <ThumbsDown className="h-4 w-4" />
@@ -456,11 +470,11 @@ function SessionFeedbackForm({
       </div>
 
       <div className="flex gap-2">
-        <Button onClick={onSubmit} className="flex-1">
+        <Button onClick={onSubmit} className="btn-primary flex-1">
           <CheckCircle className="h-4 w-4 mr-2" />
           Submit Feedback
         </Button>
-        <Button variant="outline" onClick={onCancel} className="flex-1">
+        <Button variant="outline" onClick={onCancel} className="btn-outline flex-1">
           Cancel
         </Button>
       </div>

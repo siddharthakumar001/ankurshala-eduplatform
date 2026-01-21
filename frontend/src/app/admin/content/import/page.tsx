@@ -330,12 +330,6 @@ export default function AdminContentImportPage() {
     }
 
     try {
-      const token = localStorage.getItem('accessToken')
-      if (!token) {
-        toast.error('Authentication token not found. Please log in.')
-        return
-      }
-
       await apiClient.delete(`/admin/content/import/jobs/${jobId}`)
       toast.success('Import job and associated content deleted successfully!')
       fetchImportJobs() // Refresh the jobs list
@@ -352,12 +346,6 @@ export default function AdminContentImportPage() {
 
   const downloadSampleCsv = async () => {
     try {
-      const token = localStorage.getItem('accessToken')
-      if (!token) {
-        toast.error('Authentication token not found. Please log in.')
-        return
-      }
-
       const response = await fetch('/api/admin/content/import/sample-csv', {
         credentials: 'include',
       })
@@ -432,10 +420,10 @@ export default function AdminContentImportPage() {
     <DashboardLayout role="admin">
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="page-header flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Content Import</h1>
-            <p className="text-gray-600 dark:text-gray-400">Import educational content from CSV or XLSX files</p>
+            <h1 className="text-2xl font-bold text-white">Content Import</h1>
+            <p className="text-white/80">Import educational content from CSV or XLSX files</p>
           </div>
           <div className="flex space-x-3">
             <Button 
@@ -457,7 +445,7 @@ export default function AdminContentImportPage() {
         </div>
 
         {/* Upload Section */}
-        <Card className="p-6">
+        <Card className="p-6 glass-panel border border-white/30 dark:border-white/10">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Upload Content File</h3>
@@ -467,8 +455,8 @@ export default function AdminContentImportPage() {
             <div 
               className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
                 dragActive 
-                  ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20' 
-                  : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                  ? 'border-ankur-primary bg-ankur-primary/10' 
+                  : 'border-white/50 dark:border-white/10 hover:border-ankur-primary/50'
               }`}
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}
@@ -504,7 +492,7 @@ export default function AdminContentImportPage() {
             {selectedFile && (
               <div className="mt-6">
                 <h4 className="text-md font-medium text-gray-900 dark:text-white mb-3">Selected File</h4>
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                <div className="bg-white/70 dark:bg-slate-900/70 rounded-lg p-4 border border-white/30 dark:border-white/10">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
                       <FileText className="h-5 w-5 text-gray-400 dark:text-gray-500 mr-3" />
@@ -603,9 +591,9 @@ export default function AdminContentImportPage() {
         </Card>
 
         {/* Import Jobs */}
-        <Card className="p-6">
+        <Card className="p-6 glass">
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Import Jobs</h3>
+            <h3 className="text-lg font-semibold text-ankur-secondary dark:text-white">Import Jobs</h3>
             
             {loading ? (
               <div className="animate-pulse space-y-4">
@@ -622,33 +610,33 @@ export default function AdminContentImportPage() {
                 </p>
               </div>
             ) : (
-              <div className="overflow-hidden border border-gray-200 dark:border-gray-700 rounded-lg">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-800">
+              <div className="overflow-x-auto">
+                <table className="data-table">
+                  <thead>
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         File Name
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Status
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Progress
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Records
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Created
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                  <tbody className="divide-y divide-white/40 dark:divide-white/10">
                     {importJobs.map((job) => (
-                      <tr key={job.id}>
+                      <tr key={job.id} className="hover:bg-white/60 dark:hover:bg-slate-900/60">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <FileText className="h-5 w-5 text-gray-400 dark:text-gray-500 mr-3" />
@@ -734,7 +722,7 @@ export default function AdminContentImportPage() {
         {/* Preview Modal */}
         {showPreview && previewData && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-4xl max-h-[80vh] overflow-y-auto">
+            <div className="glass-panel border border-white/30 dark:border-white/10 rounded-lg p-6 max-w-4xl max-h-[80vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Preview Results</h3>
                 <Button variant="outline" onClick={() => setShowPreview(false)}>
@@ -786,7 +774,7 @@ export default function AdminContentImportPage() {
         {/* Validation Modal */}
         {showValidation && validationData && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-6xl max-h-[90vh] overflow-y-auto">
+            <div className="glass-panel border border-white/30 dark:border-white/10 rounded-lg p-6 max-w-6xl max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Content Validation Results</h3>
                 <Button variant="outline" onClick={() => setShowValidation(false)}>
@@ -918,7 +906,7 @@ export default function AdminContentImportPage() {
         {/* Update Confirmation Modal */}
         {showUpdateConfirmation && validationData && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl">
+            <div className="glass-panel border border-white/30 dark:border-white/10 rounded-lg p-6 max-w-2xl">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Confirm Content Updates</h3>
                 <Button variant="outline" onClick={() => setShowUpdateConfirmation(false)}>
@@ -982,7 +970,7 @@ export default function AdminContentImportPage() {
         {/* Job Details Modal */}
         {showJobDetails && selectedJob && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-4xl max-h-[80vh] overflow-y-auto">
+            <div className="glass-panel border border-white/30 dark:border-white/10 rounded-lg p-6 max-w-4xl max-h-[80vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Import Job Details</h3>
                 <Button variant="outline" onClick={() => setShowJobDetails(false)}>

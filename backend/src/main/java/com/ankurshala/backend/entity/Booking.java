@@ -8,6 +8,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.ZonedDateTime;
 
 @Entity
@@ -172,8 +173,8 @@ public class Booking {
         this.startTs = startTime;
         this.endTs = endTime;
         this.durationMinutes = durationMinutes;
-        this.priceMin = priceMin;
-        this.priceMax = priceMax;
+        setPriceMin(priceMin);
+        setPriceMax(priceMax);
         this.status = BookingStatus.PENDING;
         this.state = "REQUESTED";
         this.createdAt = ZonedDateTime.now();
@@ -270,19 +271,37 @@ public class Booking {
     }
 
     public Integer getPriceMinCents() {
+        if (priceMinCents == null && priceMin != null) {
+            return priceMin.multiply(BigDecimal.valueOf(100))
+                .setScale(0, RoundingMode.HALF_UP)
+                .intValue();
+        }
         return priceMinCents;
     }
 
     public void setPriceMinCents(Integer priceMinCents) {
         this.priceMinCents = priceMinCents;
+        if (priceMinCents != null) {
+            this.priceMin = BigDecimal.valueOf(priceMinCents)
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        }
     }
 
     public Integer getPriceMaxCents() {
+        if (priceMaxCents == null && priceMax != null) {
+            return priceMax.multiply(BigDecimal.valueOf(100))
+                .setScale(0, RoundingMode.HALF_UP)
+                .intValue();
+        }
         return priceMaxCents;
     }
 
     public void setPriceMaxCents(Integer priceMaxCents) {
         this.priceMaxCents = priceMaxCents;
+        if (priceMaxCents != null) {
+            this.priceMax = BigDecimal.valueOf(priceMaxCents)
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        }
     }
 
     public Long getAppliedRuleId() {
@@ -364,6 +383,9 @@ public class Booking {
 
     public void setStatus(BookingStatus status) {
         this.status = status;
+        if (status != null) {
+            this.state = BookingStateMapper.toState(status);
+        }
     }
 
     public Integer getDurationMinutes() {
@@ -441,19 +463,37 @@ public class Booking {
     }
 
     public BigDecimal getPriceMin() {
+        if (priceMin == null && priceMinCents != null) {
+            return BigDecimal.valueOf(priceMinCents)
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        }
         return priceMin;
     }
 
     public void setPriceMin(BigDecimal priceMin) {
         this.priceMin = priceMin;
+        if (priceMin != null) {
+            this.priceMinCents = priceMin.multiply(BigDecimal.valueOf(100))
+                .setScale(0, RoundingMode.HALF_UP)
+                .intValue();
+        }
     }
 
     public BigDecimal getPriceMax() {
+        if (priceMax == null && priceMaxCents != null) {
+            return BigDecimal.valueOf(priceMaxCents)
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        }
         return priceMax;
     }
 
     public void setPriceMax(BigDecimal priceMax) {
         this.priceMax = priceMax;
+        if (priceMax != null) {
+            this.priceMaxCents = priceMax.multiply(BigDecimal.valueOf(100))
+                .setScale(0, RoundingMode.HALF_UP)
+                .intValue();
+        }
     }
 
     public String getPriceCurrency() {
