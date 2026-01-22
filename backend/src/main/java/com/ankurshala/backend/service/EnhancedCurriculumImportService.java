@@ -144,6 +144,83 @@ public class EnhancedCurriculumImportService {
     }
 
     /**
+     * Detect whether a CSV file matches the curriculum format headers
+     */
+    public boolean hasCurriculumHeaders(byte[] fileBytes) {
+        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(fileBytes);
+             InputStreamReader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
+             CSVParser parser = new CSVParser(reader, CSVFormat.DEFAULT.withFirstRecordAsHeader().withIgnoreHeaderCase().withTrim())) {
+            Map<String, Integer> columnMap = normalizeCsvHeaders(parser.getHeaderMap());
+            boolean hasCurriculumMarkers = columnMap.containsKey("topics")
+                || columnMap.containsKey("briefdescription")
+                || columnMap.containsKey("duration")
+                || columnMap.containsKey("suggestedtopics")
+                || columnMap.containsKey("relatedtopics");
+            if (!hasCurriculumMarkers) {
+                return false;
+            }
+            validateColumns(columnMap);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Validate curriculum content against existing records (CSV only)
+     */
+    public Map<String, Object> validateForDuplicatesAndUpdates(byte[] fileBytes, String fileName) {
+        try {
+            ImportJob tempJob = new ImportJob(fileName, "CSV", (long) fileBytes.length);
+            List<CurriculumRow> rows = parseCsvFile(fileBytes, fileName, tempJob);
+
+            Map<String, Object> result = new HashMap<>();
+            List<Map<String, Object>> duplicates = new ArrayList<>();
+            List<Map<String, Object>> updates = new ArrayList<>();
+            List<Map<String, Object>> newContent = new ArrayList<>();
+
+            int totalRecords = 0;
+
+            for (CurriculumRow row : rows) {
+                for (String topicTitle : row.topics) {
+                    totalRecords++;
+                    Optional<Topic> existingTopic = findExistingTopic(
+                        row.board,
+                        row.grade,
+                        row.subject,
+                        row.chapter,
+                        topicTitle
+                    );
+
+                    if (existingTopic.isPresent()) {
+                        Map<String, Object> comparison = compareCurriculumContent(existingTopic.get(), row, topicTitle);
+                        if (Boolean.TRUE.equals(comparison.get("isDuplicate"))) {
+                            duplicates.add(buildValidationItem(row, topicTitle, existingTopic.get().getId(), "Content is identical to existing record"));
+                        } else {
+                            Map<String, Object> updateItem = buildValidationItem(row, topicTitle, existingTopic.get().getId(), "Content has updates");
+                            updateItem.put("changes", comparison.get("changes"));
+                            updates.add(updateItem);
+                        }
+                    } else {
+                        newContent.add(buildValidationItem(row, topicTitle, null, "New content to be added"));
+                    }
+                }
+            }
+
+            result.put("duplicates", duplicates);
+            result.put("updates", updates);
+            result.put("newContent", newContent);
+            result.put("totalRecords", totalRecords);
+            result.put("duplicateCount", duplicates.size());
+            result.put("updateCount", updates.size());
+            result.put("newCount", newContent.size());
+            return result;
+        } catch (Exception e) {
+            throw new RuntimeException("Error validating content: " + e.getMessage(), e);
+        }
+    }
+
+    /**
      * Parse CSV file and extract curriculum data
      */
     private List<CurriculumRow> parseCsvFile(byte[] fileBytes, String fileName, ImportJob importJob) throws IOException {
@@ -154,12 +231,7 @@ public class EnhancedCurriculumImportService {
              InputStreamReader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
              CSVParser parser = new CSVParser(reader, CSVFormat.DEFAULT.withFirstRecordAsHeader().withIgnoreHeaderCase().withTrim())) {
             
-            // Get header map
-            Map<String, Integer> headerMap = parser.getHeaderMap();
-            Map<String, Integer> columnMap = new HashMap<>();
-            for (Map.Entry<String, Integer> entry : headerMap.entrySet()) {
-                columnMap.put(entry.getKey(), entry.getValue());
-            }
+            Map<String, Integer> columnMap = normalizeCsvHeaders(parser.getHeaderMap());
             
             validateColumns(columnMap);
             
@@ -180,11 +252,11 @@ public class EnhancedCurriculumImportService {
                     String errorDetail = String.format("Row %d Error: %s | Data: Board='%s', Grade='%s', Subject='%s', Chapter='%s', Topics='%s'", 
                         rowNumber, 
                         e.getMessage(),
-                        getCsvFieldValue(record, COL_BOARD),
-                        getCsvFieldValue(record, COL_GRADE),
-                        getCsvFieldValue(record, COL_SUBJECT),
-                        getCsvFieldValue(record, COL_CHAPTER),
-                        getCsvFieldValue(record, COL_TOPICS)
+                        getCsvFieldValue(record, columnMap, COL_BOARD),
+                        getCsvFieldValue(record, columnMap, COL_GRADE),
+                        getCsvFieldValue(record, columnMap, COL_SUBJECT),
+                        getCsvFieldValue(record, columnMap, COL_CHAPTER),
+                        getCsvFieldValue(record, columnMap, COL_TOPICS)
                     );
                     errors.add(errorDetail);
                     logger.warn(errorDetail);
@@ -212,21 +284,21 @@ public class EnhancedCurriculumImportService {
      * Parse a CSV record into CurriculumRow object
      */
     private CurriculumRow parseCsvRecord(CSVRecord record, Map<String, Integer> columnMap, int rowNumber) {
-        String board = getCsvFieldValue(record, COL_BOARD);
-        String grade = getCsvFieldValue(record, COL_GRADE);
-        String subject = getCsvFieldValue(record, COL_SUBJECT);
+        String board = getCsvFieldValue(record, columnMap, COL_BOARD);
+        String grade = getCsvFieldValue(record, columnMap, COL_GRADE);
+        String subject = getCsvFieldValue(record, columnMap, COL_SUBJECT);
         
         // Try both "Chapter" and "Chapters"
-        String chapter = getCsvFieldValue(record, COL_CHAPTER);
+        String chapter = getCsvFieldValue(record, columnMap, COL_CHAPTER);
         if (chapter == null || chapter.trim().isEmpty()) {
-            chapter = getCsvFieldValue(record, COL_CHAPTERS);
+            chapter = getCsvFieldValue(record, columnMap, COL_CHAPTERS);
         }
         
-        String topics = getCsvFieldValue(record, COL_TOPICS);
-        String relatedTopics = getCsvFieldValue(record, COL_RELATED_TOPICS);
-        String briefDescription = getCsvFieldValue(record, COL_BRIEF_DESCRIPTION);
-        String duration = getCsvFieldValue(record, COL_DURATION);
-        String suggestedTopics = getCsvFieldValue(record, COL_SUGGESTED_TOPICS);
+        String topics = getCsvFieldValue(record, columnMap, COL_TOPICS);
+        String relatedTopics = getCsvFieldValue(record, columnMap, COL_RELATED_TOPICS);
+        String briefDescription = getCsvFieldValue(record, columnMap, COL_BRIEF_DESCRIPTION);
+        String duration = getCsvFieldValue(record, columnMap, COL_DURATION);
+        String suggestedTopics = getCsvFieldValue(record, columnMap, COL_SUGGESTED_TOPICS);
         
         // Validate required fields
         if (isBlank(board)) throw new IllegalArgumentException("Board is required");
@@ -277,27 +349,13 @@ public class EnhancedCurriculumImportService {
     /**
      * Get CSV field value (case-insensitive)
      */
-    private String getCsvFieldValue(CSVRecord record, String fieldName) {
-        try {
-            // Try exact match first
-            if (record.isSet(fieldName)) {
-                String value = record.get(fieldName);
-                return (value != null && !value.trim().isEmpty()) ? value : null;
-            }
-            
-            // Try case-insensitive match by checking all headers
-            Map<String, Integer> headerMap = record.getParser().getHeaderMap();
-            for (String header : headerMap.keySet()) {
-                if (header.equalsIgnoreCase(fieldName)) {
-                    String value = record.get(header);
-                    return (value != null && !value.trim().isEmpty()) ? value : null;
-                }
-            }
-            
-            return null;
-        } catch (IllegalArgumentException e) {
+    private String getCsvFieldValue(CSVRecord record, Map<String, Integer> columnMap, String fieldName) {
+        Integer index = findHeaderIndex(columnMap, fieldName);
+        if (index == null) {
             return null;
         }
+        String value = record.get(index);
+        return (value != null && !value.trim().isEmpty()) ? value : null;
     }
     
     /**
@@ -368,8 +426,11 @@ public class EnhancedCurriculumImportService {
         for (int i = 0; i < headerRow.getLastCellNum(); i++) {
             Cell cell = headerRow.getCell(i);
             if (cell != null) {
-                String columnName = cell.getStringCellValue().trim();
-                columnMap.put(columnName, i);
+                String columnName = cell.getStringCellValue();
+                String normalized = normalizeHeaderName(columnName);
+                if (!normalized.isEmpty() && !columnMap.containsKey(normalized)) {
+                    columnMap.put(normalized, i);
+                }
             }
         }
         
@@ -380,41 +441,27 @@ public class EnhancedCurriculumImportService {
      * Validate required columns are present
      */
     private void validateColumns(Map<String, Integer> columnMap) {
-        // Required columns: Board, Grade, Subject, Chapter/Chapters, Topics
         List<String> missingColumns = new ArrayList<>();
         
-        if (!columnMap.containsKey(COL_BOARD)) {
+        if (findHeaderIndex(columnMap, COL_BOARD) == null) {
             missingColumns.add(COL_BOARD);
         }
-        if (!columnMap.containsKey(COL_GRADE)) {
+        if (findHeaderIndex(columnMap, COL_GRADE) == null) {
             missingColumns.add(COL_GRADE);
         }
-        if (!columnMap.containsKey(COL_SUBJECT)) {
+        if (findHeaderIndex(columnMap, COL_SUBJECT) == null) {
             missingColumns.add(COL_SUBJECT);
         }
-        // Check for either "Chapter" or "Chapters"
-        if (!columnMap.containsKey(COL_CHAPTER) && !columnMap.containsKey(COL_CHAPTERS)) {
+        if (findHeaderIndex(columnMap, COL_CHAPTER) == null && findHeaderIndex(columnMap, COL_CHAPTERS) == null) {
             missingColumns.add(COL_CHAPTER + " or " + COL_CHAPTERS);
         }
-        if (!columnMap.containsKey(COL_TOPICS)) {
+        if (findHeaderIndex(columnMap, COL_TOPICS) == null) {
             missingColumns.add(COL_TOPICS);
         }
         
         if (!missingColumns.isEmpty()) {
             throw new IllegalArgumentException("Missing required columns: " + String.join(", ", missingColumns));
         }
-    }
-    
-    /**
-     * Get chapter column name (supports both "Chapter" and "Chapters")
-     */
-    private String getChapterColumnName(Map<String, Integer> columnMap) {
-        if (columnMap.containsKey(COL_CHAPTER)) {
-            return COL_CHAPTER;
-        } else if (columnMap.containsKey(COL_CHAPTERS)) {
-            return COL_CHAPTERS;
-        }
-        return COL_CHAPTER; // Default fallback
     }
 
     /**
@@ -424,8 +471,10 @@ public class EnhancedCurriculumImportService {
         String board = getCellValue(row, columnMap, COL_BOARD);
         String grade = getCellValue(row, columnMap, COL_GRADE);
         String subject = getCellValue(row, columnMap, COL_SUBJECT);
-        String chapterColumnName = getChapterColumnName(columnMap);
-        String chapter = getCellValue(row, columnMap, chapterColumnName);
+        String chapter = getCellValue(row, columnMap, COL_CHAPTER);
+        if (chapter == null || chapter.trim().isEmpty()) {
+            chapter = getCellValue(row, columnMap, COL_CHAPTERS);
+        }
         String topics = getCellValue(row, columnMap, COL_TOPICS);
         String relatedTopics = getCellValue(row, columnMap, COL_RELATED_TOPICS);
         String briefDescription = getCellValue(row, columnMap, COL_BRIEF_DESCRIPTION);
@@ -535,8 +584,10 @@ public class EnhancedCurriculumImportService {
      * Get cell value as string
      */
     private String getCellValue(Row row, Map<String, Integer> columnMap, String columnName) {
-        Integer colIndex = columnMap.get(columnName);
-        if (colIndex == null) return null;
+        Integer colIndex = findHeaderIndex(columnMap, columnName);
+        if (colIndex == null) {
+            return null;
+        }
         
         Cell cell = row.getCell(colIndex);
         if (cell == null) return null;
@@ -555,6 +606,60 @@ public class EnhancedCurriculumImportService {
                 return cell.getCellFormula();
             default:
                 return null;
+        }
+    }
+
+    private Map<String, Integer> normalizeCsvHeaders(Map<String, Integer> headerMap) {
+        Map<String, Integer> normalized = new HashMap<>();
+        for (Map.Entry<String, Integer> entry : headerMap.entrySet()) {
+            String normalizedKey = normalizeHeaderName(entry.getKey());
+            if (!normalizedKey.isEmpty() && !normalized.containsKey(normalizedKey)) {
+                normalized.put(normalizedKey, entry.getValue());
+            }
+        }
+        return normalized;
+    }
+
+    private String normalizeHeaderName(String header) {
+        if (header == null) return "";
+        String sanitized = header.replace("\uFEFF", "").trim().toLowerCase(Locale.ROOT);
+        return sanitized.replaceAll("[\\s_\\-]+", "");
+    }
+
+    private Integer findHeaderIndex(Map<String, Integer> columnMap, String fieldName) {
+        for (String alias : getHeaderAliases(fieldName)) {
+            Integer index = columnMap.get(alias);
+            if (index != null) {
+                return index;
+            }
+        }
+        return null;
+    }
+
+    private List<String> getHeaderAliases(String fieldName) {
+        String key = normalizeHeaderName(fieldName);
+        switch (key) {
+            case "board":
+                return List.of("board", "boardname");
+            case "grade":
+                return List.of("grade", "class", "classname", "gradelevel", "classlevel");
+            case "subject":
+                return List.of("subject", "subjectname");
+            case "chapter":
+            case "chapters":
+                return List.of("chapter", "chapters", "chaptername");
+            case "topics":
+                return List.of("topics", "topic", "topictitle", "topicname", "topictitles");
+            case "relatedtopics":
+                return List.of("relatedtopics", "relatedtopic", "related");
+            case "briefdescription":
+                return List.of("briefdescription", "description", "summary", "brief");
+            case "duration":
+                return List.of("duration", "hours", "hour", "time", "minutes", "mins", "expectedtime");
+            case "suggestedtopics":
+                return List.of("suggestedtopics", "suggestions", "suggested", "prerequisites");
+            default:
+                return List.of(key);
         }
     }
 
@@ -638,6 +743,102 @@ public class EnhancedCurriculumImportService {
             .trim();
         
         return normalized;
+    }
+
+    private Optional<Topic> findExistingTopic(String boardName, String gradeName, String subjectName, String chapterName, String topicTitle) {
+        Optional<Board> board = boardRepository.findByNameIgnoreCase(boardName);
+        if (board.isEmpty()) {
+            return Optional.empty();
+        }
+        Optional<Grade> grade = gradeRepository.findByBoardIdAndName(board.get().getId(), gradeName);
+        if (grade.isEmpty()) {
+            return Optional.empty();
+        }
+        Optional<Subject> subject = subjectRepository.findByGradeIdAndName(grade.get().getId(), subjectName);
+        if (subject.isEmpty()) {
+            return Optional.empty();
+        }
+        Optional<Chapter> chapter = chapterRepository.findByNameAndSubjectId(chapterName, subject.get().getId());
+        if (chapter.isEmpty()) {
+            return Optional.empty();
+        }
+        return topicRepository.findByTitleAndChapterId(topicTitle, chapter.get().getId());
+    }
+
+    private Map<String, Object> compareCurriculumContent(Topic existingTopic, CurriculumRow row, String topicTitle) {
+        Map<String, Object> result = new HashMap<>();
+        List<Map<String, Object>> changes = new ArrayList<>();
+        boolean isDuplicate = true;
+
+        if (!Objects.equals(existingTopic.getTitle(), topicTitle)) {
+            changes.add(Map.of(
+                "field", "title",
+                "oldValue", existingTopic.getTitle(),
+                "newValue", topicTitle
+            ));
+            isDuplicate = false;
+        }
+
+        String description = row.description;
+        if (description != null && !description.trim().isEmpty() &&
+            !Objects.equals(existingTopic.getDescription(), description.trim())) {
+            changes.add(Map.of(
+                "field", "description",
+                "oldValue", existingTopic.getDescription(),
+                "newValue", description.trim()
+            ));
+            isDuplicate = false;
+        }
+
+        String summary = row.summary;
+        if (summary != null && !summary.trim().isEmpty() &&
+            !Objects.equals(existingTopic.getSummary(), summary.trim())) {
+            changes.add(Map.of(
+                "field", "summary",
+                "oldValue", existingTopic.getSummary(),
+                "newValue", summary.trim()
+            ));
+            isDuplicate = false;
+        }
+
+        String suggestedTopics = row.suggestedTopics;
+        if (suggestedTopics != null && !suggestedTopics.trim().isEmpty() &&
+            !Objects.equals(existingTopic.getSuggestedTopics(), suggestedTopics.trim())) {
+            changes.add(Map.of(
+                "field", "suggestedTopics",
+                "oldValue", existingTopic.getSuggestedTopics(),
+                "newValue", suggestedTopics.trim()
+            ));
+            isDuplicate = false;
+        }
+
+        Integer durationMinutes = row.durationMinutes;
+        if (durationMinutes != null && !Objects.equals(existingTopic.getExpectedTimeMins(), durationMinutes)) {
+            changes.add(Map.of(
+                "field", "expectedTimeMins",
+                "oldValue", existingTopic.getExpectedTimeMins(),
+                "newValue", durationMinutes
+            ));
+            isDuplicate = false;
+        }
+
+        result.put("isDuplicate", isDuplicate);
+        result.put("changes", changes);
+        return result;
+    }
+
+    private Map<String, Object> buildValidationItem(CurriculumRow row, String topicTitle, Long existingId, String message) {
+        Map<String, Object> item = new HashMap<>();
+        item.put("board", row.board);
+        item.put("grade", row.grade);
+        item.put("subject", row.subject);
+        item.put("chapter", row.chapter);
+        item.put("topicTitle", topicTitle);
+        if (existingId != null) {
+            item.put("existingId", existingId);
+        }
+        item.put("message", message);
+        return item;
     }
 
     /**

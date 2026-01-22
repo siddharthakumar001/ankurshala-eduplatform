@@ -212,8 +212,19 @@ public class AdminCsvImportController {
                         "instance", "/admin/content/import/validate-duplicates"
                     ));
             }
-            
-            // Validate CSV headers synchronously before processing
+
+            // Curriculum format (CSV with Topics/Duration headers)
+            if (enhancedCurriculumImportService.hasCurriculumHeaders(csvContent)) {
+                Map<String, Object> validationResult = enhancedCurriculumImportService
+                    .validateForDuplicatesAndUpdates(csvContent, "upload.csv");
+
+                return ResponseEntity.ok(Map.of(
+                    "message", "Content validation completed successfully",
+                    "validation", validationResult
+                ));
+            }
+
+            // Legacy CSV format validation
             try {
                 csvImportService.validateCsvHeaders(csvContent);
             } catch (IllegalArgumentException e) {
@@ -226,10 +237,9 @@ public class AdminCsvImportController {
                         "instance", "/admin/content/import/validate-duplicates"
                     ));
             }
-            
-            // Validate for duplicates and updates
+
             Map<String, Object> validationResult = csvImportService.validateForDuplicatesAndUpdates(csvContent);
-            
+
             return ResponseEntity.ok(Map.of(
                 "message", "Content validation completed successfully",
                 "validation", validationResult

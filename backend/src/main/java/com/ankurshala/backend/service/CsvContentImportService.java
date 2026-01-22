@@ -55,7 +55,7 @@ public class CsvContentImportService {
             
             // Validate headers
             Set<String> headerSet = parser.getHeaderMap().keySet().stream()
-                .map(String::toLowerCase)
+                .map(this::normalizeHeaderName)
                 .collect(HashSet::new, HashSet::add, HashSet::addAll);
             
             Set<String> missingHeaders = new HashSet<>(REQUIRED_HEADERS);
@@ -125,7 +125,7 @@ public class CsvContentImportService {
             
             // Validate headers
             Set<String> headerSet = parser.getHeaderMap().keySet().stream()
-                .map(String::toLowerCase)
+                .map(this::normalizeHeaderName)
                 .collect(HashSet::new, HashSet::add, HashSet::addAll);
             
             Set<String> missingHeaders = new HashSet<>(REQUIRED_HEADERS);
@@ -241,10 +241,25 @@ public class CsvContentImportService {
 
     private String getFieldValue(CSVRecord record, String fieldName) {
         try {
-            return record.get(fieldName);
+            if (record.isSet(fieldName)) {
+                return record.get(fieldName);
+            }
+            String target = normalizeHeaderName(fieldName);
+            for (String header : record.getParser().getHeaderMap().keySet()) {
+                if (normalizeHeaderName(header).equals(target)) {
+                    return record.get(header);
+                }
+            }
         } catch (IllegalArgumentException e) {
             return null;
         }
+        return null;
+    }
+
+    private String normalizeHeaderName(String header) {
+        if (header == null) return "";
+        String sanitized = header.replace("\uFEFF", "").trim().toLowerCase();
+        return sanitized.replaceAll("[\\s_\\-]+", "");
     }
 
     private Integer parseHoursToMinutes(String hoursStr) {
