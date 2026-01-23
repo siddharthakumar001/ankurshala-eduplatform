@@ -54,7 +54,6 @@ const adminNavItems: NavItem[] = [
   { label: 'Pricing', href: '/admin/pricing', icon: <DollarSign size={20} /> },
   { label: 'Fee Waivers', href: '/admin/fees', icon: <CreditCard size={20} /> },
   { label: 'Notifications', href: '/admin/notifications', icon: <Bell size={20} /> },
-  { label: 'Profile', href: '/admin/profile', icon: <User size={20} /> },
 ];
 
 const teacherNavItems: NavItem[] = [
@@ -404,14 +403,20 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                       onClick={() => setUserMenuOpen(false)}
                     />
                     <div className="absolute right-0 top-full mt-2 w-56 bg-white/90 rounded-2xl shadow-lg border border-white/60 py-2 z-50 animate-fade-in backdrop-blur dark:bg-slate-900/80 dark:border-white/10">
-                      <Link
-                        href={`/${role}/profile`}
-                        className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-white/70 dark:text-gray-200 dark:hover:bg-slate-800/60"
-                        onClick={() => setUserMenuOpen(false)}
-                      >
-                        <User size={18} />
-                        <span>My Profile</span>
-                      </Link>
+                      {role !== 'admin' ? (
+                        <Link
+                          href={`/${role}/profile`}
+                          className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-white/70 dark:text-gray-200 dark:hover:bg-slate-800/60"
+                          onClick={() => setUserMenuOpen(false)}
+                        >
+                          <User size={18} />
+                          <span>My Profile</span>
+                        </Link>
+                      ) : (
+                        <div className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400">
+                          Admin profile is managed in the backend.
+                        </div>
+                      )}
                       <hr className="my-2 border-gray-100/60 dark:border-white/10" />
                       <button
                         onClick={() => {

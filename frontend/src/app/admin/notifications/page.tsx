@@ -74,7 +74,9 @@ export default function AdminNotificationsPage() {
   const [showPreviewDialog, setShowPreviewDialog] = useState(false)
   const [sending, setSending] = useState(false)
   const [broadcastResult, setBroadcastResult] = useState<any>(null)
-  const [error, setError] = useState('')
+  const [formError, setFormError] = useState('')
+  const [loadError, setLoadError] = useState('')
+  const [statsError, setStatsError] = useState('')
   const [targetMode, setTargetMode] = useState<'broadcast' | 'specific'>('broadcast')
   const [targetType, setTargetType] = useState<'email' | 'userId'>('email')
   const [targetValue, setTargetValue] = useState('')
@@ -89,22 +91,25 @@ export default function AdminNotificationsPage() {
 
   const fetchNotifications = useCallback(async () => {
     try {
+      setLoadError('')
       const params = new URLSearchParams()
       if (audienceFilter && audienceFilter !== 'all') params.append('audience', audienceFilter)
       if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter)
       
       const response = await api.get(`/admin/notifications?${params}`)
       const data = response.data as any
-      setNotifications(data.content || data || [])
+      const notificationsList = Array.isArray(data?.content) ? data.content : Array.isArray(data) ? data : []
+      setNotifications(notificationsList)
     } catch (error) {
       console.error('Error fetching notifications:', error)
       setNotifications([]) // Set empty array on error
-      throw error
+      setLoadError('Failed to load notifications. Please try again.')
     }
   }, [audienceFilter, statusFilter])
 
   const fetchStats = useCallback(async () => {
     try {
+      setStatsError('')
       const response = await api.get('/admin/notifications/statistics')
       const data = response.data as any
       setStats(data)
@@ -118,26 +123,19 @@ export default function AdminNotificationsPage() {
         failedNotifications: 0,
         notificationsLast30Days: 0
       })
-      throw error
+      setStatsError('Failed to load notification statistics.')
     }
   }, [])
 
   const fetchAllData = useCallback(async () => {
-    try {
-      setLoading(true)
-      setError('')
-      
-      await Promise.all([
-        fetchNotifications(),
-        fetchStats()
-      ])
-    } catch (error) {
-      console.error('Error fetching data:', error)
-      setError('Failed to load data. Please try again.')
-      toast.error('Failed to load notification data')
-    } finally {
-      setLoading(false)
-    }
+    setLoading(true)
+    setLoadError('')
+    setStatsError('')
+    await Promise.allSettled([
+      fetchNotifications(),
+      fetchStats()
+    ])
+    setLoading(false)
   }, [fetchNotifications, fetchStats])
 
   useEffect(() => {
@@ -149,17 +147,17 @@ export default function AdminNotificationsPage() {
       if (targetMode === 'specific') {
         const trimmed = targetValue.trim()
         if (!trimmed) {
-          setError('Please provide a target email or user ID.')
+          setFormError('Please provide a target email or user ID.')
           return
         }
         if (targetType === 'userId' && Number.isNaN(Number(trimmed))) {
-          setError('Please provide a valid numeric user ID.')
+          setFormError('Please provide a valid numeric user ID.')
           return
         }
       }
 
       setSending(true)
-      setError('')
+      setFormError('')
 
       const payload = {
         ...formData,
@@ -189,7 +187,7 @@ export default function AdminNotificationsPage() {
     } catch (error: any) {
       console.error('Error sending notification:', error)
       const errorMessage = error.response?.data?.message || 'Failed to send notification'
-      setError(errorMessage)
+      setFormError(errorMessage)
       toast.error(errorMessage)
     } finally {
       setSending(false)
@@ -197,7 +195,7 @@ export default function AdminNotificationsPage() {
   }
 
   const clearError = () => {
-    setError('')
+    setFormError('')
   }
 
   const openComposeDialog = () => {
@@ -332,21 +330,6 @@ export default function AdminNotificationsPage() {
     )
   }
 
-  if (error) {
-    return (
-      <DashboardLayout role="admin">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center glass-panel rounded-2xl border border-red-200/60 dark:border-red-500/30 px-8 py-6 bg-red-50/70 dark:bg-red-500/10">
-            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <p className="text-red-600 dark:text-red-200 mb-4">{error}</p>
-            <Button onClick={fetchAllData} variant="outline">
-              Try Again
-            </Button>
-          </div>
-        </div>
-      </DashboardLayout>
-    )
-  }
 
   return (
     <DashboardLayout role="admin">
@@ -369,6 +352,17 @@ export default function AdminNotificationsPage() {
             <span>Compose</span>
           </Button>
         </div>
+        {loadError && (
+          <div className="glass rounded-2xl p-4 border border-red-200/60 dark:border-red-500/30 bg-red-50/70 dark:bg-red-500/10 flex items-center justify-between">
+            <div className="flex items-center gap-3 text-red-700 dark:text-red-200">
+              <AlertCircle className="h-5 w-5" />
+              <span className="text-sm">{loadError}</span>
+            </div>
+            <Button onClick={fetchAllData} variant="outline" size="sm">
+              Try Again
+            </Button>
+          </div>
+        )}
 
         {/* Stats Cards */}
         {stats && (
@@ -442,6 +436,17 @@ export default function AdminNotificationsPage() {
                 </div>
               </div>
             </Card>
+          </div>
+        )}
+        {statsError && (
+          <div className="glass rounded-2xl p-4 border border-amber-200/60 dark:border-amber-500/30 bg-amber-50/70 dark:bg-amber-500/10 flex items-center justify-between">
+            <div className="flex items-center gap-3 text-amber-700 dark:text-amber-200">
+              <AlertCircle className="h-5 w-5" />
+              <span className="text-sm">{statsError}</span>
+            </div>
+            <Button onClick={fetchStats} variant="outline" size="sm">
+              Retry
+            </Button>
           </div>
         )}
 
@@ -598,11 +603,11 @@ export default function AdminNotificationsPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
-              {error && (
+              {formError && (
                 <div className="p-3 bg-red-50/70 dark:bg-red-500/10 border border-red-200/60 dark:border-red-500/30 rounded-md">
                   <div className="flex">
                     <AlertCircle className="h-5 w-5 text-red-400 mr-2" />
-                    <p className="text-sm text-red-600 dark:text-red-200">{error}</p>
+                    <p className="text-sm text-red-600 dark:text-red-200">{formError}</p>
                   </div>
                 </div>
               )}

@@ -1825,6 +1825,9 @@ function TopicsTab() {
   const { data: gradesDropdown } = useGradesDropdown(selectedBoard || undefined)
   const { data: subjectsDropdown } = useSubjectsDropdown(selectedGrade || undefined)
   const { data: chaptersDropdown } = useChaptersDropdown(selectedSubject || undefined)
+  const { data: formGradesDropdown } = useGradesDropdown(formData.boardId || undefined)
+  const { data: formSubjectsDropdown } = useSubjectsDropdown(formData.gradeId || undefined)
+  const { data: formChaptersDropdown } = useChaptersDropdown(formData.subjectId || undefined)
 
   const createTopicMutation = useCreateTopic()
   const updateTopicMutation = useUpdateTopic()
@@ -1996,7 +1999,7 @@ function TopicsTab() {
                             title: topic.title, 
                             chapterId: topic.chapterId,
                             boardId: topic.boardId,
-                            gradeId: 0, // Note: topics don't have gradeId in DTO
+                            gradeId: selectedGrade || 0,
                             subjectId: topic.subjectId,
                             description: topic.description || '',
                             summary: topic.summary || '',
@@ -2057,7 +2060,7 @@ function TopicsTab() {
 
       {/* Create Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Create Topic</DialogTitle>
           </DialogHeader>
@@ -2073,11 +2076,22 @@ function TopicsTab() {
             </div>
             <div>
               <Label htmlFor="description">Description (Optional)</Label>
-              <Input
+              <Textarea
                 id="description"
+                rows={3}
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Enter description"
+              />
+            </div>
+            <div>
+              <Label htmlFor="summary">Summary / Notes (Optional)</Label>
+              <Textarea
+                id="summary"
+                rows={3}
+                value={formData.summary || ''}
+                onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
+                placeholder="Add summary or notes for the topic"
               />
             </div>
             <div>
@@ -2139,11 +2153,122 @@ function TopicsTab() {
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit Topic</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-board">Board</Label>
+                <Select
+                  value={(formData.boardId || 0).toString()}
+                  onValueChange={(value) => {
+                    const boardId = parseInt(value)
+                    setFormData((prev) => ({
+                      ...prev,
+                      boardId,
+                      gradeId: 0,
+                      subjectId: 0,
+                      chapterId: 0
+                    }))
+                  }}
+                >
+                  <SelectTrigger id="edit-board">
+                    <SelectValue placeholder="Select board" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">Select Board</SelectItem>
+                    {boardsDropdown?.map((board) => (
+                      <SelectItem key={board.id} value={board.id.toString()}>
+                        {board.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-grade">Grade</Label>
+                <Select
+                  value={(formData.gradeId || 0).toString()}
+                  onValueChange={(value) => {
+                    const gradeId = parseInt(value)
+                    setFormData((prev) => ({
+                      ...prev,
+                      gradeId,
+                      subjectId: 0,
+                      chapterId: 0
+                    }))
+                  }}
+                  disabled={!formData.boardId}
+                >
+                  <SelectTrigger id="edit-grade">
+                    <SelectValue placeholder="Select grade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">Select Grade</SelectItem>
+                    {formGradesDropdown?.map((grade) => (
+                      <SelectItem key={grade.id} value={grade.id.toString()}>
+                        {grade.displayName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-subject">Subject</Label>
+                <Select
+                  value={(formData.subjectId || 0).toString()}
+                  onValueChange={(value) => {
+                    const subjectId = parseInt(value)
+                    setFormData((prev) => ({
+                      ...prev,
+                      subjectId,
+                      chapterId: 0
+                    }))
+                  }}
+                  disabled={!formData.gradeId}
+                >
+                  <SelectTrigger id="edit-subject">
+                    <SelectValue placeholder="Select subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">Select Subject</SelectItem>
+                    {formSubjectsDropdown?.map((subject) => (
+                      <SelectItem key={subject.id} value={subject.id.toString()}>
+                        {subject.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-chapter">Chapter</Label>
+                <Select
+                  value={(formData.chapterId || 0).toString()}
+                  onValueChange={(value) => {
+                    const chapterId = parseInt(value)
+                    setFormData((prev) => ({
+                      ...prev,
+                      chapterId
+                    }))
+                  }}
+                  disabled={!formData.subjectId}
+                >
+                  <SelectTrigger id="edit-chapter">
+                    <SelectValue placeholder="Select chapter" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">Select Chapter</SelectItem>
+                    {formChaptersDropdown?.map((chapter) => (
+                      <SelectItem key={chapter.id} value={chapter.id.toString()}>
+                        {chapter.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <div>
               <Label htmlFor="edit-title">Topic Title</Label>
               <Input
@@ -2155,11 +2280,22 @@ function TopicsTab() {
             </div>
             <div>
               <Label htmlFor="edit-description">Description (Optional)</Label>
-              <Input
+              <Textarea
                 id="edit-description"
+                rows={3}
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Enter description"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-summary">Summary / Notes (Optional)</Label>
+              <Textarea
+                id="edit-summary"
+                rows={3}
+                value={formData.summary || ''}
+                onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
+                placeholder="Add summary or notes for the topic"
               />
             </div>
             <div>
@@ -2190,7 +2326,9 @@ function TopicsTab() {
               <Button
                 onClick={async () => {
                   if (!editingTopic) return
-                  
+
+                  const normalizeId = (value: number) => (value && value > 0 ? value : undefined)
+
                   try {
                     await updateTopicMutation.mutateAsync({
                       id: editingTopic.id,
@@ -2198,10 +2336,11 @@ function TopicsTab() {
                         title: formData.title, 
                         description: formData.description,
                         summary: formData.summary,
-                        expectedTimeMins: formData.expectedTimeMins,
-                        boardId: formData.boardId,
-                        subjectId: formData.subjectId,
-                        chapterId: formData.chapterId,
+                        expectedTimeMins: formData.expectedTimeMins || undefined,
+                        boardId: normalizeId(formData.boardId),
+                        gradeId: normalizeId(formData.gradeId),
+                        subjectId: normalizeId(formData.subjectId),
+                        chapterId: normalizeId(formData.chapterId),
                         active: formData.active 
                       }
                     })
@@ -2242,6 +2381,7 @@ function TopicNotesTab() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [viewNote, setViewNote] = useState<TopicNoteDto | null>(null)
   const [editingNote, setEditingNote] = useState<TopicNoteDto | null>(null)
+  const [editTopicSearch, setEditTopicSearch] = useState('')
   const [formData, setFormData] = useState<CreateTopicNoteRequest>({
     title: '',
     content: '',
@@ -2264,6 +2404,10 @@ function TopicNotesTab() {
   const { data: subjectsDropdown } = useSubjectsDropdown(selectedGrade || undefined)
   const { data: chaptersDropdown } = useChaptersDropdown(selectedSubject || undefined)
   const { data: topicsDropdown } = useTopicsDropdown(selectedChapter || undefined)
+  const { data: formGradesDropdown } = useGradesDropdown(formData.boardId || undefined)
+  const { data: formSubjectsDropdown } = useSubjectsDropdown(formData.gradeId || undefined)
+  const { data: formChaptersDropdown } = useChaptersDropdown(formData.subjectId || undefined)
+  const { data: formTopicsDropdown } = useTopicsDropdown(formData.chapterId || undefined)
 
   const createTopicNoteMutation = useCreateTopicNote()
   const updateTopicNoteMutation = useUpdateTopicNote()
@@ -2449,16 +2593,17 @@ function TopicNotesTab() {
                         size="sm"
                         onClick={() => {
                           setEditingNote(note)
+                          setEditTopicSearch('')
                           setFormData({
                             title: note.title,
                             content: note.content,
                             topicId: note.topicId,
                             attachments: note.attachments || '',
                             active: note.active,
-                            boardId: note.boardId,
-                            gradeId: note.gradeId,
-                            subjectId: note.subjectId,
-                            chapterId: note.chapterId
+                            boardId: note.boardId || selectedBoard || 0,
+                            gradeId: note.gradeId || selectedGrade || 0,
+                            subjectId: note.subjectId || selectedSubject || 0,
+                            chapterId: note.chapterId || selectedChapter || 0
                           })
                           setIsEditDialogOpen(true)
                         }}
@@ -2605,12 +2750,183 @@ function TopicNotesTab() {
       </Dialog>
 
       {/* Edit Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      <Dialog
+        open={isEditDialogOpen}
+        onOpenChange={(open) => {
+          setIsEditDialogOpen(open)
+          if (!open) {
+            setEditTopicSearch('')
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Edit Topic Note</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-note-board">Board</Label>
+                <Select
+                  value={formData.boardId ? formData.boardId.toString() : '0'}
+                  onValueChange={(value) => {
+                    const boardId = parseInt(value) || 0
+                    setFormData({
+                      ...formData,
+                      boardId,
+                      gradeId: 0,
+                      subjectId: 0,
+                      chapterId: 0,
+                      topicId: 0
+                    })
+                  }}
+                >
+                  <SelectTrigger id="edit-note-board">
+                    <SelectValue placeholder="Select board" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">Select Board</SelectItem>
+                    {boardsDropdown?.map((board) => (
+                      <SelectItem key={board.id} value={board.id.toString()}>
+                        {board.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-note-grade">Grade</Label>
+                <Select
+                  value={formData.gradeId ? formData.gradeId.toString() : '0'}
+                  onValueChange={(value) => {
+                    const gradeId = parseInt(value) || 0
+                    setFormData({
+                      ...formData,
+                      gradeId,
+                      subjectId: 0,
+                      chapterId: 0,
+                      topicId: 0
+                    })
+                  }}
+                  disabled={!formData.boardId}
+                >
+                  <SelectTrigger id="edit-note-grade">
+                    <SelectValue placeholder="Select grade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">Select Grade</SelectItem>
+                    {formGradesDropdown?.map((grade) => (
+                      <SelectItem key={grade.id} value={grade.id.toString()}>
+                        {grade.displayName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-note-subject">Subject</Label>
+                <Select
+                  value={formData.subjectId ? formData.subjectId.toString() : '0'}
+                  onValueChange={(value) => {
+                    const subjectId = parseInt(value) || 0
+                    setFormData({
+                      ...formData,
+                      subjectId,
+                      chapterId: 0,
+                      topicId: 0
+                    })
+                  }}
+                  disabled={!formData.gradeId}
+                >
+                  <SelectTrigger id="edit-note-subject">
+                    <SelectValue placeholder="Select subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">Select Subject</SelectItem>
+                    {formSubjectsDropdown?.map((subject) => (
+                      <SelectItem key={subject.id} value={subject.id.toString()}>
+                        {subject.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-note-chapter">Chapter</Label>
+                <Select
+                  value={formData.chapterId ? formData.chapterId.toString() : '0'}
+                  onValueChange={(value) => {
+                    const chapterId = parseInt(value) || 0
+                    setFormData({
+                      ...formData,
+                      chapterId,
+                      topicId: 0
+                    })
+                  }}
+                  disabled={!formData.subjectId}
+                >
+                  <SelectTrigger id="edit-note-chapter">
+                    <SelectValue placeholder="Select chapter" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">Select Chapter</SelectItem>
+                    {formChaptersDropdown?.map((chapter) => (
+                      <SelectItem key={chapter.id} value={chapter.id.toString()}>
+                        {chapter.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="edit-note-topic">Topic</Label>
+              <Select
+                value={formData.topicId ? formData.topicId.toString() : '0'}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, topicId: parseInt(value) || 0 })
+                }
+                disabled={!formData.chapterId}
+              >
+                <SelectTrigger id="edit-note-topic">
+                  <SelectValue placeholder="Select topic" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">Select Topic</SelectItem>
+                  <div className="p-2">
+                    <Input
+                      value={editTopicSearch}
+                      onChange={(e) => setEditTopicSearch(e.target.value)}
+                      onKeyDown={(e) => e.stopPropagation()}
+                      placeholder="Search topics..."
+                      className="h-8"
+                    />
+                  </div>
+                  {(formTopicsDropdown || [])
+                    .filter((topic) =>
+                      topic.title.toLowerCase().includes(editTopicSearch.trim().toLowerCase())
+                    )
+                    .map((topic) => (
+                    <SelectItem key={topic.id} value={topic.id.toString()}>
+                      {topic.title}
+                    </SelectItem>
+                  ))}
+                  {editTopicSearch.trim() &&
+                    (formTopicsDropdown || []).filter((topic) =>
+                      topic.title.toLowerCase().includes(editTopicSearch.trim().toLowerCase())
+                    ).length === 0 && (
+                      <div className="px-3 py-2 text-xs text-gray-500">
+                        No topics found.
+                      </div>
+                    )}
+                </SelectContent>
+              </Select>
+              {!formTopicsDropdown?.length && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Select a chapter above to load topics.
+                </p>
+              )}
+            </div>
             <div>
               <Label htmlFor="edit-note-title">Title</Label>
               <Input
@@ -2678,7 +2994,12 @@ function TopicNotesTab() {
                     toast.error('Failed to update topic note')
                   }
                 }}
-                disabled={!formData.title.trim() || !formData.content.trim() || updateTopicNoteMutation.isPending}
+                disabled={
+                  !formData.title.trim() ||
+                  !formData.content.trim() ||
+                  !formData.topicId ||
+                  updateTopicNoteMutation.isPending
+                }
               >
                 {updateTopicNoteMutation.isPending ? 'Updating...' : 'Update Note'}
               </Button>
