@@ -53,6 +53,12 @@ public class RateLimitFilter implements Filter {
             return;
         }
 
+        // Skip rate limiting for non-transactional (read-only) endpoints
+        if (isNonTransactionalEndpoint(requestURI, httpRequest.getMethod())) {
+            chain.doFilter(request, response);
+            return;
+        }
+
         // Get identifier (user ID or IP)
         String key = getIdentifier(httpRequest);
         boolean isAuthenticated = isAuthenticated();
@@ -115,6 +121,70 @@ public class RateLimitFilter implements Filter {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         return authentication != null && authentication.isAuthenticated() 
                && !authentication.getPrincipal().equals("anonymousUser");
+    }
+
+    /**
+     * Check if endpoint is non-transactional (read-only) and should skip rate limiting.
+     * Rate limiting should only apply to transactional endpoints like:
+     * - Authentication (login, signup)
+     * - Content upload/import
+     * - Payment processing
+     * - Booking creation
+     * - Notification sending
+     */
+    private boolean isNonTransactionalEndpoint(String uri, String method) {
+        // Only apply rate limiting to POST, PUT, DELETE, PATCH methods on specific patterns
+        // GET requests are generally read-only and don't need strict rate limiting
+        if ("GET".equalsIgnoreCase(method)) {
+            // Still rate limit these GET endpoints
+            if (uri.contains("/admin/") && uri.contains("/export")) {
+                return false; // Rate limit admin exports
+            }
+            return true; // Skip rate limiting for all other GET requests
+        }
+
+        // For POST/PUT/DELETE/PATCH, only rate limit transactional endpoints
+        // Skip rate limiting for these non-transactional patterns
+        if (uri.matches(".*/user/profile.*") && !"DELETE".equalsIgnoreCase(method)) {
+            return true; // Profile updates are not critical to rate limit
+        }
+
+        // Apply rate limiting to these transactional endpoints
+        return !isTransactionalEndpoint(uri);
+    }
+
+    /**
+     * Check if endpoint is transactional and needs rate limiting.
+     */
+    private boolean isTransactionalEndpoint(String uri) {
+        // Authentication endpoints
+        if (uri.contains("/auth/login") || uri.contains("/auth/signup") || 
+            uri.contains("/auth/register")) {
+            return true;
+        }
+
+        // Content upload/import endpoints
+        if ((uri.contains("/content/upload") || uri.contains("/content/import")) && 
+            uri.contains("/admin/")) {
+            return true;
+        }
+
+        // Payment endpoints
+        if (uri.contains("/payment")) {
+            return true;
+        }
+
+        // Booking creation (POST only)
+        if (uri.contains("/booking") && !uri.endsWith("/bookings")) {
+            return true;
+        }
+
+        // Notification sending
+        if (uri.contains("/notification") && uri.contains("/send")) {
+            return true;
+        }
+
+        return false;
     }
 
     /**

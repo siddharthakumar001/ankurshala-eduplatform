@@ -241,12 +241,15 @@ app:
     block-duration-seconds: 300  # 5 minutes
     max-violations-before-block: 10
     default-authenticated:
-      limit: 100  # requests
+      limit: 300  # requests (increased from 100)
       window-seconds: 60  # per minute
     default-anonymous:
-      limit: 20  # requests
+      limit: 50  # requests (increased from 20)
       window-seconds: 60  # per minute
     endpoints:
+      /api/user/me:
+        limit: 600  # High limit for frequent auth checks
+        window-seconds: 60  # per minute
       /auth/login:
         limit: 5
         window-seconds: 60  # 5 login attempts per minute
