@@ -24,11 +24,12 @@ public abstract class BaseIntegrationTest {
     @Container
     @ServiceConnection
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(
-            DockerImageName.parse("postgres:15-alpine")
+            DockerImageName.parse("pgvector/pgvector:pg15")
                     .asCompatibleSubstituteFor("postgres"))
             .withDatabaseName("ankurshala_test")
             .withUsername("ankur")
-            .withPassword("password");
+            .withPassword("password")
+            .withInitScript("init_pgvector.sql");
 
     @Container
     static KafkaContainer kafka = new KafkaContainer(

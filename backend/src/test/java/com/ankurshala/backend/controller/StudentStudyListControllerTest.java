@@ -3,8 +3,12 @@ package com.ankurshala.backend.controller;
 import com.ankurshala.backend.dto.student.AddToStudyListRequest;
 import com.ankurshala.backend.dto.student.StudyListItemDto;
 import com.ankurshala.backend.dto.student.UpdateStudyListItemRequest;
+import com.ankurshala.backend.entity.Role;
+import com.ankurshala.backend.security.UserPrincipal;
+import com.ankurshala.backend.service.ResourceAuthorizationService;
 import com.ankurshala.backend.service.StudyListService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,8 +16,9 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import java.time.ZonedDateTime;
 import java.util.Arrays;
@@ -22,11 +27,14 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@ActiveProfiles("test")
 public class StudentStudyListControllerTest {
 
     @Autowired
@@ -38,9 +46,16 @@ public class StudentStudyListControllerTest {
     @MockBean
     private StudyListService studyListService;
 
+    @MockBean
+    private ResourceAuthorizationService resourceAuthorizationService;
+
+    @BeforeEach
+    void setUp() {
+        when(resourceAuthorizationService.canAccessStudentProfile(anyLong())).thenReturn(true);
+    }
+
     @Test
     @DisplayName("GET /api/student/study-list - Success")
-    @WithMockUser(username = "student@test.com", roles = {"STUDENT"})
     public void testGetStudyList_Success() throws Exception {
         // Arrange
         Long studentId = 1L;
@@ -64,7 +79,7 @@ public class StudentStudyListControllerTest {
         when(studyListService.getStudyList(eq(studentId))).thenReturn(studyList);
 
         // Act & Assert
-        mockMvc.perform(get("/api/student/study-list"))
+        mockMvc.perform(get("/student/study-list").with(studentUser()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].id").value(1))
@@ -78,13 +93,12 @@ public class StudentStudyListControllerTest {
     @Test
     @DisplayName("GET /api/student/study-list - Unauthorized without authentication")
     public void testGetStudyList_Unauthorized() throws Exception {
-        mockMvc.perform(get("/api/student/study-list"))
+        mockMvc.perform(get("/student/study-list"))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
     @DisplayName("GET /api/student/study-list/status/{status} - Success")
-    @WithMockUser(username = "student@test.com", roles = {"STUDENT"})
     public void testGetStudyListByStatus_Success() throws Exception {
         // Arrange
         Long studentId = 1L;
@@ -102,7 +116,7 @@ public class StudentStudyListControllerTest {
         when(studyListService.getStudyListByStatus(eq(studentId), eq(status))).thenReturn(studyList);
 
         // Act & Assert
-        mockMvc.perform(get("/api/student/study-list/status/{status}", "IN_PROGRESS"))
+        mockMvc.perform(get("/student/study-list/status/{status}", "IN_PROGRESS").with(studentUser()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].id").value(1))
@@ -111,7 +125,6 @@ public class StudentStudyListControllerTest {
 
     @Test
     @DisplayName("POST /api/student/study-list - Success")
-    @WithMockUser(username = "student@test.com", roles = {"STUDENT"})
     public void testAddToStudyList_Success() throws Exception {
         // Arrange
         Long studentId = 1L;
@@ -131,7 +144,9 @@ public class StudentStudyListControllerTest {
                 .thenReturn(createdItem);
 
         // Act & Assert
-        mockMvc.perform(post("/api/student/study-list")
+        mockMvc.perform(post("/student/study-list")
+                .with(studentUser())
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -143,14 +158,15 @@ public class StudentStudyListControllerTest {
 
     @Test
     @DisplayName("POST /api/student/study-list - Bad Request with invalid data")
-    @WithMockUser(username = "student@test.com", roles = {"STUDENT"})
     public void testAddToStudyList_BadRequest() throws Exception {
         // Arrange - missing topicId
         AddToStudyListRequest request = new AddToStudyListRequest();
         request.setNotes("Some notes");
 
         // Act & Assert
-        mockMvc.perform(post("/api/student/study-list")
+        mockMvc.perform(post("/student/study-list")
+                .with(studentUser())
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
@@ -158,7 +174,6 @@ public class StudentStudyListControllerTest {
 
     @Test
     @DisplayName("PATCH /api/student/study-list/{itemId} - Success")
-    @WithMockUser(username = "student@test.com", roles = {"STUDENT"})
     public void testUpdateStudyListItem_Success() throws Exception {
         // Arrange
         Long studentId = 1L;
@@ -179,7 +194,9 @@ public class StudentStudyListControllerTest {
                 .thenReturn(updatedItem);
 
         // Act & Assert
-        mockMvc.perform(patch("/api/student/study-list/{itemId}", itemId)
+        mockMvc.perform(patch("/student/study-list/{itemId}", itemId)
+                .with(studentUser())
+                .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -190,7 +207,6 @@ public class StudentStudyListControllerTest {
 
     @Test
     @DisplayName("POST /api/student/study-list/{itemId}/mark-done - Success")
-    @WithMockUser(username = "student@test.com", roles = {"STUDENT"})
     public void testMarkAsDone_Success() throws Exception {
         // Arrange
         Long studentId = 1L;
@@ -208,7 +224,9 @@ public class StudentStudyListControllerTest {
                 .thenReturn(updatedItem);
 
         // Act & Assert
-        mockMvc.perform(post("/api/student/study-list/{itemId}/mark-done", itemId))
+        mockMvc.perform(post("/student/study-list/{itemId}/mark-done", itemId)
+                .with(studentUser())
+                .with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.status").value("DONE"))
@@ -217,7 +235,6 @@ public class StudentStudyListControllerTest {
 
     @Test
     @DisplayName("POST /api/student/study-list/{itemId}/mark-done - Updates status correctly")
-    @WithMockUser(username = "student@test.com", roles = {"STUDENT"})
     public void testMarkAsDone_UpdatesStatus() throws Exception {
         // Arrange
         Long studentId = 1L;
@@ -235,7 +252,9 @@ public class StudentStudyListControllerTest {
                 .thenReturn(updatedItem);
 
         // Act & Assert
-        mockMvc.perform(post("/api/student/study-list/{itemId}/mark-done", itemId))
+        mockMvc.perform(post("/student/study-list/{itemId}/mark-done", itemId)
+                .with(studentUser())
+                .with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.status").value("DONE"));
@@ -243,7 +262,6 @@ public class StudentStudyListControllerTest {
 
     @Test
     @DisplayName("DELETE /api/student/study-list/{itemId} - Success")
-    @WithMockUser(username = "student@test.com", roles = {"STUDENT"})
     public void testRemoveFromStudyList_Success() throws Exception {
         // Arrange
         Long studentId = 1L;
@@ -252,13 +270,14 @@ public class StudentStudyListControllerTest {
         doNothing().when(studyListService).removeItem(eq(studentId), eq(itemId));
 
         // Act & Assert
-        mockMvc.perform(delete("/api/student/study-list/{itemId}", itemId))
+        mockMvc.perform(delete("/student/study-list/{itemId}", itemId)
+                .with(studentUser())
+                .with(csrf()))
                 .andExpect(status().isOk());
     }
 
     @Test
     @DisplayName("GET /api/student/study-list/count/{status} - Success")
-    @WithMockUser(username = "student@test.com", roles = {"STUDENT"})
     public void testGetStudyListCount_Success() throws Exception {
         // Arrange
         Long studentId = 1L;
@@ -268,16 +287,25 @@ public class StudentStudyListControllerTest {
         when(studyListService.getCountByStatus(eq(studentId), eq(status))).thenReturn(count);
 
         // Act & Assert
-        mockMvc.perform(get("/api/student/study-list/count/{status}", status))
+        mockMvc.perform(get("/student/study-list/count/{status}", status).with(studentUser()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").value(3));
     }
 
     @Test
     @DisplayName("Test authorization - TEACHER role cannot access student endpoints")
-    @WithMockUser(username = "teacher@test.com", roles = {"TEACHER"})
     public void testGetStudyList_TeacherUnauthorized() throws Exception {
-        mockMvc.perform(get("/api/student/study-list"))
+        mockMvc.perform(get("/student/study-list").with(teacherUser()))
                 .andExpect(status().isForbidden());
+    }
+
+    private RequestPostProcessor studentUser() {
+        UserPrincipal principal = new UserPrincipal(1L, "student@test.com", "Student", "password", Role.STUDENT, true);
+        return user(principal);
+    }
+
+    private RequestPostProcessor teacherUser() {
+        UserPrincipal principal = new UserPrincipal(2L, "teacher@test.com", "Teacher", "password", Role.TEACHER, true);
+        return user(principal);
     }
 }

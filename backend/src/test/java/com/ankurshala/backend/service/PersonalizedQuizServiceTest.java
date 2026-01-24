@@ -312,7 +312,7 @@ class PersonalizedQuizServiceTest {
         // When/Then
         BusinessException exception = assertThrows(BusinessException.class, () -> 
                 quizService.submitAttempt(studentId, request));
-        assertEquals("NOT_OWNER", exception.getCode());
+        assertEquals("NOT_OWNER", exception.getErrorCode());
     }
 
     @Test
@@ -334,7 +334,7 @@ class PersonalizedQuizServiceTest {
         // When/Then
         BusinessException exception = assertThrows(BusinessException.class, () -> 
                 quizService.submitAttempt(studentId, request));
-        assertEquals("ALREADY_SUBMITTED", exception.getCode());
+        assertEquals("ALREADY_SUBMITTED", exception.getErrorCode());
     }
 
     @Test

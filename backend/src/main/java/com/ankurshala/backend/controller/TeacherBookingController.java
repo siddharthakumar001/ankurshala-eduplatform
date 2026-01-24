@@ -4,21 +4,27 @@ import com.ankurshala.backend.dto.student.BookingResponse;
 import com.ankurshala.backend.entity.Booking;
 import com.ankurshala.backend.entity.BookingStatus;
 import com.ankurshala.backend.entity.Teacher;
+import com.ankurshala.backend.entity.TeacherAvailabilitySlot;
 import com.ankurshala.backend.entity.User;
 import com.ankurshala.backend.repository.BookingRepository;
+import com.ankurshala.backend.repository.BookingDeclineRepository;
+import com.ankurshala.backend.repository.TeacherAvailabilitySlotRepository;
 import com.ankurshala.backend.repository.TeacherRepository;
 import com.ankurshala.backend.repository.TeacherSubjectExpertiseRepository;
 import com.ankurshala.backend.repository.UserRepository;
 import com.ankurshala.backend.security.UserPrincipal;
+import com.ankurshala.backend.service.DistributedLockService;
 import com.ankurshala.backend.service.WebSocketNotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.ZonedDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,10 +39,15 @@ import java.util.stream.Collectors;
 public class TeacherBookingController {
 
     private final BookingRepository bookingRepository;
+    private final BookingDeclineRepository bookingDeclineRepository;
     private final UserRepository userRepository;
     private final TeacherRepository teacherRepository;
     private final TeacherSubjectExpertiseRepository teacherSubjectExpertiseRepository;
+    private final TeacherAvailabilitySlotRepository teacherAvailabilitySlotRepository;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final DistributedLockService distributedLockService;
     private final WebSocketNotificationService webSocketService;
+    private static final int BUFFER_MINUTES = 15;
 
     @PostMapping("/{bookingId}/accept")
     @PreAuthorize("hasRole('TEACHER')")
@@ -47,46 +58,110 @@ public class TeacherBookingController {
         
         log.info("Teacher {} accepting booking {} with token {}", userPrincipal.getId(), bookingId, acceptanceToken);
         
-        // Find booking by acceptance token (mock implementation)
-        Optional<Booking> bookingOpt = bookingRepository.findById(bookingId);
-        if (bookingOpt.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Invalid acceptance token"));
-        }
-        
-        Booking booking = bookingOpt.get();
-        
-        // Validate booking ID matches
-        if (!booking.getId().equals(bookingId)) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Booking ID mismatch"));
-        }
-        
-        // Validate booking is still in PENDING status
-        if (booking.getStatus() != BookingStatus.PENDING) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Booking is no longer available for acceptance"));
-        }
-        
-        // Set teacher and accept booking
         User teacher = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new RuntimeException("Teacher not found"));
-        booking.setTeacher(teacher);
-        booking.setTeacherId(teacher.getId());
-        booking.setStatus(BookingStatus.ACCEPTED);
-        booking.setAcceptedAt(ZonedDateTime.now());
-        
-        Booking savedBooking = bookingRepository.save(booking);
-        
-        // Send WebSocket notification to student
-        webSocketService.notifyBookingAccepted(savedBooking);
-        
-        log.info("Teacher {} accepted booking {}", userPrincipal.getId(), bookingId);
-        
-        return ResponseEntity.ok(Map.of(
-            "message", "Booking accepted successfully",
-            "bookingId", savedBooking.getId(),
-            "studentId", savedBooking.getStudent().getId(),
-            "startTime", savedBooking.getStartTime(),
-            "endTime", savedBooking.getEndTime()
-        ));
+
+        Optional<Teacher> teacherOpt = teacherRepository.findByUserId(userPrincipal.getId());
+        if (teacherOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Teacher profile not found"));
+        }
+        Teacher teacherProfile = teacherOpt.get();
+
+        try {
+            return distributedLockService.executeWithLock("teacher:accept:" + teacher.getId(), 5, () -> {
+                Optional<Booking> bookingOpt = bookingRepository.findById(bookingId);
+                if (bookingOpt.isEmpty()) {
+                    return ResponseEntity.badRequest().body(Map.of("error", "Booking not found"));
+                }
+
+                Booking booking = bookingOpt.get();
+
+                if (!"manual".equalsIgnoreCase(acceptanceToken)
+                        && (booking.getAcceptanceToken() == null
+                        || !booking.getAcceptanceToken().equals(acceptanceToken))) {
+                    return ResponseEntity.badRequest().body(Map.of("error", "Invalid acceptance token"));
+                }
+
+                if (booking.getStatus() != BookingStatus.PENDING || booking.getTeacherId() != null) {
+                    return ResponseEntity.status(409).body(Map.of("error", "Booking has already been accepted"));
+                }
+
+                if (booking.getTopic() == null) {
+                    return ResponseEntity.badRequest().body(Map.of("error", "Booking topic is missing"));
+                }
+
+                boolean hasExpertise = teacherSubjectExpertiseRepository.hasExpertise(
+                        teacherOpt.get().getId(),
+                        booking.getTopic().getSubjectId(),
+                        booking.getTopic().getGradeId(),
+                        booking.getTopic().getBoardId());
+                if (!hasExpertise) {
+                    return ResponseEntity.status(403).body(Map.of("error", "You are not eligible to accept this booking"));
+                }
+
+                if (booking.getStartTs() == null || booking.getEndTs() == null) {
+                    return ResponseEntity.badRequest().body(Map.of("error", "Booking time window is missing"));
+                }
+
+                ZonedDateTime bufferStart = booking.getStartTs().minusMinutes(BUFFER_MINUTES);
+                ZonedDateTime bufferEnd = booking.getEndTs().plusMinutes(BUFFER_MINUTES);
+                if (bookingDeclineRepository.existsByBookingIdAndTeacherId(bookingId, teacherProfile.getId())) {
+                    return ResponseEntity.status(409).body(Map.of("error", "You already declined this booking"));
+                }
+
+                if (teacherAvailabilitySlotRepository.countByTeacher(teacher) > 0) {
+                    List<TeacherAvailabilitySlot> availableSlots = teacherAvailabilitySlotRepository
+                            .findAvailableSlotsForTeacher(
+                                    teacher,
+                                    booking.getStartTs().toLocalDateTime(),
+                                    booking.getEndTs().toLocalDateTime());
+                    if (availableSlots.isEmpty()) {
+                        return ResponseEntity.status(409).body(Map.of(
+                                "error", "You are not available for this time slot"));
+                    }
+                }
+
+                ZonedDateTime now = ZonedDateTime.now();
+                int updated = bookingRepository.acceptBookingWithConflictCheck(
+                        bookingId, teacher.getId(), now, now, bufferStart, bufferEnd);
+                if (updated == 0) {
+                    Booking latest = bookingRepository.findById(bookingId).orElse(null);
+                    if (latest != null && latest.getStatus() != BookingStatus.PENDING) {
+                        return ResponseEntity.status(409).body(Map.of("error", "Booking has already been accepted"));
+                    }
+                    List<Booking> conflicts = bookingRepository.findConflictingBookingsForTeacher(
+                            userPrincipal.getId(), bufferStart, bufferEnd);
+                    if (!conflicts.isEmpty()) {
+                        return ResponseEntity.status(409).body(Map.of(
+                                "error", "This booking conflicts with your existing classes. Keep a 15-minute gap between sessions."));
+                    }
+                    return ResponseEntity.status(409).body(Map.of("error", "Booking was accepted by another teacher"));
+                }
+
+                Booking savedBooking = bookingRepository.findById(bookingId)
+                        .orElseThrow(() -> new RuntimeException("Booking not found after acceptance"));
+
+                Map<String, Object> event = new HashMap<>();
+                event.put("bookingId", savedBooking.getId());
+                event.put("teacherId", teacher.getId());
+                event.put("studentId", savedBooking.getStudentId());
+                event.put("startTime", savedBooking.getStartTs());
+                event.put("endTime", savedBooking.getEndTs());
+                kafkaTemplate.send("booking.accepted", savedBooking.getId().toString(), event);
+
+                log.info("Teacher {} accepted booking {}", userPrincipal.getId(), bookingId);
+                
+                return ResponseEntity.ok(Map.of(
+                    "message", "Booking accepted successfully",
+                    "bookingId", savedBooking.getId(),
+                    "studentId", savedBooking.getStudent().getId(),
+                    "startTime", savedBooking.getStartTime(),
+                    "endTime", savedBooking.getEndTime()
+                ));
+            });
+        } catch (DistributedLockService.LockAcquisitionException e) {
+            return ResponseEntity.status(409).body(Map.of("error", "Another action is in progress. Please try again."));
+        }
     }
 
     @GetMapping("/pending")
@@ -117,8 +192,12 @@ public class TeacherBookingController {
                 Long gradeId = booking.getTopic().getGradeId();
                 Long boardId = booking.getTopic().getBoardId();
                 
-                return teacherSubjectExpertiseRepository.hasExpertise(
-                    teacher.getId(), subjectId, gradeId, boardId);
+                if (!teacherSubjectExpertiseRepository.hasExpertise(
+                    teacher.getId(), subjectId, gradeId, boardId)) {
+                    return false;
+                }
+
+                return !bookingDeclineRepository.existsByBookingIdAndTeacherId(booking.getId(), teacher.getId());
             })
             .map(this::convertToBookingResponse)
             .collect(Collectors.toList());
@@ -247,23 +326,79 @@ public class TeacherBookingController {
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
         log.info("Teacher {} declining booking {}", userPrincipal.getId(), bookingId);
 
+        Optional<Teacher> teacherOpt = teacherRepository.findByUserId(userPrincipal.getId());
+        if (teacherOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Teacher profile not found"));
+        }
+        Teacher teacherProfile = teacherOpt.get();
+
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
 
-        if (booking.getStatus() != BookingStatus.PENDING) {
+        if (booking.getStatus() != BookingStatus.PENDING || booking.getTeacherId() != null) {
             return ResponseEntity.badRequest().body(Map.of("error", "Only pending bookings can be declined"));
         }
 
-        booking.setStatus(BookingStatus.CANCELLED);
-        booking.setCancellationReason("Declined by teacher");
-        booking.setCancelledAt(ZonedDateTime.now());
+        if (booking.getTopic() == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Booking topic is missing"));
+        }
 
-        Booking savedBooking = bookingRepository.save(booking);
-        webSocketService.notifyBookingCancelled(savedBooking);
+        boolean hasExpertise = teacherSubjectExpertiseRepository.hasExpertise(
+                teacherProfile.getId(),
+                booking.getTopic().getSubjectId(),
+                booking.getTopic().getGradeId(),
+                booking.getTopic().getBoardId());
+        if (!hasExpertise) {
+            return ResponseEntity.status(403).body(Map.of("error", "You are not eligible to decline this booking"));
+        }
+
+        if (bookingDeclineRepository.existsByBookingIdAndTeacherId(bookingId, teacherProfile.getId())) {
+            return ResponseEntity.ok(Map.of(
+                "message", "Booking already declined",
+                "bookingId", bookingId
+            ));
+        }
+
+        com.ankurshala.backend.entity.BookingDecline decline = new com.ankurshala.backend.entity.BookingDecline();
+        decline.setBookingId(bookingId);
+        decline.setTeacherId(teacherProfile.getId());
+        decline.setReason("Declined by teacher");
+        bookingDeclineRepository.save(decline);
+
+        Map<String, Object> event = new HashMap<>();
+        event.put("bookingId", bookingId);
+        event.put("teacherId", userPrincipal.getId());
+        kafkaTemplate.send("booking.declined", bookingId.toString(), event);
+
+        if (booking.getTopic() != null) {
+            Long subjectId = booking.getTopic().getSubjectId();
+            Long gradeId = booking.getTopic().getGradeId();
+            Long boardId = booking.getTopic().getBoardId();
+
+            List<Long> eligibleTeacherIds = teacherSubjectExpertiseRepository
+                    .findEligibleTeacherIds(subjectId, gradeId, boardId);
+
+            if (!eligibleTeacherIds.isEmpty()) {
+                long declinedCount = bookingDeclineRepository.countByBookingIdAndTeacherIdIn(
+                        bookingId, eligibleTeacherIds);
+                if (declinedCount >= eligibleTeacherIds.size()) {
+                    String reason = "All eligible teachers declined this booking.";
+                    ZonedDateTime now = ZonedDateTime.now();
+                    int expired = bookingRepository.expireBookingIfPending(bookingId, reason, now, now);
+                    if (expired > 0) {
+                        Map<String, Object> expireEvent = new HashMap<>();
+                        expireEvent.put("bookingId", bookingId);
+                        expireEvent.put("studentId", booking.getStudentId());
+                        expireEvent.put("reason", reason);
+                        kafkaTemplate.send("booking.expired", bookingId.toString(), expireEvent);
+                    }
+                }
+            }
+        }
 
         return ResponseEntity.ok(Map.of(
             "message", "Booking declined",
-            "bookingId", savedBooking.getId()
+            "bookingId", bookingId
         ));
     }
 

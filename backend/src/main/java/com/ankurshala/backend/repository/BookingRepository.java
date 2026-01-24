@@ -109,9 +109,43 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
      * Uses optimistic locking with version check for concurrency control
      */
     @Modifying
-    @Query("UPDATE Booking b SET b.status = com.ankurshala.backend.entity.BookingStatus.ACCEPTED, b.state = 'ACCEPTED', b.teacherId = :teacherId, b.acceptedAt = CURRENT_TIMESTAMP, b.updatedAt = CURRENT_TIMESTAMP " +
+    @Query("UPDATE Booking b SET b.status = com.ankurshala.backend.entity.BookingStatus.ACCEPTED, b.state = 'ACCEPTED', b.teacherId = :teacherId, b.acceptedAt = :acceptedAt, b.updatedAt = :updatedAt " +
            "WHERE b.id = :bookingId AND b.status = com.ankurshala.backend.entity.BookingStatus.PENDING AND b.teacherId IS NULL")
-    int acceptBooking(@Param("bookingId") Long bookingId, @Param("teacherId") Long teacherId);
+    int acceptBooking(@Param("bookingId") Long bookingId,
+                      @Param("teacherId") Long teacherId,
+                      @Param("acceptedAt") ZonedDateTime acceptedAt,
+                      @Param("updatedAt") ZonedDateTime updatedAt);
+
+    /**
+     * Atomic update to accept booking with conflict check
+     */
+    @Modifying
+    @Query("UPDATE Booking b SET b.status = com.ankurshala.backend.entity.BookingStatus.ACCEPTED, b.state = 'ACCEPTED', b.teacherId = :teacherId, b.acceptedAt = :acceptedAt, b.updatedAt = :updatedAt " +
+           "WHERE b.id = :bookingId AND b.status = com.ankurshala.backend.entity.BookingStatus.PENDING AND b.teacherId IS NULL " +
+           "AND NOT EXISTS (" +
+           "SELECT b2 FROM Booking b2 WHERE b2.teacherId = :teacherId " +
+           "AND b2.status IN (com.ankurshala.backend.entity.BookingStatus.PENDING, " +
+           "com.ankurshala.backend.entity.BookingStatus.ACCEPTED, " +
+           "com.ankurshala.backend.entity.BookingStatus.CONFIRMED, " +
+           "com.ankurshala.backend.entity.BookingStatus.IN_PROGRESS) " +
+           "AND (b2.startTs < :endTime AND b2.endTs > :startTime))")
+    int acceptBookingWithConflictCheck(@Param("bookingId") Long bookingId,
+                                       @Param("teacherId") Long teacherId,
+                                       @Param("acceptedAt") ZonedDateTime acceptedAt,
+                                       @Param("updatedAt") ZonedDateTime updatedAt,
+                                       @Param("startTime") ZonedDateTime startTime,
+                                       @Param("endTime") ZonedDateTime endTime);
+
+    @Modifying
+    @Query("UPDATE Booking b SET b.status = com.ankurshala.backend.entity.BookingStatus.EXPIRED, " +
+           "b.state = 'EXPIRED', b.cancellationReason = :reason, b.cancelledAt = :cancelledAt, " +
+           "b.updatedAt = :updatedAt " +
+           "WHERE b.id = :bookingId AND b.status = com.ankurshala.backend.entity.BookingStatus.PENDING " +
+           "AND b.teacherId IS NULL")
+    int expireBookingIfPending(@Param("bookingId") Long bookingId,
+                               @Param("reason") String reason,
+                               @Param("cancelledAt") ZonedDateTime cancelledAt,
+                               @Param("updatedAt") ZonedDateTime updatedAt);
 
     /**
      * Find booking by ID with pessimistic write lock for atomic operations
@@ -125,8 +159,10 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
      * Update booking state
      */
     @Modifying
-    @Query("UPDATE Booking b SET b.state = :state, b.updatedAt = CURRENT_TIMESTAMP WHERE b.id = :bookingId")
-    int updateBookingState(@Param("bookingId") Long bookingId, @Param("state") String state);
+    @Query("UPDATE Booking b SET b.state = :state, b.updatedAt = :updatedAt WHERE b.id = :bookingId")
+    int updateBookingState(@Param("bookingId") Long bookingId,
+                           @Param("state") String state,
+                           @Param("updatedAt") ZonedDateTime updatedAt);
 
     /**
      * Find bookings by topic ID

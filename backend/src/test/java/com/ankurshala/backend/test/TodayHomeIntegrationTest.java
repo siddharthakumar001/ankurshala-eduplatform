@@ -5,7 +5,7 @@ import com.ankurshala.backend.dto.student.CompleteStepResponse;
 import com.ankurshala.backend.dto.student.DailyPlanDto;
 import com.ankurshala.backend.entity.*;
 import com.ankurshala.backend.repository.*;
-import com.ankurshala.backend.security.JwtTokenUtil;
+import com.ankurshala.backend.security.JwtTokenProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -27,6 +27,7 @@ import java.util.Map;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.hamcrest.Matchers.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 
 /**
  * Integration tests for Today Home feature
@@ -48,7 +49,19 @@ public class TodayHomeIntegrationTest {
     
     @Autowired
     private UserRepository userRepository;
-    
+
+    @Autowired
+    private BoardRepository boardRepository;
+
+    @Autowired
+    private GradeRepository gradeRepository;
+
+    @Autowired
+    private SubjectRepository subjectRepository;
+
+    @Autowired
+    private ChapterRepository chapterRepository;
+
     @Autowired
     private TopicRepository topicRepository;
     
@@ -68,12 +81,16 @@ public class TodayHomeIntegrationTest {
     private PasswordEncoder passwordEncoder;
     
     @Autowired
-    private JwtTokenUtil jwtTokenUtil;
+    private JwtTokenProvider jwtTokenProvider;
     
     private User student;
     private User teacher;
     private Topic topic;
     private String studentToken;
+    private Board board;
+    private Grade grade;
+    private Subject subject;
+    private Chapter chapter;
     
     @BeforeEach
     void setUp() {
@@ -87,28 +104,60 @@ public class TodayHomeIntegrationTest {
         student = new User();
         student.setEmail("student.today@test.com");
         student.setPassword(passwordEncoder.encode("password"));
-        student.setFirstName("Test");
-        student.setLastName("Student");
+        student.setName("Test Student");
         student.setRole(Role.STUDENT);
+        student.setEnabled(true);
         student = userRepository.save(student);
         
         // Create test teacher
         teacher = new User();
         teacher.setEmail("teacher.today@test.com");
         teacher.setPassword(passwordEncoder.encode("password"));
-        teacher.setFirstName("Test");
-        teacher.setLastName("Teacher");
+        teacher.setName("Test Teacher");
         teacher.setRole(Role.TEACHER);
+        teacher.setEnabled(true);
         teacher = userRepository.save(teacher);
+
+        board = new Board();
+        board.setName("CBSE");
+        board.setActive(true);
+        board = boardRepository.save(board);
+
+        grade = new Grade();
+        grade.setName("GRADE_8");
+        grade.setDisplayName("Grade 8");
+        grade.setBoardId(board.getId());
+        grade.setActive(true);
+        grade = gradeRepository.save(grade);
+
+        subject = new Subject();
+        subject.setName("Science");
+        subject.setBoardId(board.getId());
+        subject.setGradeId(grade.getId());
+        subject.setActive(true);
+        subject = subjectRepository.save(subject);
+
+        chapter = new Chapter();
+        chapter.setName("Pollution");
+        chapter.setBoardId(board.getId());
+        chapter.setGradeId(grade.getId());
+        chapter.setSubjectId(subject.getId());
+        chapter.setActive(true);
+        chapter = chapterRepository.save(chapter);
         
         // Create test topic
         topic = new Topic();
-        topic.setName("Test Topic - Algebra");
+        topic.setTitle("Test Topic - Algebra");
         topic.setDescription("Test algebra topic");
+        topic.setBoardId(board.getId());
+        topic.setGradeId(grade.getId());
+        topic.setSubjectId(subject.getId());
+        topic.setChapterId(chapter.getId());
+        topic.setActive(true);
         topic = topicRepository.save(topic);
         
         // Generate JWT token for student
-        studentToken = jwtTokenUtil.generateToken(student.getEmail());
+        studentToken = jwtTokenProvider.generateAccessToken(student);
     }
     
     @Test
@@ -130,13 +179,19 @@ public class TodayHomeIntegrationTest {
     @DisplayName("GET /student/today - With upcoming booking")
     void testGetDailyPlan_WithUpcomingBooking() throws Exception {
         // Create upcoming booking
-        Booking booking = new Booking();
-        booking.setStudent(student);
+        Booking booking = new Booking(student, topic, 
+                ZonedDateTime.now().plusHours(2),
+                ZonedDateTime.now().plusHours(3),
+                60,
+                new java.math.BigDecimal("300"),
+                new java.math.BigDecimal("350"));
         booking.setTeacher(teacher);
-        booking.setTopic(topic);
-        booking.setStartTs(ZonedDateTime.now().plusHours(2));
-        booking.setEndTs(ZonedDateTime.now().plusHours(3));
-        booking.setDurationMinutes(60);
+        booking.setTeacherId(teacher.getId());
+        booking.setBoard(board.getName());
+        booking.setGrade(grade.getName());
+        booking.setSubjectId(subject.getId());
+        booking.setChapterId(chapter.getId());
+        booking.setCategory("STANDARD");
         booking.setStatus(BookingStatus.ACCEPTED);
         bookingRepository.save(booking);
         
@@ -196,6 +251,7 @@ public class TodayHomeIntegrationTest {
                 .build();
         
         mockMvc.perform(post("/student/today/complete-step")
+                        .with(csrf())
                         .header("Authorization", "Bearer " + studentToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -237,6 +293,7 @@ public class TodayHomeIntegrationTest {
                 .build();
         
         mockMvc.perform(post("/student/today/complete-step")
+                        .with(csrf())
                         .header("Authorization", "Bearer " + studentToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -255,6 +312,7 @@ public class TodayHomeIntegrationTest {
                 .build();
         
         mockMvc.perform(post("/student/today/complete-step")
+                        .with(csrf())
                         .header("Authorization", "Bearer " + studentToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -279,6 +337,7 @@ public class TodayHomeIntegrationTest {
                 .build();
         
         mockMvc.perform(post("/student/today/complete-step")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized());
@@ -294,13 +353,19 @@ public class TodayHomeIntegrationTest {
                 .andExpect(status().isOk());
         
         // Add a booking
-        Booking booking = new Booking();
-        booking.setStudent(student);
+        Booking booking = new Booking(student, topic,
+                ZonedDateTime.now().plusHours(2),
+                ZonedDateTime.now().plusHours(3),
+                60,
+                new java.math.BigDecimal("300"),
+                new java.math.BigDecimal("350"));
         booking.setTeacher(teacher);
-        booking.setTopic(topic);
-        booking.setStartTs(ZonedDateTime.now().plusHours(2));
-        booking.setEndTs(ZonedDateTime.now().plusHours(3));
-        booking.setDurationMinutes(60);
+        booking.setTeacherId(teacher.getId());
+        booking.setBoard(board.getName());
+        booking.setGrade(grade.getName());
+        booking.setSubjectId(subject.getId());
+        booking.setChapterId(chapter.getId());
+        booking.setCategory("STANDARD");
         booking.setStatus(BookingStatus.ACCEPTED);
         bookingRepository.save(booking);
         

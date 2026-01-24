@@ -127,9 +127,10 @@ export default function TeacherBookingsPage() {
       await api.post(`/teacher/bookings/${bookingId}/accept?acceptanceToken=manual`, {});
       await reloadBookings();
       toast.success('Booking accepted');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Accept booking failed:', error);
-      toast.error('Failed to accept booking');
+      const message = error?.response?.data?.error || error?.response?.data?.message || 'Failed to accept booking';
+      toast.error(message);
     }
   };
 
@@ -138,9 +139,10 @@ export default function TeacherBookingsPage() {
       await api.post(`/teacher/bookings/${bookingId}/decline`, {});
       await reloadBookings();
       toast.success('Booking declined');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Decline booking failed:', error);
-      toast.error('Failed to decline booking');
+      const message = error?.response?.data?.error || error?.response?.data?.message || 'Failed to decline booking';
+      toast.error(message);
     }
   };
 

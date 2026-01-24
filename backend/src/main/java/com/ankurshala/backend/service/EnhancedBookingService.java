@@ -130,6 +130,11 @@ public class EnhancedBookingService {
                     .orElseThrow(() -> new BusinessException("Topic not found", 
                             org.springframework.http.HttpStatus.NOT_FOUND, "TOPIC_NOT_FOUND"));
 
+            if (request.getStartTimeISO().isBefore(ZonedDateTime.now())) {
+                throw new BusinessException("Start time must be in the future",
+                        org.springframework.http.HttpStatus.BAD_REQUEST, "INVALID_START_TIME");
+            }
+
             // Calculate end time
             ZonedDateTime endTime = request.getStartTimeISO().plusMinutes(topic.getExpectedMinutes());
 
@@ -154,6 +159,7 @@ public class EnhancedBookingService {
             booking.setStartTs(request.getStartTimeISO());
             booking.setEndTs(endTime);
             booking.setCategory(request.getTeacherCategory());
+            booking.setDurationMinutes(topic.getExpectedMinutes());
             booking.setPriceMinCents(pricingRule.getHourlyRate().multiply(BigDecimal.valueOf(topic.getExpectedMinutes()).divide(BigDecimal.valueOf(60), 2, java.math.RoundingMode.HALF_UP)).intValue());
             booking.setPriceMaxCents(booking.getPriceMinCents() + 150);
             booking.setAppliedRuleId(pricingRule.getId());
@@ -219,7 +225,8 @@ public class EnhancedBookingService {
             }
 
             // Atomic update (first-accept wins)
-            int updated = bookingRepository.acceptBooking(bookingId, teacherId);
+            ZonedDateTime now = ZonedDateTime.now();
+            int updated = bookingRepository.acceptBooking(bookingId, teacherId, now, now);
             if (updated == 0) {
                 throw new BusinessException("Booking was already accepted by another teacher", 
                         org.springframework.http.HttpStatus.CONFLICT, "ALREADY_ACCEPTED");

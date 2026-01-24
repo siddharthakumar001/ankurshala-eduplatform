@@ -94,9 +94,10 @@ export default function TeacherDashboardPage() {
         const updatedPending = prev.pendingBookings.filter(b => b.bookingId !== bookingId);
         return { ...prev, pendingRequests: updatedPending.length, pendingBookings: updatedPending };
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error('Accept booking failed:', err);
-      toast.error('Failed to accept booking');
+      const message = err?.response?.data?.error || err?.response?.data?.message || 'Failed to accept booking';
+      toast.error(message);
     }
   };
 
@@ -109,9 +110,10 @@ export default function TeacherDashboardPage() {
         const updatedPending = prev.pendingBookings.filter(b => b.bookingId !== bookingId);
         return { ...prev, pendingRequests: updatedPending.length, pendingBookings: updatedPending };
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error('Decline booking failed:', err);
-      toast.error('Failed to decline booking');
+      const message = err?.response?.data?.error || err?.response?.data?.message || 'Failed to decline booking';
+      toast.error(message);
     }
   };
 

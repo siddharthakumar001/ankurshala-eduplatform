@@ -1,8 +1,24 @@
 package com.ankurshala.backend.service;
 
+import com.ankurshala.backend.entity.Board;
 import com.ankurshala.backend.entity.Booking;
 import com.ankurshala.backend.entity.BookingStatus;
+import com.ankurshala.backend.entity.Chapter;
+import com.ankurshala.backend.entity.Grade;
+import com.ankurshala.backend.entity.Role;
+import com.ankurshala.backend.entity.Subject;
+import com.ankurshala.backend.entity.Teacher;
+import com.ankurshala.backend.entity.TeacherStatus;
+import com.ankurshala.backend.entity.Topic;
+import com.ankurshala.backend.entity.User;
+import com.ankurshala.backend.repository.BoardRepository;
 import com.ankurshala.backend.repository.BookingRepository;
+import com.ankurshala.backend.repository.ChapterRepository;
+import com.ankurshala.backend.repository.GradeRepository;
+import com.ankurshala.backend.repository.SubjectRepository;
+import com.ankurshala.backend.repository.TeacherRepository;
+import com.ankurshala.backend.repository.TopicRepository;
+import com.ankurshala.backend.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,6 +28,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.ZonedDateTime;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
@@ -35,23 +52,61 @@ class BookingConcurrencyTest {
     
     @Autowired
     private BookingRepository bookingRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private TeacherRepository teacherRepository;
+
+    @Autowired
+    private BoardRepository boardRepository;
+
+    @Autowired
+    private GradeRepository gradeRepository;
+
+    @Autowired
+    private SubjectRepository subjectRepository;
+
+    @Autowired
+    private ChapterRepository chapterRepository;
+
+    @Autowired
+    private TopicRepository topicRepository;
     
     @Autowired
     private DistributedLockService lockService;
     
     private Booking testBooking;
+    private User student;
+    private Board board;
+    private Grade grade;
+    private Subject subject;
+    private Chapter chapter;
+    private Topic topic;
     
     @BeforeEach
     void setup() {
+        bookingRepository.deleteAll();
+        teacherRepository.deleteAll();
+        userRepository.deleteAll();
+        topicRepository.deleteAll();
+        chapterRepository.deleteAll();
+        subjectRepository.deleteAll();
+        gradeRepository.deleteAll();
+        boardRepository.deleteAll();
+
+        board = createBoard();
+        grade = createGrade(board);
+        subject = createSubject(board, grade);
+        chapter = createChapter(board, grade, subject);
+        topic = createTopic(board, grade, subject, chapter);
+        student = createStudent("student1@test.com");
+
         // Create a test booking in PENDING state
-        testBooking = new Booking();
-        testBooking.setStudentId(1L);
-        testBooking.setStatus(BookingStatus.PENDING);
-        testBooking.setState("REQUESTED");
-        testBooking.setStartTs(ZonedDateTime.now().plusHours(1));
-        testBooking.setEndTs(ZonedDateTime.now().plusHours(2));
-        testBooking.setCreatedAt(ZonedDateTime.now());
-        testBooking = bookingRepository.save(testBooking);
+        testBooking = createBooking(student.getId(),
+                ZonedDateTime.now().plusHours(1),
+                ZonedDateTime.now().plusHours(2));
     }
 
     @Test
@@ -63,10 +118,12 @@ class BookingConcurrencyTest {
         
         AtomicInteger successCount = new AtomicInteger(0);
         AtomicInteger failureCount = new AtomicInteger(0);
+
+        List<Long> teacherIds = createTeachers(teacherCount);
         
         // Simulate 10 teachers trying to accept simultaneously
         for (int i = 0; i < teacherCount; i++) {
-            final Long teacherId = (long) (i + 1);
+            final Long teacherId = teacherIds.get(i);
             futures.add(executor.submit(() -> {
                 try {
                     bookingConcurrencyService.acceptBookingWithLock(testBooking.getId(), teacherId);
@@ -107,9 +164,11 @@ class BookingConcurrencyTest {
         List<Future<Boolean>> futures = new ArrayList<>();
         
         AtomicInteger successCount = new AtomicInteger(0);
+
+        List<Long> teacherIds = createTeachers(threadCount);
         
         for (int i = 0; i < threadCount; i++) {
-            final Long teacherId = (long) (i + 1);
+            final Long teacherId = teacherIds.get(i);
             futures.add(executor.submit(() -> {
                 try {
                     bookingConcurrencyService.acceptBookingWithOptimisticLock(
@@ -140,9 +199,11 @@ class BookingConcurrencyTest {
         List<Future<Boolean>> futures = new ArrayList<>();
         
         AtomicInteger successCount = new AtomicInteger(0);
+
+        List<Long> teacherIds = createTeachers(threadCount);
         
         for (int i = 0; i < threadCount; i++) {
-            final Long teacherId = (long) (i + 1);
+            final Long teacherId = teacherIds.get(i);
             futures.add(executor.submit(() -> {
                 boolean accepted = bookingConcurrencyService.acceptBookingAtomic(
                     testBooking.getId(), teacherId);
@@ -214,9 +275,11 @@ class BookingConcurrencyTest {
         
         AtomicInteger successCount = new AtomicInteger(0);
         long startTime = System.currentTimeMillis();
+
+        List<Long> teacherIds = createTeachers(teacherCount);
         
         for (int i = 0; i < teacherCount; i++) {
-            final Long teacherId = (long) (i + 1);
+            final Long teacherId = teacherIds.get(i);
             futures.add(executor.submit(() -> {
                 try {
                     bookingConcurrencyService.acceptBookingWithLock(
@@ -244,23 +307,24 @@ class BookingConcurrencyTest {
     @Test
     @DisplayName("Test 6: Teacher time conflict detection")
     void testTeacherTimeConflictPrevention() {
+        Teacher conflictTeacher = createTeacher("conflict");
+        Long teacherId = conflictTeacher.getUser().getId();
+
         // Create first booking
-        Booking firstBooking = new Booking();
-        firstBooking.setStudentId(1L);
-        firstBooking.setTeacherId(100L);
+        Booking firstBooking = createBooking(student.getId(),
+                ZonedDateTime.now().plusHours(1),
+                ZonedDateTime.now().plusHours(2));
+        firstBooking.setTeacherId(teacherId);
         firstBooking.setStatus(BookingStatus.ACCEPTED);
-        firstBooking.setState("ACCEPTED");
-        firstBooking.setStartTs(ZonedDateTime.now().plusHours(1));
-        firstBooking.setEndTs(ZonedDateTime.now().plusHours(2));
         bookingRepository.save(firstBooking);
         
         // Try to accept overlapping booking with same teacher
-        testBooking.setStartTs(ZonedDateTime.now().plusHours(1).plusMinutes(30));
-        testBooking.setEndTs(ZonedDateTime.now().plusHours(2).plusMinutes(30));
-        testBooking = bookingRepository.save(testBooking);
+        Booking overlappingBooking = createBooking(student.getId(),
+                ZonedDateTime.now().plusHours(1).plusMinutes(30),
+                ZonedDateTime.now().plusHours(2).plusMinutes(30));
         
         assertThrows(BookingConcurrencyService.TeacherTimeConflictException.class, () -> {
-            bookingConcurrencyService.acceptBookingWithLock(testBooking.getId(), 100L);
+            bookingConcurrencyService.acceptBookingWithLock(overlappingBooking.getId(), teacherId);
         });
     }
 
@@ -311,19 +375,16 @@ class BookingConcurrencyTest {
     void testBookingAcceptancePerformance() throws Exception {
         int iterations = 100;
         List<Long> durations = new ArrayList<>();
+        Long teacherId = createTeacher("perf").getUser().getId();
         
         for (int i = 0; i < iterations; i++) {
             // Create new booking for each iteration
-            Booking booking = new Booking();
-            booking.setStudentId(1L);
-            booking.setStatus(BookingStatus.PENDING);
-            booking.setState("REQUESTED");
-            booking.setStartTs(ZonedDateTime.now().plusHours(i + 1));
-            booking.setEndTs(ZonedDateTime.now().plusHours(i + 2));
-            booking = bookingRepository.save(booking);
+            Booking booking = createBooking(student.getId(),
+                    ZonedDateTime.now().plusHours(i + 1),
+                    ZonedDateTime.now().plusHours(i + 2));
             
             long start = System.currentTimeMillis();
-            bookingConcurrencyService.acceptBookingWithLock(booking.getId(), 1L);
+            bookingConcurrencyService.acceptBookingWithLock(booking.getId(), teacherId);
             long duration = System.currentTimeMillis() - start;
             durations.add(duration);
         }
@@ -349,14 +410,13 @@ class BookingConcurrencyTest {
         
         // Create multiple bookings
         List<Booking> bookings = new ArrayList<>();
+        List<Long> teacherIds = createTeachers(bookingCount);
         for (int i = 0; i < bookingCount; i++) {
-            Booking booking = new Booking();
-            booking.setStudentId((long) (i + 1));
-            booking.setStatus(BookingStatus.PENDING);
-            booking.setState("REQUESTED");
-            booking.setStartTs(ZonedDateTime.now().plusHours(i + 1));
-            booking.setEndTs(ZonedDateTime.now().plusHours(i + 2));
-            bookings.add(bookingRepository.save(booking));
+            User otherStudent = createStudent("student" + (i + 2) + "@test.com");
+            Booking booking = createBooking(otherStudent.getId(),
+                    ZonedDateTime.now().plusHours(i + 1),
+                    ZonedDateTime.now().plusHours(i + 2));
+            bookings.add(booking);
         }
         
         AtomicInteger successCount = new AtomicInteger(0);
@@ -364,7 +424,7 @@ class BookingConcurrencyTest {
         // Accept all bookings concurrently
         for (int i = 0; i < bookingCount; i++) {
             final Long bookingId = bookings.get(i).getId();
-            final Long teacherId = (long) (i + 1);
+            final Long teacherId = teacherIds.get(i);
             
             futures.add(executor.submit(() -> {
                 try {
@@ -386,5 +446,104 @@ class BookingConcurrencyTest {
         // All should succeed since they're different bookings
         assertEquals(bookingCount, successCount.get(), 
             "All different bookings should be accepted successfully");
+    }
+
+    private List<Long> createTeachers(int count) {
+        List<Long> teacherIds = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            Teacher teacher = createTeacher("t" + i);
+            teacherIds.add(teacher.getUser().getId());
+        }
+        return teacherIds;
+    }
+
+    private Teacher createTeacher(String suffix) {
+        User user = new User();
+        user.setName("Teacher " + suffix);
+        user.setEmail("teacher-" + suffix + "@test.com");
+        user.setPassword("password");
+        user.setRole(Role.TEACHER);
+        user.setEnabled(true);
+        user = userRepository.save(user);
+
+        Teacher teacher = new Teacher(user, user.getName(), user.getEmail());
+        teacher.setStatus(TeacherStatus.ACTIVE);
+        return teacherRepository.save(teacher);
+    }
+
+    private User createStudent(String email) {
+        User user = new User();
+        user.setName("Student " + email);
+        user.setEmail(email);
+        user.setPassword("password");
+        user.setRole(Role.STUDENT);
+        user.setEnabled(true);
+        return userRepository.save(user);
+    }
+
+    private Booking createBooking(Long studentId, ZonedDateTime start, ZonedDateTime end) {
+        Booking booking = new Booking();
+        booking.setStudentId(studentId);
+        booking.setTopicId(topic.getId());
+        booking.setSubjectId(subject.getId());
+        booking.setBoard(board.getName());
+        booking.setGrade(grade.getName());
+        booking.setCategory("STANDARD");
+        booking.setDurationMinutes((int) Duration.between(start, end).toMinutes());
+        booking.setPriceMinCents(30000);
+        booking.setPriceMaxCents(35000);
+        booking.setStartTs(start);
+        booking.setEndTs(end);
+        booking.setStatus(BookingStatus.PENDING);
+        booking.setState("REQUESTED");
+        return bookingRepository.save(booking);
+    }
+
+    private Board createBoard() {
+        Board created = new Board();
+        created.setName("CBSE");
+        created.setActive(true);
+        return boardRepository.save(created);
+    }
+
+    private Grade createGrade(Board board) {
+        Grade created = new Grade();
+        created.setName("GRADE_8");
+        created.setDisplayName("Grade 8");
+        created.setBoardId(board.getId());
+        created.setActive(true);
+        return gradeRepository.save(created);
+    }
+
+    private Subject createSubject(Board board, Grade grade) {
+        Subject created = new Subject();
+        created.setName("Science");
+        created.setBoardId(board.getId());
+        created.setGradeId(grade.getId());
+        created.setActive(true);
+        return subjectRepository.save(created);
+    }
+
+    private Chapter createChapter(Board board, Grade grade, Subject subject) {
+        Chapter created = new Chapter();
+        created.setName("Pollution");
+        created.setBoardId(board.getId());
+        created.setGradeId(grade.getId());
+        created.setSubjectId(subject.getId());
+        created.setActive(true);
+        return chapterRepository.save(created);
+    }
+
+    private Topic createTopic(Board board, Grade grade, Subject subject, Chapter chapter) {
+        Topic created = new Topic();
+        created.setTitle("Test Topic");
+        created.setDescription("Test topic");
+        created.setExpectedMinutes(60);
+        created.setBoardId(board.getId());
+        created.setGradeId(grade.getId());
+        created.setSubjectId(subject.getId());
+        created.setChapterId(chapter.getId());
+        created.setActive(true);
+        return topicRepository.save(created);
     }
 }

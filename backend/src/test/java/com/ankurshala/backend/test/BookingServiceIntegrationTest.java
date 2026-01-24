@@ -2,8 +2,27 @@ package com.ankurshala.backend.test;
 
 import com.ankurshala.backend.dto.booking.BookingQuoteRequest;
 import com.ankurshala.backend.dto.booking.CreateBookingRequest;
-import com.ankurshala.backend.entity.*;
-import com.ankurshala.backend.repository.*;
+import com.ankurshala.backend.entity.Board;
+import com.ankurshala.backend.entity.Booking;
+import com.ankurshala.backend.entity.ClassLevel;
+import com.ankurshala.backend.entity.EducationalBoard;
+import com.ankurshala.backend.entity.Grade;
+import com.ankurshala.backend.entity.PricingRule;
+import com.ankurshala.backend.entity.Role;
+import com.ankurshala.backend.entity.StudentProfile;
+import com.ankurshala.backend.entity.Subject;
+import com.ankurshala.backend.entity.Topic;
+import com.ankurshala.backend.entity.Chapter;
+import com.ankurshala.backend.entity.User;
+import com.ankurshala.backend.repository.BoardRepository;
+import com.ankurshala.backend.repository.BookingRepository;
+import com.ankurshala.backend.repository.ChapterRepository;
+import com.ankurshala.backend.repository.GradeRepository;
+import com.ankurshala.backend.repository.PricingRuleRepository;
+import com.ankurshala.backend.repository.StudentProfileRepository;
+import com.ankurshala.backend.repository.SubjectRepository;
+import com.ankurshala.backend.repository.TopicRepository;
+import com.ankurshala.backend.repository.UserRepository;
 import com.ankurshala.backend.service.EnhancedBookingService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,6 +48,21 @@ public class BookingServiceIntegrationTest {
     
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private StudentProfileRepository studentProfileRepository;
+
+    @Autowired
+    private BoardRepository boardRepository;
+
+    @Autowired
+    private GradeRepository gradeRepository;
+
+    @Autowired
+    private SubjectRepository subjectRepository;
+
+    @Autowired
+    private ChapterRepository chapterRepository;
     
     @Autowired
     private TopicRepository topicRepository;
@@ -41,6 +75,11 @@ public class BookingServiceIntegrationTest {
 
     private User student;
     private User teacher;
+    private StudentProfile studentProfile;
+    private Board board;
+    private Grade grade;
+    private Subject subject;
+    private Chapter chapter;
     private Topic topic;
     private PricingRule pricingRule;
 
@@ -49,19 +88,30 @@ public class BookingServiceIntegrationTest {
         // Clean up
         bookingRepository.deleteAll();
         userRepository.deleteAll();
+        studentProfileRepository.deleteAll();
+        chapterRepository.deleteAll();
+        subjectRepository.deleteAll();
+        gradeRepository.deleteAll();
+        boardRepository.deleteAll();
         
         // Create test data
+        board = createTestBoard();
+        grade = createTestGrade(board);
+        subject = createTestSubject(board, grade);
+        chapter = createTestChapter(board, grade, subject);
         student = createTestStudent();
         teacher = createTestTeacher();
-        topic = createTestTopic();
-        pricingRule = createTestPricingRule();
+        studentProfile = createTestStudentProfile(student, board, grade);
+        topic = createTestTopic(board, grade, subject, chapter);
+        pricingRule = createTestPricingRule(topic);
     }
 
     @Test
     void testGetBookingQuoteSuccess() {
         // Given
         BookingQuoteRequest request = new BookingQuoteRequest();
-        request.setSubjectId(topic.getSubject().getId());
+        request.setSubjectId(subject.getId());
+        request.setChapterId(chapter.getId());
         request.setTopicId(topic.getId());
         request.setStartTimeISO(ZonedDateTime.now().plusHours(2));
         request.setTeacherCategory("STANDARD");
@@ -82,12 +132,13 @@ public class BookingServiceIntegrationTest {
     void testCreateBookingSuccess() {
         // Given
         CreateBookingRequest request = new CreateBookingRequest();
-        request.setSubjectId(topic.getSubject().getId());
+        request.setSubjectId(subject.getId());
+        request.setChapterId(chapter.getId());
         request.setTopicId(topic.getId());
         request.setTeacherId(teacher.getId());
         request.setStartTimeISO(ZonedDateTime.now().plusHours(2));
         request.setDurationMinutes(60);
-        request.setCategory("STANDARD");
+        request.setTeacherCategory("STANDARD");
         request.setAppliedRuleId(pricingRule.getId());
         request.setPriceMinCents(50000);
         request.setPriceMaxCents(50000);
@@ -111,12 +162,13 @@ public class BookingServiceIntegrationTest {
     void testCreateBookingInvalidTeacher() {
         // Given
         CreateBookingRequest request = new CreateBookingRequest();
-        request.setSubjectId(topic.getSubject().getId());
+        request.setSubjectId(subject.getId());
+        request.setChapterId(chapter.getId());
         request.setTopicId(topic.getId());
         request.setTeacherId(999L); // Non-existent teacher
         request.setStartTimeISO(ZonedDateTime.now().plusHours(2));
         request.setDurationMinutes(60);
-        request.setCategory("STANDARD");
+        request.setTeacherCategory("STANDARD");
         request.setAppliedRuleId(pricingRule.getId());
         request.setPriceMinCents(50000);
         request.setPriceMaxCents(50000);
@@ -130,12 +182,13 @@ public class BookingServiceIntegrationTest {
     void testCreateBookingPastTime() {
         // Given
         CreateBookingRequest request = new CreateBookingRequest();
-        request.setSubjectId(topic.getSubject().getId());
+        request.setSubjectId(subject.getId());
+        request.setChapterId(chapter.getId());
         request.setTopicId(topic.getId());
         request.setTeacherId(teacher.getId());
         request.setStartTimeISO(ZonedDateTime.now().minusHours(1)); // Past time
         request.setDurationMinutes(60);
-        request.setCategory("STANDARD");
+        request.setTeacherCategory("STANDARD");
         request.setAppliedRuleId(pricingRule.getId());
         request.setPriceMinCents(50000);
         request.setPriceMaxCents(50000);
@@ -165,21 +218,73 @@ public class BookingServiceIntegrationTest {
         return userRepository.save(user);
     }
 
-    private Topic createTestTopic() {
+    private Board createTestBoard() {
+        Board board = new Board();
+        board.setName("CBSE");
+        board.setActive(true);
+        return boardRepository.save(board);
+    }
+
+    private Grade createTestGrade(Board board) {
+        Grade grade = new Grade();
+        grade.setName("GRADE_8");
+        grade.setDisplayName("Grade 8");
+        grade.setBoardId(board.getId());
+        grade.setActive(true);
+        return gradeRepository.save(grade);
+    }
+
+    private Subject createTestSubject(Board board, Grade grade) {
+        Subject subject = new Subject();
+        subject.setName("Science");
+        subject.setBoardId(board.getId());
+        subject.setGradeId(grade.getId());
+        subject.setActive(true);
+        return subjectRepository.save(subject);
+    }
+
+    private Chapter createTestChapter(Board board, Grade grade, Subject subject) {
+        Chapter chapter = new Chapter();
+        chapter.setName("Photosynthesis");
+        chapter.setBoardId(board.getId());
+        chapter.setGradeId(grade.getId());
+        chapter.setSubjectId(subject.getId());
+        chapter.setActive(true);
+        return chapterRepository.save(chapter);
+    }
+
+    private StudentProfile createTestStudentProfile(User user, Board board, Grade grade) {
+        StudentProfile profile = new StudentProfile();
+        profile.setUser(user);
+        profile.setFirstName("Test");
+        profile.setLastName("Student");
+        profile.setEducationalBoard(EducationalBoard.CBSE);
+        profile.setClassLevel(ClassLevel.GRADE_8);
+        profile.setBoardId(board.getId());
+        profile.setGradeId(grade.getId());
+        profile.setIsComplete(true);
+        return studentProfileRepository.save(profile);
+    }
+
+    private Topic createTestTopic(Board board, Grade grade, Subject subject, Chapter chapter) {
         Topic topic = new Topic();
         topic.setTitle("Test Topic");
         topic.setDescription("Test Description");
         topic.setExpectedMinutes(60);
-        // Set other required fields
+        topic.setBoardId(board.getId());
+        topic.setGradeId(grade.getId());
+        topic.setSubjectId(subject.getId());
+        topic.setChapterId(chapter.getId());
+        topic.setActive(true);
         return topicRepository.save(topic);
     }
 
-    private PricingRule createTestPricingRule() {
+    private PricingRule createTestPricingRule(Topic topic) {
         PricingRule rule = new PricingRule();
         rule.setHourlyRate(new BigDecimal("500.00"));
+        rule.setTopic(topic);
         rule.setCategory("STANDARD");
         rule.setActive(true);
-        // Set other required fields
         return pricingRuleRepository.save(rule);
     }
 }

@@ -255,8 +255,8 @@ class AuthServiceTest {
             // Given
             traceUtilMock.when(TraceUtil::getTraceId).thenReturn("test-trace-id");
             when(jwtTokenProvider.validateToken(refreshTokenRequest.getRefreshToken())).thenReturn(true);
-            when(jwtTokenProvider.getEmailFromToken(refreshTokenRequest.getRefreshToken())).thenReturn(testUser.getEmail());
-            when(userRepository.findByEmail(testUser.getEmail())).thenReturn(Optional.of(testUser));
+            when(jwtTokenProvider.getUserIdFromToken(refreshTokenRequest.getRefreshToken())).thenReturn(testUser.getId());
+            when(userRepository.findById(testUser.getId())).thenReturn(Optional.of(testUser));
             when(jwtTokenProvider.generateAccessToken(testUser)).thenReturn("newAccessToken");
             when(jwtTokenProvider.generateRefreshToken(testUser)).thenReturn("newRefreshToken");
 
@@ -273,8 +273,8 @@ class AuthServiceTest {
             assertEquals(testUser.getRole(), response.getRole());
 
             verify(jwtTokenProvider).validateToken(refreshTokenRequest.getRefreshToken());
-            verify(jwtTokenProvider).getEmailFromToken(refreshTokenRequest.getRefreshToken());
-            verify(userRepository).findByEmail(testUser.getEmail());
+            verify(jwtTokenProvider).getUserIdFromToken(refreshTokenRequest.getRefreshToken());
+            verify(userRepository).findById(testUser.getId());
             verify(jwtTokenProvider).generateAccessToken(testUser);
             verify(jwtTokenProvider).generateRefreshToken(testUser);
         }

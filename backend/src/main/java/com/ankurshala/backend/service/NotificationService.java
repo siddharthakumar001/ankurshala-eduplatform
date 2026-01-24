@@ -3,9 +3,13 @@ package com.ankurshala.backend.service;
 import com.ankurshala.backend.dto.notification.MarkNotificationsReadRequest;
 import com.ankurshala.backend.dto.notification.NotificationDto;
 import com.ankurshala.backend.entity.Notification;
+import com.ankurshala.backend.entity.NotificationAudience;
+import com.ankurshala.backend.entity.NotificationDelivery;
 import com.ankurshala.backend.entity.NotificationType;
 import com.ankurshala.backend.entity.Role;
+import com.ankurshala.backend.entity.User;
 import com.ankurshala.backend.repository.NotificationRepository;
+import com.ankurshala.backend.repository.UserRepository;
 import com.ankurshala.backend.util.TraceUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +31,8 @@ public class NotificationService {
     @Autowired
     private NotificationRepository notificationRepository;
     @Autowired
+    private UserRepository userRepository;
+    @Autowired
     private SimpMessagingTemplate messagingTemplate;
     @Autowired
     private ObjectMapper objectMapper;
@@ -41,6 +47,20 @@ public class NotificationService {
         notification.setTitle(title);
         notification.setMessage(message);
         notification.setRead(false);
+        notification.setDelivery(NotificationDelivery.IN_APP);
+
+        NotificationAudience audience = NotificationAudience.ALL;
+        User user = userRepository.findById(userId).orElse(null);
+        if (user != null && user.getRole() != null) {
+            if (user.getRole() == Role.STUDENT) {
+                audience = NotificationAudience.STUDENT;
+            } else if (user.getRole() == Role.TEACHER) {
+                audience = NotificationAudience.TEACHER;
+            } else if (user.getRole() == Role.ADMIN) {
+                audience = NotificationAudience.ADMIN;
+            }
+        }
+        notification.setAudience(audience);
         
         if (meta != null) {
             try {

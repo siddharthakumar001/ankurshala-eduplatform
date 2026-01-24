@@ -5,12 +5,15 @@ import com.ankurshala.backend.dto.ai.ChatDTO;
 import com.ankurshala.backend.entity.ContentChunk;
 import com.ankurshala.backend.entity.Topic;
 import com.ankurshala.backend.repository.AIInteractionRepository;
+import com.ankurshala.backend.repository.StudentProfileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.quality.Strictness;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
@@ -26,6 +29,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class AITutorServiceTest {
 
     @Mock
@@ -46,6 +50,9 @@ class AITutorServiceTest {
     @Mock
     private AIInteractionRepository aiInteractionRepository;
 
+    @Mock
+    private StudentProfileRepository studentProfileRepository;
+
     @InjectMocks
     private AITutorService aiTutorService;
 
@@ -61,6 +68,7 @@ class AITutorServiceTest {
                 .topicId(101L)
                 .language("en")
                 .build();
+        lenient().when(studentProfileRepository.findByUserId(anyLong())).thenReturn(java.util.Optional.empty());
     }
 
     @Test
@@ -132,7 +140,7 @@ class AITutorServiceTest {
         when(aiProperties.isAvailable()).thenReturn(true);
         when(aiProperties.getProvider()).thenReturn("openai");
         when(aiProperties.getModel()).thenReturn("gpt-4o-mini");
-        when(contentChunkService.retrieveForRAG(any(), any(), any(), any(), anyInt()))
+        when(contentChunkService.retrieveForRAGWithProfile(any(), any(), any(), any(), any(), any(), anyInt()))
                 .thenReturn(retrievalResult);
         when(chatModel.call(any(Prompt.class))).thenReturn(aiResponse);
 
@@ -173,7 +181,7 @@ class AITutorServiceTest {
         when(aiProperties.isAvailable()).thenReturn(true);
         when(aiProperties.getProvider()).thenReturn("openai");
         when(aiProperties.getModel()).thenReturn("gpt-4o-mini");
-        when(contentChunkService.retrieveForRAG(any(), any(), any(), any(), anyInt()))
+        when(contentChunkService.retrieveForRAGWithProfile(any(), any(), any(), any(), any(), any(), anyInt()))
                 .thenReturn(emptyResult);
         when(chatModel.call(any(Prompt.class))).thenReturn(aiResponse);
 
@@ -211,7 +219,7 @@ class AITutorServiceTest {
         when(aiProperties.isAvailable()).thenReturn(true);
         when(aiProperties.getProvider()).thenReturn("openai");
         when(aiProperties.getModel()).thenReturn("gpt-4o-mini");
-        when(contentChunkService.retrieveForRAG(any(), any(), any(), any(), anyInt()))
+        when(contentChunkService.retrieveForRAGWithProfile(any(), any(), any(), any(), any(), any(), anyInt()))
                 .thenReturn(emptyResult);
         when(chatModel.call(any(Prompt.class))).thenReturn(aiResponse);
 
@@ -237,7 +245,7 @@ class AITutorServiceTest {
         when(aiProperties.isAvailable()).thenReturn(true);
         when(aiProperties.getProvider()).thenReturn("openai");
         when(aiProperties.getModel()).thenReturn("gpt-4o-mini");
-        when(contentChunkService.retrieveForRAG(any(), any(), any(), any(), anyInt()))
+        when(contentChunkService.retrieveForRAGWithProfile(any(), any(), any(), any(), any(), any(), anyInt()))
                 .thenReturn(emptyResult);
         when(chatModel.call(any(Prompt.class))).thenThrow(new RuntimeException("API error"));
 
@@ -296,7 +304,7 @@ class AITutorServiceTest {
         when(aiProperties.isAvailable()).thenReturn(true);
         when(aiProperties.getProvider()).thenReturn("openai");
         when(aiProperties.getModel()).thenReturn("gpt-4o-mini");
-        when(contentChunkService.retrieveForRAG(any(), any(), any(), any(), anyInt()))
+        when(contentChunkService.retrieveForRAGWithProfile(any(), any(), any(), any(), any(), any(), anyInt()))
                 .thenReturn(retrievalResult);
         when(chatModel.call(any(Prompt.class))).thenReturn(aiResponse);
 

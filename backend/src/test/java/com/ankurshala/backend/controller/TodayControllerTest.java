@@ -51,9 +51,10 @@ class TodayControllerTest {
         studentPrincipal = new UserPrincipal(
                 1L,
                 "student@example.com",
+                "Test Student",
                 "password",
                 Role.STUDENT,
-                new ArrayList<>()
+                true
         );
         
         // Setup mock daily plan

@@ -2,7 +2,16 @@ package com.ankurshala.backend.service;
 
 import com.ankurshala.backend.dto.admin.DashboardMetricsDto;
 import com.ankurshala.backend.dto.admin.DashboardSeriesDto;
+import com.ankurshala.backend.entity.ImportJobStatus;
+import com.ankurshala.backend.entity.PaymentIntentStatus;
+import com.ankurshala.backend.repository.BoardRepository;
+import com.ankurshala.backend.repository.ChapterRepository;
+import com.ankurshala.backend.repository.GradeRepository;
+import com.ankurshala.backend.repository.ImportJobRepository;
+import com.ankurshala.backend.repository.PaymentIntentRepository;
 import com.ankurshala.backend.repository.StudentProfileRepository;
+import com.ankurshala.backend.repository.SubjectRepository;
+import com.ankurshala.backend.repository.TopicRepository;
 import com.ankurshala.backend.repository.TeacherProfileRepository;
 import com.ankurshala.backend.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,13 +41,36 @@ class AdminDashboardServiceTest {
     @Mock
     private TeacherProfileRepository teacherProfileRepository;
 
+    @Mock
+    private BoardRepository boardRepository;
+
+    @Mock
+    private GradeRepository gradeRepository;
+
+    @Mock
+    private SubjectRepository subjectRepository;
+
+    @Mock
+    private ChapterRepository chapterRepository;
+
+    @Mock
+    private TopicRepository topicRepository;
+
+    @Mock
+    private ImportJobRepository importJobRepository;
+
+    @Mock
+    private PaymentIntentRepository paymentIntentRepository;
+
     @InjectMocks
     private AdminDashboardService adminDashboardService;
 
     @BeforeEach
     void setUp() {
         // Reset mocks before each test
-        reset(userRepository, studentProfileRepository, teacherProfileRepository);
+        reset(userRepository, studentProfileRepository, teacherProfileRepository,
+                boardRepository, gradeRepository, subjectRepository, chapterRepository,
+                topicRepository, importJobRepository, paymentIntentRepository);
     }
 
     @Test
@@ -53,6 +85,20 @@ class AdminDashboardServiceTest {
                 .thenReturn(15L);
         when(teacherProfileRepository.countByUserCreatedAtBetween(any(LocalDateTime.class), any(LocalDateTime.class)))
                 .thenReturn(8L);
+        when(boardRepository.countByActiveTrueAndSoftDeletedFalse()).thenReturn(0L);
+        when(gradeRepository.count()).thenReturn(0L);
+        when(subjectRepository.countByActiveTrueAndSoftDeletedFalse()).thenReturn(0L);
+        when(chapterRepository.countByActiveTrueAndSoftDeletedFalse()).thenReturn(0L);
+        when(topicRepository.countByActiveTrueAndSoftDeletedFalse()).thenReturn(0L);
+        when(paymentIntentRepository.sumAmountCentsByStatus(PaymentIntentStatus.COMPLETED)).thenReturn(0L);
+        when(paymentIntentRepository.sumAmountCentsByStatusAndCreatedAtBetween(
+                eq(PaymentIntentStatus.COMPLETED), any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(0L);
+        when(importJobRepository.count()).thenReturn(0L);
+        when(importJobRepository.countByStatus(ImportJobStatus.SUCCEEDED)).thenReturn(0L);
+        when(importJobRepository.countByStatus(ImportJobStatus.FAILED)).thenReturn(0L);
+        when(importJobRepository.countByStatus(ImportJobStatus.PENDING)).thenReturn(0L);
+        when(importJobRepository.countByStatus(ImportJobStatus.RUNNING)).thenReturn(0L);
 
         // When
         DashboardMetricsDto result = adminDashboardService.getDashboardMetrics();
@@ -98,6 +144,20 @@ class AdminDashboardServiceTest {
                 .thenReturn(0L);
         when(teacherProfileRepository.countByUserCreatedAtBetween(any(LocalDateTime.class), any(LocalDateTime.class)))
                 .thenReturn(0L);
+        when(boardRepository.countByActiveTrueAndSoftDeletedFalse()).thenReturn(0L);
+        when(gradeRepository.count()).thenReturn(0L);
+        when(subjectRepository.countByActiveTrueAndSoftDeletedFalse()).thenReturn(0L);
+        when(chapterRepository.countByActiveTrueAndSoftDeletedFalse()).thenReturn(0L);
+        when(topicRepository.countByActiveTrueAndSoftDeletedFalse()).thenReturn(0L);
+        when(paymentIntentRepository.sumAmountCentsByStatus(PaymentIntentStatus.COMPLETED)).thenReturn(0L);
+        when(paymentIntentRepository.sumAmountCentsByStatusAndCreatedAtBetween(
+                eq(PaymentIntentStatus.COMPLETED), any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(0L);
+        when(importJobRepository.count()).thenReturn(0L);
+        when(importJobRepository.countByStatus(ImportJobStatus.SUCCEEDED)).thenReturn(0L);
+        when(importJobRepository.countByStatus(ImportJobStatus.FAILED)).thenReturn(0L);
+        when(importJobRepository.countByStatus(ImportJobStatus.PENDING)).thenReturn(0L);
+        when(importJobRepository.countByStatus(ImportJobStatus.RUNNING)).thenReturn(0L);
 
         // When
         DashboardMetricsDto result = adminDashboardService.getDashboardMetrics();

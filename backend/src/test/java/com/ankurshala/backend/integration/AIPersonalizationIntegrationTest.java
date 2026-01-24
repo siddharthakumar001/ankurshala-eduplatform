@@ -24,6 +24,7 @@ import java.util.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.hamcrest.Matchers.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 
 /**
  * Integration tests for AI Personalization features.
@@ -83,65 +84,52 @@ class AIPersonalizationIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        // Create test student user
-        Role studentRole = roleRepository.findByName(ERole.ROLE_STUDENT)
-                .orElseGet(() -> {
-                    Role role = new Role();
-                    role.setName(ERole.ROLE_STUDENT);
-                    return roleRepository.save(role);
-                });
-
         testStudent = userRepository.findByEmail("test.student.ai@ankurshala.com")
                 .orElseGet(() -> {
                     User user = new User();
                     user.setName("AI Test Student");
                     user.setEmail("test.student.ai@ankurshala.com");
                     user.setPassword(passwordEncoder.encode("password123"));
-                    user.setRoles(new HashSet<>(Collections.singletonList(studentRole)));
-                    user.setActive(true);
+                    user.setRole(Role.STUDENT);
+                    user.setEnabled(true);
                     return userRepository.save(user);
                 });
 
-        studentToken = jwtTokenProvider.generateToken(testStudent.getId(), testStudent.getEmail(), "STUDENT");
+        studentToken = jwtTokenProvider.generateAccessToken(testStudent);
 
         // Create test board, grade, subject, chapter, topic
-        Board board = boardRepository.findByCode("CBSE")
+        Board board = boardRepository.findByNameIgnoreCase("CBSE")
                 .orElseGet(() -> {
                     Board b = new Board();
                     b.setName("CBSE");
-                    b.setCode("CBSE");
                     b.setActive(true);
                     return boardRepository.save(b);
                 });
 
-        Grade grade = gradeRepository.findAll().stream()
-                .filter(g -> g.getName().equals("Class 9"))
-                .findFirst()
+        Grade grade = gradeRepository.findByBoardIdAndName(board.getId(), "GRADE_9")
                 .orElseGet(() -> {
                     Grade g = new Grade();
-                    g.setName("Class 9");
-                    g.setLevel(9);
+                    g.setName("GRADE_9");
+                    g.setDisplayName("Grade 9");
+                    g.setBoardId(board.getId());
                     g.setActive(true);
                     return gradeRepository.save(g);
                 });
 
-        Subject subject = subjectRepository.findAll().stream()
-                .filter(s -> s.getName().equals("AI Test Mathematics"))
-                .findFirst()
+        Subject subject = subjectRepository.findByGradeIdAndName(grade.getId(), "AI Test Mathematics")
                 .orElseGet(() -> {
                     Subject s = new Subject();
                     s.setName("AI Test Mathematics");
-                    s.setCode("AI_TEST_MATH");
+                    s.setBoardId(board.getId());
+                    s.setGradeId(grade.getId());
                     s.setActive(true);
                     return subjectRepository.save(s);
                 });
 
-        Chapter chapter = chapterRepository.findAll().stream()
-                .filter(c -> c.getTitle().equals("AI Test Algebra"))
-                .findFirst()
+        Chapter chapter = chapterRepository.findBySubjectIdAndName(subject.getId(), "AI Test Algebra")
                 .orElseGet(() -> {
                     Chapter c = new Chapter();
-                    c.setTitle("AI Test Algebra");
+                    c.setName("AI Test Algebra");
                     c.setSubjectId(subject.getId());
                     c.setBoardId(board.getId());
                     c.setGradeId(grade.getId());
@@ -229,6 +217,7 @@ class AIPersonalizationIntegrationTest {
                 .build();
 
         MvcResult result = mockMvc.perform(post("/student/quizzes")
+                        .with(csrf())
                         .header("Authorization", "Bearer " + studentToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -257,6 +246,7 @@ class AIPersonalizationIntegrationTest {
                 .build();
 
         MvcResult createResult = mockMvc.perform(post("/student/quizzes")
+                        .with(csrf())
                         .header("Authorization", "Bearer " + studentToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -287,6 +277,7 @@ class AIPersonalizationIntegrationTest {
                 .build();
 
         MvcResult createResult = mockMvc.perform(post("/student/quizzes")
+                        .with(csrf())
                         .header("Authorization", "Bearer " + studentToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -300,6 +291,7 @@ class AIPersonalizationIntegrationTest {
 
         // Start attempt
         MvcResult attemptResult = mockMvc.perform(post("/student/quizzes/" + newQuizId + "/attempts")
+                        .with(csrf())
                         .header("Authorization", "Bearer " + studentToken)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
@@ -326,6 +318,7 @@ class AIPersonalizationIntegrationTest {
                 .build();
 
         MvcResult createResult = mockMvc.perform(post("/student/quizzes")
+                        .with(csrf())
                         .header("Authorization", "Bearer " + studentToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(genRequest)))
@@ -340,6 +333,7 @@ class AIPersonalizationIntegrationTest {
 
         // Start attempt
         MvcResult attemptResult = mockMvc.perform(post("/student/quizzes/" + newQuizId + "/attempts")
+                        .with(csrf())
                         .header("Authorization", "Bearer " + studentToken)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
@@ -367,6 +361,7 @@ class AIPersonalizationIntegrationTest {
 
         // Submit
         mockMvc.perform(post("/student/quizzes/" + newQuizId + "/attempts/" + newAttemptId + "/submit")
+                        .with(csrf())
                         .header("Authorization", "Bearer " + studentToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(submitRequest)))
@@ -402,6 +397,7 @@ class AIPersonalizationIntegrationTest {
                 .build();
 
         mockMvc.perform(post("/student/mastery/study-plan")
+                        .with(csrf())
                         .header("Authorization", "Bearer " + studentToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))

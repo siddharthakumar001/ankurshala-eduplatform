@@ -34,7 +34,9 @@ public class StudentBookingService {
     private final BookingRepository bookingRepository;
     private final BookingBookmarkRepository bookingBookmarkRepository;
     private final BookingNoteRepository bookingNoteRepository;
+    private final BookingDeclineRepository bookingDeclineRepository;
     private final TeacherAvailabilitySlotRepository teacherAvailabilitySlotRepository;
+    private final TeacherSubjectExpertiseRepository teacherSubjectExpertiseRepository;
     private final TopicRepository topicRepository;
     private final UserRepository userRepository;
     private final FeeWaiverRepository feeWaiverRepository;
@@ -46,9 +48,6 @@ public class StudentBookingService {
     
     @Autowired
     private KafkaTemplate<String, Object> kafkaTemplate;
-    
-    @Autowired
-    private WebSocketNotificationService webSocketService;
 
     private static final int BUFFER_MINUTES = 15;
     private static final int MIN_SESSION_MINUTES = 30;
@@ -73,7 +72,7 @@ public class StudentBookingService {
                 .orElseThrow(() -> new IllegalArgumentException("Student not found"));
 
         ensureNoOutstandingDues(student);
-        ensureTeachersAvailable(startTime, endTime);
+        ensureTeachersAvailable(startTime, endTime, topic);
 
         List<BookingStatus> conflictingStatuses = Arrays.asList(
                 BookingStatus.PENDING,
@@ -120,7 +119,7 @@ public class StudentBookingService {
                 .orElseThrow(() -> new IllegalArgumentException("Student not found"));
 
         ensureNoOutstandingDues(student);
-        ensureTeachersAvailable(startTime, endTime);
+        ensureTeachersAvailable(startTime, endTime, topic);
         
         List<BookingStatus> conflictingStatuses = Arrays.asList(
                 BookingStatus.PENDING,
@@ -141,9 +140,9 @@ public class StudentBookingService {
         PriceQuote priceQuote = calculatePrice(topic, request.getDurationMinutes(), startTime);
         
         // Create booking
-        Booking booking = new Booking(student, topic, 
-                startTime.atZone(ZoneId.systemDefault()), 
-                endTime.atZone(ZoneId.systemDefault()), 
+        Booking booking = new Booking(student, topic,
+                startTime.atZone(ZoneId.of("UTC")),
+                endTime.atZone(ZoneId.of("UTC")),
                 request.getDurationMinutes(), priceQuote.min, priceQuote.max);
         booking.setPricingRule(priceQuote.ruleEntity);
         booking.setStudentNotes(request.getStudentNotes());
@@ -153,9 +152,6 @@ public class StudentBookingService {
         
         // Publish Kafka event
         publishBookingRequestedEvent(savedBooking);
-        
-        // Broadcast to eligible teachers via WebSocket
-        webSocketService.broadcastBookingRequest(savedBooking);
         
         log.info("Created booking {} for student {}", savedBooking.getId(), student.getId());
         
@@ -215,18 +211,21 @@ public class StudentBookingService {
         }
         
         // Update booking and re-open for matching
-        booking.setStartTs(newStartTime.atZone(ZoneId.systemDefault()));
-        booking.setEndTs(newEndTime.atZone(ZoneId.systemDefault()));
+        ensureTeachersAvailable(newStartTime, newEndTime, booking.getTopic());
+
+        booking.setStartTs(newStartTime.atZone(ZoneId.of("UTC")));
+        booking.setEndTs(newEndTime.atZone(ZoneId.of("UTC")));
         booking.setDurationMinutes(request.getNewDurationMinutes());
         booking.setStatus(BookingStatus.PENDING);
         booking.setTeacherId(null);
         booking.setTeacher(null);
         booking.setAcceptedAt(null);
+
+        bookingDeclineRepository.deleteByBookingId(bookingId);
         
         Booking savedBooking = bookingRepository.save(booking);
         
         publishBookingRequestedEvent(savedBooking);
-        webSocketService.broadcastBookingRequest(savedBooking);
 
         log.info("Rescheduled booking {} for student {}", savedBooking.getId(), student.getId());
         
@@ -260,7 +259,7 @@ public class StudentBookingService {
         
         Booking savedBooking = bookingRepository.save(booking);
 
-        webSocketService.notifyBookingCancelled(savedBooking);
+        publishBookingCancelledEvent(savedBooking);
         
         log.info("Cancelled booking {} for student {}", savedBooking.getId(), booking.getStudent().getId());
         
@@ -562,16 +561,40 @@ public class StudentBookingService {
         return response;
     }
 
-    private void ensureTeachersAvailable(LocalDateTime startTime, LocalDateTime endTime) {
+    private void ensureTeachersAvailable(LocalDateTime startTime, LocalDateTime endTime, Topic topic) {
+        if (topic == null) {
+            return;
+        }
+
+        List<Long> eligibleTeacherUserIds = teacherSubjectExpertiseRepository.findEligibleTeacherUserIds(
+                topic.getSubjectId(), topic.getGradeId(), topic.getBoardId());
+        if (eligibleTeacherUserIds.isEmpty()) {
+            throw new IllegalArgumentException("No teachers are available for this subject right now.");
+        }
+
         long totalSlots = teacherAvailabilitySlotRepository.count();
         if (totalSlots == 0) {
             return;
         }
 
-        long availableSlots = teacherAvailabilitySlotRepository.countAvailableSlots(startTime, endTime);
+        long availableSlots = teacherAvailabilitySlotRepository.countAvailableSlotsForTeachers(
+                eligibleTeacherUserIds, startTime, endTime);
         if (availableSlots == 0) {
             throw new IllegalArgumentException("No teachers are available for the selected time. Please try another slot.");
         }
+    }
+
+    private void publishBookingCancelledEvent(Booking booking) {
+        Map<String, Object> event = new HashMap<>();
+        event.put("bookingId", booking.getId());
+        event.put("studentId", booking.getStudentId());
+        if (booking.getTeacherId() != null) {
+            event.put("teacherId", booking.getTeacherId());
+        }
+        event.put("reason", booking.getCancellationReason());
+
+        kafkaTemplate.send("booking.cancelled", booking.getId().toString(), event);
+        log.info("Published booking.cancelled event for booking {}", booking.getId());
     }
 
     private PriceQuote calculatePrice(Topic topic, int durationMinutes, LocalDateTime startTime) {

@@ -36,8 +36,8 @@ class TopicDtoTest {
     @DisplayName("Should create TopicDto with all-args constructor")
     void testAllArgsConstructor() {
         LocalDateTime now = LocalDateTime.now();
-        TopicDto dto = new TopicDto(1L, "Linear Equations", "LE001", "Introduction to linear equations", 
-            "Basic concepts", 60, 1L, "Algebra", "Mathematics", 1L, 1L, true, now, now, now);
+        TopicDto dto = new TopicDto(1L, "Linear Equations", "LE001", "Introduction to linear equations",
+            "Basic concepts", "Suggested topics", 60, 1L, "Algebra", "Mathematics", 1L, 1L, true, now, now, now);
         
         assertEquals(1L, dto.getId());
         assertEquals("Linear Equations", dto.getTitle());
@@ -98,8 +98,9 @@ class TopicDtoTest {
     @Test
     @DisplayName("Should generate toString")
     void testToString() {
-        TopicDto dto = new TopicDto(1L, "Linear Equations", "LE001", "Introduction to linear equations", 
-            "Basic concepts", 60, 1L, "Algebra", "Mathematics", 1L, 1L, true, LocalDateTime.now(), LocalDateTime.now(), LocalDateTime.now());
+        TopicDto dto = new TopicDto(1L, "Linear Equations", "LE001", "Introduction to linear equations",
+            "Basic concepts", "Suggested topics", 60, 1L, "Algebra", "Mathematics", 1L, 1L, true,
+            LocalDateTime.now(), LocalDateTime.now(), LocalDateTime.now());
         String toString = dto.toString();
         assertNotNull(toString);
         assertTrue(toString.contains("Linear Equations"));
@@ -109,12 +110,12 @@ class TopicDtoTest {
     @DisplayName("Should generate equals and hashCode")
     void testEqualsAndHashCode() {
         LocalDateTime now = LocalDateTime.now();
-        TopicDto dto1 = new TopicDto(1L, "Linear Equations", "LE001", "Introduction to linear equations", 
-            "Basic concepts", 60, 1L, "Algebra", "Mathematics", 1L, 1L, true, now, now, now);
-        TopicDto dto2 = new TopicDto(1L, "Linear Equations", "LE001", "Introduction to linear equations", 
-            "Basic concepts", 60, 1L, "Algebra", "Mathematics", 1L, 1L, true, now, now, now);
-        TopicDto dto3 = new TopicDto(2L, "Quadratic Equations", "QE001", "Introduction to quadratic equations", 
-            "Advanced concepts", 90, 2L, "Geometry", "Physics", 2L, 2L, false, now, now, now);
+        TopicDto dto1 = new TopicDto(1L, "Linear Equations", "LE001", "Introduction to linear equations",
+            "Basic concepts", "Suggested topics", 60, 1L, "Algebra", "Mathematics", 1L, 1L, true, now, now, now);
+        TopicDto dto2 = new TopicDto(1L, "Linear Equations", "LE001", "Introduction to linear equations",
+            "Basic concepts", "Suggested topics", 60, 1L, "Algebra", "Mathematics", 1L, 1L, true, now, now, now);
+        TopicDto dto3 = new TopicDto(2L, "Quadratic Equations", "QE001", "Introduction to quadratic equations",
+            "Advanced concepts", "Suggested topics", 90, 2L, "Geometry", "Physics", 2L, 2L, false, now, now, now);
         
         assertEquals(dto1, dto2);
         assertNotEquals(dto1, dto3);

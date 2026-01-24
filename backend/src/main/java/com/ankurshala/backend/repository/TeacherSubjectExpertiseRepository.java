@@ -76,6 +76,18 @@ public interface TeacherSubjectExpertiseRepository extends JpaRepository<Teacher
             @Param("subjectId") Long subjectId, 
             @Param("gradeId") Long gradeId,
             @Param("boardId") Long boardId);
+
+    @Query("SELECT DISTINCT tse.teacher.user.id FROM TeacherSubjectExpertise tse " +
+           "JOIN tse.teacher t " +
+           "WHERE tse.subject.id = :subjectId " +
+           "AND (:gradeId IS NULL OR tse.grade.id = :gradeId) " +
+           "AND (:boardId IS NULL OR tse.board.id = :boardId) " +
+           "AND tse.isActive = true " +
+           "AND t.status = 'ACTIVE'")
+    List<Long> findEligibleTeacherUserIds(
+            @Param("subjectId") Long subjectId,
+            @Param("gradeId") Long gradeId,
+            @Param("boardId") Long boardId);
     
     /**
      * Check if a teacher has expertise for a specific subject/grade/board combination

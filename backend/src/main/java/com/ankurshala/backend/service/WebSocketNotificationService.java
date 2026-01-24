@@ -1,6 +1,7 @@
 package com.ankurshala.backend.service;
 
 import com.ankurshala.backend.entity.Booking;
+import com.ankurshala.backend.repository.BookingDeclineRepository;
 import com.ankurshala.backend.repository.TeacherSubjectExpertiseRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +20,9 @@ public class WebSocketNotificationService {
     
     @Autowired
     private TeacherSubjectExpertiseRepository teacherSubjectExpertiseRepository;
+
+    @Autowired
+    private BookingDeclineRepository bookingDeclineRepository;
     
     public WebSocketNotificationService(SimpMessagingTemplate messagingTemplate) {
         this.messagingTemplate = messagingTemplate;
@@ -112,9 +116,7 @@ public class WebSocketNotificationService {
         log.info("Found {} teachers with matching expertise", matchingTeacherIds.size());
         
         if (matchingTeacherIds.isEmpty()) {
-            log.warn("No teachers found with matching expertise for booking {}. Broadcasting to all teachers as fallback.", 
-                booking.getId());
-            broadcastToAllTeachers(booking);
+            log.warn("No teachers found with matching expertise for booking {}.", booking.getId());
             return;
         }
         
@@ -137,6 +139,9 @@ public class WebSocketNotificationService {
         // Send notification to each matching teacher individually
         int notifiedCount = 0;
         for (Long teacherId : matchingTeacherIds) {
+            if (bookingDeclineRepository.existsByBookingIdAndTeacherId(booking.getId(), teacherId)) {
+                continue;
+            }
             try {
                 String destination = "/topic/teacher/" + teacherId;
                 messagingTemplate.convertAndSend(destination, notification);
@@ -146,11 +151,6 @@ public class WebSocketNotificationService {
                 log.error("Failed to send notification to teacher {}: {}", teacherId, e.getMessage());
             }
         }
-        
-        // Also send to general teachers topic for any legacy listeners
-        String generalDestination = "/topic/teachers";
-        notification.put("matchingTeacherIds", matchingTeacherIds);
-        messagingTemplate.convertAndSend(generalDestination, notification);
         
         log.info("Broadcasted booking request {} to {} matching teachers", booking.getId(), notifiedCount);
     }
@@ -201,18 +201,39 @@ public class WebSocketNotificationService {
      * Notify teachers that a booking is no longer available
      * Used when one teacher accepts, others need to know it's taken
      */
-    public void notifyBookingNoLongerAvailable(Long bookingId) {
-        log.info("Notifying teachers that booking {} is no longer available", bookingId);
-        
+    public void notifyBookingNoLongerAvailable(Booking booking) {
+        if (booking.getTopic() == null) {
+            return;
+        }
+
+        log.info("Notifying teachers that booking {} is no longer available", booking.getId());
+
+        Long subjectId = booking.getTopic().getSubjectId();
+        Long gradeId = booking.getTopic().getGradeId();
+        Long boardId = booking.getTopic().getBoardId();
+
+        List<Long> matchingTeacherIds =
+            teacherSubjectExpertiseRepository.findEligibleTeacherIds(subjectId, gradeId, boardId);
+
+        if (matchingTeacherIds.isEmpty()) {
+            return;
+        }
+
         Map<String, Object> notification = new HashMap<>();
         notification.put("type", "booking.taken");
-        notification.put("bookingId", bookingId);
+        notification.put("bookingId", booking.getId());
         notification.put("message", "This booking has been accepted by another teacher");
-        
-        String destination = "/topic/teachers";
-        messagingTemplate.convertAndSend(destination, notification);
-        
-        log.info("Broadcasted booking taken notification");
+
+        for (Long teacherId : matchingTeacherIds) {
+            try {
+                String destination = "/topic/teacher/" + teacherId;
+                messagingTemplate.convertAndSend(destination, notification);
+            } catch (Exception e) {
+                log.error("Failed to send booking taken notification to teacher {}: {}", teacherId, e.getMessage());
+            }
+        }
+
+        log.info("Broadcasted booking taken notification to {} teachers", matchingTeacherIds.size());
     }
 
     /**
@@ -341,5 +362,21 @@ public class WebSocketNotificationService {
         messagingTemplate.convertAndSend(destination, notification);
         
         log.info("Sent booking completed notification to {}", destination);
+    }
+
+    public void notifyBookingExpired(Booking booking, String reason) {
+        log.info("Sending booking expired notification to student {}", booking.getStudent().getId());
+
+        Map<String, Object> notification = new HashMap<>();
+        notification.put("type", "booking.expired");
+        notification.put("bookingId", booking.getId());
+        notification.put("status", "EXPIRED");
+        notification.put("topicTitle", booking.getTopic() != null ? booking.getTopic().getTitle() : "Unknown");
+        notification.put("message", reason != null ? reason : "No teachers were available for this slot.");
+
+        String destination = "/topic/student/" + booking.getStudent().getId();
+        messagingTemplate.convertAndSend(destination, notification);
+
+        log.info("Sent booking expired notification to {}", destination);
     }
 }

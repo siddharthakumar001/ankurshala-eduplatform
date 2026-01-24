@@ -2,7 +2,9 @@ package com.ankurshala.backend.test;
 
 import com.ankurshala.backend.validation.IndianMobileNumberValidator;
 import com.ankurshala.backend.validation.IndianPincodeValidator;
+import com.ankurshala.backend.validation.FutureDateTime;
 import com.ankurshala.backend.validation.FutureDateTimeValidator;
+import com.ankurshala.backend.validation.ValidBookingDuration;
 import com.ankurshala.backend.validation.ValidBookingDurationValidator;
 import jakarta.validation.ConstraintValidatorContext;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,6 +35,15 @@ class ValidationTest {
         pincodeValidator = new IndianPincodeValidator();
         futureDateTimeValidator = new FutureDateTimeValidator();
         durationValidator = new ValidBookingDurationValidator();
+
+        FutureDateTime defaultFutureDateTime = mock(FutureDateTime.class);
+        when(defaultFutureDateTime.bufferMinutes()).thenReturn(0);
+        futureDateTimeValidator.initialize(defaultFutureDateTime);
+
+        ValidBookingDuration defaultDuration = mock(ValidBookingDuration.class);
+        when(defaultDuration.minMinutes()).thenReturn(30);
+        when(defaultDuration.maxMinutes()).thenReturn(180);
+        durationValidator.initialize(defaultDuration);
     }
 
     @Test
@@ -126,8 +137,9 @@ class ValidationTest {
     @Test
     void testFutureDateTimeWithBuffer() {
         // Test with custom buffer
-        futureDateTimeValidator.initialize(mock(com.ankurshala.backend.validation.FutureDateTime.class));
-        when(mock(com.ankurshala.backend.validation.FutureDateTime.class).bufferMinutes()).thenReturn(15);
+        FutureDateTime futureDateTime = mock(FutureDateTime.class);
+        when(futureDateTime.bufferMinutes()).thenReturn(15);
+        futureDateTimeValidator.initialize(futureDateTime);
         
         LocalDateTime futureTimeWithSmallBuffer = LocalDateTime.now(ZoneId.of("Asia/Kolkata")).plusMinutes(10);
         assertFalse(futureDateTimeValidator.isValid(futureTimeWithSmallBuffer, context));
@@ -139,9 +151,10 @@ class ValidationTest {
     @Test
     void testValidBookingDurationWithCustomLimits() {
         // Test with custom limits
-        durationValidator.initialize(mock(com.ankurshala.backend.validation.ValidBookingDuration.class));
-        when(mock(com.ankurshala.backend.validation.ValidBookingDuration.class).minMinutes()).thenReturn(45);
-        when(mock(com.ankurshala.backend.validation.ValidBookingDuration.class).maxMinutes()).thenReturn(120);
+        ValidBookingDuration bookingDuration = mock(ValidBookingDuration.class);
+        when(bookingDuration.minMinutes()).thenReturn(45);
+        when(bookingDuration.maxMinutes()).thenReturn(120);
+        durationValidator.initialize(bookingDuration);
         
         assertFalse(durationValidator.isValid(30, context)); // Below custom minimum
         assertTrue(durationValidator.isValid(60, context)); // Within custom range

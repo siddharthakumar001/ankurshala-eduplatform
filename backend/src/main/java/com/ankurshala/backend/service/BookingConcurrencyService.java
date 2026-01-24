@@ -106,7 +106,7 @@ public class BookingConcurrencyService {
             booking.setAcceptedAt(ZonedDateTime.now());
             
             // Find and set teacher entity
-            Teacher teacher = teacherRepository.findById(teacherId)
+            Teacher teacher = teacherRepository.findByUserId(teacherId)
                     .orElseThrow(() -> new IllegalArgumentException("Teacher not found"));
             booking.setTeacher(teacher.getUser());
             
@@ -159,7 +159,7 @@ public class BookingConcurrencyService {
         booking.setStatus(BookingStatus.ACCEPTED);
         booking.setAcceptedAt(ZonedDateTime.now());
         
-        Teacher teacher = teacherRepository.findById(teacherId)
+        Teacher teacher = teacherRepository.findByUserId(teacherId)
                 .orElseThrow(() -> new IllegalArgumentException("Teacher not found"));
         booking.setTeacher(teacher.getUser());
         
@@ -200,7 +200,8 @@ public class BookingConcurrencyService {
         validateNoTimeConflicts(teacherId, booking.getStartTs(), booking.getEndTs(), bookingId);
         
         // Atomic update query (CAS operation)
-        int rowsUpdated = bookingRepository.acceptBooking(bookingId, teacherId);
+        ZonedDateTime now = ZonedDateTime.now();
+        int rowsUpdated = bookingRepository.acceptBooking(bookingId, teacherId, now, now);
         
         boolean success = rowsUpdated > 0;
         
@@ -289,7 +290,7 @@ public class BookingConcurrencyService {
      */
     private void notifyOtherTeachersBookingTaken(Booking booking) {
         try {
-            webSocketService.notifyBookingNoLongerAvailable(booking.getId());
+            webSocketService.notifyBookingNoLongerAvailable(booking);
             log.info("[WEBSOCKET] Notified teachers that booking {} is no longer available", 
                     booking.getId());
         } catch (Exception e) {

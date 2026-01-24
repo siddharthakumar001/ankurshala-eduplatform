@@ -6,6 +6,7 @@ import com.ankurshala.backend.repository.BookingRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,9 +34,9 @@ public class BookingExpirationService {
 
     @Autowired
     private BookingRepository bookingRepository;
-    
+
     @Autowired
-    private WebSocketNotificationService webSocketService;
+    private KafkaTemplate<String, Object> kafkaTemplate;
 
     @Value("${booking.expiration.minutes:10}")
     private int expirationMinutes;
@@ -94,46 +95,25 @@ public class BookingExpirationService {
         try {
             log.info("[BOOKING_EXPIRATION] Expiring booking {} (created at: {}, no teacher accepted)", 
                     booking.getId(), booking.getCreatedAt());
-            
-            // Update booking status
-            booking.setStatus(BookingStatus.EXPIRED);
-            booking.setCancellationReason("No teacher accepted within " + expirationMinutes + " minutes");
-            booking.setCancelledAt(ZonedDateTime.now());
-            booking.setUpdatedAt(ZonedDateTime.now());
-            
-            bookingRepository.save(booking);
-            
-            // Notify student
-            notifyStudentOfExpiration(booking);
+
+            String reason = "No teacher accepted within " + expirationMinutes + " minutes";
+            ZonedDateTime now = ZonedDateTime.now();
+            int expired = bookingRepository.expireBookingIfPending(booking.getId(), reason, now, now);
+            if (expired == 0) {
+                return;
+            }
+
+            Map<String, Object> expireEvent = new HashMap<>();
+            expireEvent.put("bookingId", booking.getId());
+            expireEvent.put("studentId", booking.getStudentId());
+            expireEvent.put("reason", reason);
+            kafkaTemplate.send("booking.expired", booking.getId().toString(), expireEvent);
             
             log.info("[BOOKING_EXPIRATION] Successfully expired booking {}", booking.getId());
             
         } catch (Exception e) {
             log.error("[BOOKING_EXPIRATION] Failed to expire booking {}: {}", 
                     booking.getId(), e.getMessage(), e);
-        }
-    }
-
-    /**
-     * Notify student that their booking request expired
-     */
-    private void notifyStudentOfExpiration(Booking booking) {
-        try {
-            Map<String, Object> notification = new HashMap<>();
-            notification.put("type", "BOOKING_EXPIRED");
-            notification.put("bookingId", booking.getId());
-            notification.put("message", "Your booking request expired as no teacher was available. Please try again.");
-            notification.put("expirationMinutes", expirationMinutes);
-            notification.put("timestamp", ZonedDateTime.now());
-            
-            webSocketService.sendToUser(booking.getStudentId(), notification);
-            
-            log.info("[BOOKING_EXPIRATION] Notified student {} of booking {} expiration", 
-                    booking.getStudentId(), booking.getId());
-                    
-        } catch (Exception e) {
-            log.error("[BOOKING_EXPIRATION] Failed to notify student {}: {}", 
-                    booking.getStudentId(), e.getMessage(), e);
         }
     }
 

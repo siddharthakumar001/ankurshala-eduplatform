@@ -31,6 +31,15 @@ public interface TeacherAvailabilitySlotRepository extends JpaRepository<Teacher
     long countAvailableSlots(@Param("startTime") LocalDateTime startTime,
                              @Param("endTime") LocalDateTime endTime);
 
+    @Query("SELECT COUNT(DISTINCT s.teacher.id) FROM TeacherAvailabilitySlot s " +
+           "WHERE s.isAvailable = true AND s.startTime <= :startTime AND s.endTime >= :endTime " +
+           "AND s.teacher.id IN :teacherIds")
+    long countAvailableSlotsForTeachers(@Param("teacherIds") List<Long> teacherIds,
+                                        @Param("startTime") LocalDateTime startTime,
+                                        @Param("endTime") LocalDateTime endTime);
+
+    long countByTeacher(User teacher);
+
     @Query("SELECT s FROM TeacherAvailabilitySlot s " +
            "WHERE s.isAvailable = true AND s.startTime >= :startTime " +
            "ORDER BY s.startTime ASC")

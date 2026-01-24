@@ -26,7 +26,7 @@ public class SafetyModerationService {
             // Personal information requests
             Pattern.compile("(?i)(your|student'?s?)\\s*(phone|address|home|location|password|credit card|bank)", Pattern.CASE_INSENSITIVE),
             // Medical advice
-            Pattern.compile("(?i)(prescribe|diagnose|medical\\s+advice|take\\s+medication|symptoms\\s+of)", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("(?i)(prescribe|diagnose|medical\\s+advice|take\\s+medication|symptoms\\s+of|medicine\\b)", Pattern.CASE_INSENSITIVE),
             // Legal advice
             Pattern.compile("(?i)(legal\\s+advice|sue|lawsuit|attorney|lawyer\\s+recommend)", Pattern.CASE_INSENSITIVE),
             // Explicit content
@@ -34,7 +34,7 @@ public class SafetyModerationService {
             // Violence
             Pattern.compile("(?i)(kill|murder|weapon|bomb|attack|hurt\\s+someone)", Pattern.CASE_INSENSITIVE),
             // Self-harm
-            Pattern.compile("(?i)(suicide|self[\\s-]?harm|cut\\s+myself|end\\s+my\\s+life)", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("(?i)(suicide|self[\\s-]?harm|cut\\s+myself|end\\s+my\\s+life|hurt\\s+myself)", Pattern.CASE_INSENSITIVE),
             // Drugs/Alcohol
             Pattern.compile("(?i)(buy\\s+drugs|sell\\s+drugs|get\\s+drunk|alcohol\\s+underage)", Pattern.CASE_INSENSITIVE),
             // Cheating/Dishonesty
@@ -50,7 +50,7 @@ public class SafetyModerationService {
 
     // Prompt injection patterns
     private static final List<Pattern> INJECTION_PATTERNS = Arrays.asList(
-            Pattern.compile("(?i)(ignore\\s+(previous|all|above)\\s+instructions)", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("(?i)(ignore\\s+(all\\s+)?(previous|above|earlier)\\s+instructions)", Pattern.CASE_INSENSITIVE),
             Pattern.compile("(?i)(you\\s+are\\s+now|pretend\\s+to\\s+be|act\\s+as\\s+if)", Pattern.CASE_INSENSITIVE),
             Pattern.compile("(?i)(system\\s*:?\\s*prompt|\\[system\\]|<\\|im_start\\|>)", Pattern.CASE_INSENSITIVE),
             Pattern.compile("(?i)(bypass|override|disable)\\s+.*?(safety|filter|restriction)", Pattern.CASE_INSENSITIVE),
@@ -204,7 +204,7 @@ public class SafetyModerationService {
         if (lowered.contains("suicide") || lowered.contains("self-harm") || lowered.contains("hurt myself")) {
             return "SELF_HARM";
         }
-        if (lowered.contains("medical") || lowered.contains("prescribe") || lowered.contains("diagnose") || lowered.contains("medication")) {
+        if (lowered.contains("medical") || lowered.contains("prescribe") || lowered.contains("diagnose") || lowered.contains("medication") || lowered.contains("medicine") || lowered.contains("symptoms")) {
             return "MEDICAL";
         }
         if (lowered.contains("legal") || lowered.contains("lawyer") || lowered.contains("sue")) {
