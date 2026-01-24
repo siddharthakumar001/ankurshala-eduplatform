@@ -55,11 +55,17 @@ function DiscoverContent() {
   const [selectedChapter, setSelectedChapter] = useState<string>('')
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null)
   
-  const [loading, setLoading] = useState(false)
+  const [subjectsLoading, setSubjectsLoading] = useState(false)
+  const [chaptersLoading, setChaptersLoading] = useState(false)
+  const [topicsLoading, setTopicsLoading] = useState(false)
   const [profileLoading, setProfileLoading] = useState(true)
   const [addingToList, setAddingToList] = useState(false)
-  
+  const [subjectsNotice, setSubjectsNotice] = useState('')
+  const [chaptersNotice, setChaptersNotice] = useState('')
+  const [topicsNotice, setTopicsNotice] = useState('')
+
   const router = useRouter()
+  const loading = subjectsLoading || chaptersLoading || topicsLoading
 
   // Load student profile on mount - auth already verified by StudentRoute
   useEffect(() => {
@@ -111,7 +117,8 @@ function DiscoverContent() {
     if (!grade) return
 
     try {
-      setLoading(true)
+      setSubjectsLoading(true)
+      setSubjectsNotice('')
       // Get subjects directly using board and grade names from profile
       const data = await contentAPI.getSubjectsByBoardAndGrade(
         studentProfile.educationalBoard,
@@ -120,44 +127,54 @@ function DiscoverContent() {
       setSubjects(data)
       
       if (data.length === 0) {
-        toast.info('No subjects available for your board and grade yet')
+        setSubjectsNotice(
+          `Content for ${studentProfile.educationalBoard} - ${formatGradeDisplay(grade)} is coming soon.`
+        )
       }
     } catch (error: any) {
       console.error('Failed to load subjects:', error)
-      // If direct lookup fails, try the fallback approach
-      if (error.response?.status === 404) {
-        toast.error('No content found for your board and grade combination')
-      } else {
-        toast.error('Failed to load subjects')
-      }
+      setSubjects([])
+      setSubjectsNotice(
+        `Content for ${studentProfile.educationalBoard} - ${formatGradeDisplay(grade)} is coming soon.`
+      )
     } finally {
-      setLoading(false)
+      setSubjectsLoading(false)
     }
   }, [studentProfile])
 
   const loadChapters = useCallback(async () => {
     try {
-      setLoading(true)
+      setChaptersLoading(true)
+      setChaptersNotice('')
       const data = await contentAPI.getChaptersBySubject(Number(selectedSubject))
       setChapters(data)
+      if (data.length === 0) {
+        setChaptersNotice('Chapters for this subject are coming soon.')
+      }
     } catch (error) {
       console.error('Failed to load chapters:', error)
-      toast.error('Failed to load chapters')
+      setChapters([])
+      setChaptersNotice('Chapters for this subject are coming soon.')
     } finally {
-      setLoading(false)
+      setChaptersLoading(false)
     }
   }, [selectedSubject])
 
   const loadTopics = useCallback(async () => {
     try {
-      setLoading(true)
+      setTopicsLoading(true)
+      setTopicsNotice('')
       const data = await contentAPI.getTopicsByChapter(Number(selectedChapter))
       setTopics(data)
+      if (data.length === 0) {
+        setTopicsNotice('Topics for this chapter are coming soon.')
+      }
     } catch (error) {
       console.error('Failed to load topics:', error)
-      toast.error('Failed to load topics')
+      setTopics([])
+      setTopicsNotice('Topics for this chapter are coming soon.')
     } finally {
-      setLoading(false)
+      setTopicsLoading(false)
     }
   }, [selectedChapter])
 
@@ -263,7 +280,15 @@ function DiscoverContent() {
                   disabled={subjects.length === 0}
                 >
                   <SelectTrigger className="input-modern">
-                    <SelectValue placeholder={subjects.length > 0 ? "Select Subject" : "Loading subjects..."} />
+                    <SelectValue
+                      placeholder={
+                        subjectsLoading
+                          ? 'Loading subjects...'
+                          : subjects.length > 0
+                            ? 'Select Subject'
+                            : subjectsNotice || 'Content coming soon'
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {subjects.map(subject => (
@@ -285,7 +310,15 @@ function DiscoverContent() {
                   disabled={!selectedSubject}
                 >
                   <SelectTrigger className="input-modern">
-                    <SelectValue placeholder="Select Chapter" />
+                    <SelectValue
+                      placeholder={
+                        chaptersLoading
+                          ? 'Loading chapters...'
+                          : chapters.length > 0
+                            ? 'Select Chapter'
+                            : chaptersNotice || 'Chapters coming soon'
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {chapters.map(chapter => (
@@ -399,6 +432,21 @@ function DiscoverContent() {
           </Card>
         )}
 
+        {/* No Chapters Available */}
+        {selectedSubject && chapters.length === 0 && !chaptersLoading && (
+          <Card className="glass-panel border border-white/40">
+            <CardContent className="p-12 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-500/15 flex items-center justify-center">
+                <BookOpen className="h-8 w-8 text-amber-500" />
+              </div>
+              <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">Chapters Coming Soon</h3>
+              <p className="text-slate-500 dark:text-slate-300">
+                {chaptersNotice || 'We are preparing chapters for this subject.'}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* No Subjects Available */}
         {!loading && subjects.length === 0 && studentProfile && (
           <Card className="glass-panel border border-white/40">
@@ -406,12 +454,9 @@ function DiscoverContent() {
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-500/15 flex items-center justify-center">
                 <BookOpen className="h-8 w-8 text-amber-500" />
               </div>
-              <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">No Content Available Yet</h3>
+              <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">Content Coming Soon</h3>
               <p className="text-slate-500 dark:text-slate-300">
-                Content for {studentProfile.educationalBoard} - {formatGradeDisplay(studentProfile.classLevel || studentProfile.gradeLevel)} is being prepared
-              </p>
-              <p className="text-sm text-slate-400 mt-2">
-                Please check back later or contact support
+                {subjectsNotice || `We are preparing content for ${studentProfile.educationalBoard} - ${formatGradeDisplay(studentProfile.classLevel || studentProfile.gradeLevel)}.`}
               </p>
             </CardContent>
           </Card>
@@ -424,9 +469,9 @@ function DiscoverContent() {
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-500/10 flex items-center justify-center">
                 <BookOpen className="h-8 w-8 text-slate-400" />
               </div>
-              <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">No Topics Found</h3>
+              <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">Topics Coming Soon</h3>
               <p className="text-slate-500 dark:text-slate-300">
-                No topics available for the selected chapter yet
+                {topicsNotice || 'We are preparing topics for this chapter.'}
               </p>
             </CardContent>
           </Card>

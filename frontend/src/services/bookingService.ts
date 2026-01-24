@@ -96,6 +96,22 @@ export interface CancelBookingRequest {
   reason: string
 }
 
+export interface FeePreviewRequest {
+  action: 'CANCEL' | 'RESCHEDULE'
+}
+
+export interface FeePreviewResponse {
+  fee: number
+  currency: string
+  reason: string
+  waived: boolean
+}
+
+export interface AvailableSlot {
+  startTime: string
+  endTime: string
+}
+
 export interface CalendarEvent {
   id: number
   title: string
@@ -296,6 +312,45 @@ class BookingService {
       console.log('BookingService: Bookmark updated')
     } catch (error) {
       console.error('BookingService: Bookmark failed:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Get fee preview for cancel/reschedule actions
+   */
+  async getFeePreview(bookingId: number, request: FeePreviewRequest): Promise<FeePreviewResponse> {
+    const url = `${this.baseUrl}/${bookingId}/fee-preview`
+    console.log('BookingService: Getting fee preview:', bookingId, request.action)
+
+    try {
+      const response = await api.post<FeePreviewResponse>(url, request)
+      return response.data
+    } catch (error) {
+      console.error('BookingService: Fee preview failed:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Get next available slots for the requested time
+   */
+  async getNextAvailableSlots(params: {
+    startTime: string
+    durationMinutes: number
+    timezone?: string
+    limit?: number
+  }): Promise<AvailableSlot[]> {
+    const limit = params.limit ?? 3
+    const timezone = params.timezone ? `&timezone=${encodeURIComponent(params.timezone)}` : ''
+    const url = `${this.baseUrl}/availability/next?start=${encodeURIComponent(params.startTime)}&durationMinutes=${params.durationMinutes}&limit=${limit}${timezone}`
+    console.log('BookingService: Getting next available slots:', params.startTime)
+
+    try {
+      const response = await api.get<AvailableSlot[]>(url)
+      return response.data
+    } catch (error) {
+      console.error('BookingService: Next availability failed:', error)
       throw error
     }
   }

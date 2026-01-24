@@ -1824,6 +1824,7 @@ function TopicsTab() {
   const { data: boardsDropdown } = useBoardsDropdown()
   const { data: gradesDropdown } = useGradesDropdown(selectedBoard || undefined)
   const { data: subjectsDropdown } = useSubjectsDropdown(selectedGrade || undefined)
+  const { data: allSubjectsDropdown } = useSubjectsDropdown()
   const { data: chaptersDropdown } = useChaptersDropdown(selectedSubject || undefined)
   const { data: formGradesDropdown } = useGradesDropdown(formData.boardId || undefined)
   const { data: formSubjectsDropdown } = useSubjectsDropdown(formData.gradeId || undefined)
@@ -1835,6 +1836,10 @@ function TopicsTab() {
 
   const topics = topicsData?.content || []
   const totalElements = topicsData?.totalElements || 0
+  const hasFormGradeOption =
+    !!formData.gradeId && formGradesDropdown?.some((grade) => grade.id === formData.gradeId)
+  const hasFormSubjectOption =
+    !!formData.subjectId && formSubjectsDropdown?.some((subject) => subject.id === formData.subjectId)
 
   // Handle filter changes
   const onFilterChange = () => {
@@ -1859,6 +1864,20 @@ function TopicsTab() {
       setIsCreateDialogOpen(true)
     }
   }
+
+  useEffect(() => {
+    if (!editingTopic) return
+    if (!formData.subjectId) return
+
+    const subjectInfo = allSubjectsDropdown?.find((subject) => subject.id === formData.subjectId)
+    if (!subjectInfo) return
+
+    setFormData((prev) => ({
+      ...prev,
+      gradeId: prev.gradeId || subjectInfo.gradeId,
+      boardId: prev.boardId || subjectInfo.boardId
+    }))
+  }, [editingTopic, formData.subjectId, formData.gradeId, formData.boardId, allSubjectsDropdown])
 
   return (
     <Card className="glass">
@@ -1995,16 +2014,22 @@ function TopicsTab() {
                         size="sm"
                         onClick={() => {
                           setEditingTopic(topic)
-                          setFormData({ 
-                            title: topic.title, 
-                            chapterId: topic.chapterId,
-                            boardId: topic.boardId,
-                            gradeId: selectedGrade || 0,
-                            subjectId: topic.subjectId,
+                          const derivedGradeId =
+                            topic.gradeId ||
+                            selectedGrade ||
+                            allSubjectsDropdown?.find((subject) => subject.id === topic.subjectId)?.gradeId ||
+                            0
+
+                          setFormData({
+                            title: topic.title,
+                            chapterId: topic.chapterId || selectedChapter || 0,
+                            boardId: topic.boardId || selectedBoard || 0,
+                            gradeId: derivedGradeId,
+                            subjectId: topic.subjectId || selectedSubject || 0,
                             description: topic.description || '',
                             summary: topic.summary || '',
                             expectedTimeMins: topic.expectedTimeMins || 0,
-                            active: topic.active 
+                            active: topic.active
                           })
                           setIsEditDialogOpen(true)
                         }}
@@ -2163,16 +2188,8 @@ function TopicsTab() {
                 <Label htmlFor="edit-board">Board</Label>
                 <Select
                   value={(formData.boardId || 0).toString()}
-                  onValueChange={(value) => {
-                    const boardId = parseInt(value)
-                    setFormData((prev) => ({
-                      ...prev,
-                      boardId,
-                      gradeId: 0,
-                      subjectId: 0,
-                      chapterId: 0
-                    }))
-                  }}
+                  onValueChange={() => {}}
+                  disabled
                 >
                   <SelectTrigger id="edit-board">
                     <SelectValue placeholder="Select board" />
@@ -2191,22 +2208,19 @@ function TopicsTab() {
                 <Label htmlFor="edit-grade">Grade</Label>
                 <Select
                   value={(formData.gradeId || 0).toString()}
-                  onValueChange={(value) => {
-                    const gradeId = parseInt(value)
-                    setFormData((prev) => ({
-                      ...prev,
-                      gradeId,
-                      subjectId: 0,
-                      chapterId: 0
-                    }))
-                  }}
-                  disabled={!formData.boardId}
+                  onValueChange={() => {}}
+                  disabled
                 >
                   <SelectTrigger id="edit-grade">
                     <SelectValue placeholder="Select grade" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="0">Select Grade</SelectItem>
+                    {!hasFormGradeOption && editingTopic?.gradeName && formData.gradeId ? (
+                      <SelectItem value={formData.gradeId.toString()}>
+                        {editingTopic.gradeName}
+                      </SelectItem>
+                    ) : null}
                     {formGradesDropdown?.map((grade) => (
                       <SelectItem key={grade.id} value={grade.id.toString()}>
                         {grade.displayName}
@@ -2219,21 +2233,19 @@ function TopicsTab() {
                 <Label htmlFor="edit-subject">Subject</Label>
                 <Select
                   value={(formData.subjectId || 0).toString()}
-                  onValueChange={(value) => {
-                    const subjectId = parseInt(value)
-                    setFormData((prev) => ({
-                      ...prev,
-                      subjectId,
-                      chapterId: 0
-                    }))
-                  }}
-                  disabled={!formData.gradeId}
+                  onValueChange={() => {}}
+                  disabled
                 >
                   <SelectTrigger id="edit-subject">
                     <SelectValue placeholder="Select subject" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="0">Select Subject</SelectItem>
+                    {!hasFormSubjectOption && editingTopic?.subjectName && formData.subjectId ? (
+                      <SelectItem value={formData.subjectId.toString()}>
+                        {editingTopic.subjectName}
+                      </SelectItem>
+                    ) : null}
                     {formSubjectsDropdown?.map((subject) => (
                       <SelectItem key={subject.id} value={subject.id.toString()}>
                         {subject.name}
@@ -2246,14 +2258,8 @@ function TopicsTab() {
                 <Label htmlFor="edit-chapter">Chapter</Label>
                 <Select
                   value={(formData.chapterId || 0).toString()}
-                  onValueChange={(value) => {
-                    const chapterId = parseInt(value)
-                    setFormData((prev) => ({
-                      ...prev,
-                      chapterId
-                    }))
-                  }}
-                  disabled={!formData.subjectId}
+                  onValueChange={() => {}}
+                  disabled
                 >
                   <SelectTrigger id="edit-chapter">
                     <SelectValue placeholder="Select chapter" />
@@ -2327,8 +2333,6 @@ function TopicsTab() {
                 onClick={async () => {
                   if (!editingTopic) return
 
-                  const normalizeId = (value: number) => (value && value > 0 ? value : undefined)
-
                   try {
                     await updateTopicMutation.mutateAsync({
                       id: editingTopic.id,
@@ -2337,10 +2341,6 @@ function TopicsTab() {
                         description: formData.description,
                         summary: formData.summary,
                         expectedTimeMins: formData.expectedTimeMins || undefined,
-                        boardId: normalizeId(formData.boardId),
-                        gradeId: normalizeId(formData.gradeId),
-                        subjectId: normalizeId(formData.subjectId),
-                        chapterId: normalizeId(formData.chapterId),
                         active: formData.active 
                       }
                     })

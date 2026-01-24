@@ -158,29 +158,30 @@ public class RateLimitFilter implements Filter {
      */
     private boolean isTransactionalEndpoint(String uri) {
         // Authentication endpoints
-        if (uri.contains("/auth/login") || uri.contains("/auth/signup") || 
-            uri.contains("/auth/register")) {
+        if (uri.contains("/auth/login") || uri.contains("/auth/signin") ||
+            uri.contains("/auth/signup") || uri.contains("/auth/register") ||
+            uri.contains("/auth/refresh") || uri.contains("/auth/logout")) {
             return true;
         }
 
         // Content upload/import endpoints
-        if ((uri.contains("/content/upload") || uri.contains("/content/import")) && 
+        if ((uri.contains("/content/upload") || uri.contains("/content/import")) &&
             uri.contains("/admin/")) {
             return true;
         }
 
-        // Payment endpoints
-        if (uri.contains("/payment")) {
+        // Payment and wallet endpoints
+        if (uri.contains("/payment") || uri.contains("/payments") || uri.contains("/wallet")) {
             return true;
         }
 
-        // Booking creation (POST only)
-        if (uri.contains("/booking") && !uri.endsWith("/bookings")) {
+        // Booking creation/updates
+        if (uri.contains("/booking") || uri.contains("/bookings")) {
             return true;
         }
 
         // Notification sending
-        if (uri.contains("/notification") && uri.contains("/send")) {
+        if (uri.contains("/notifications/broadcast") || (uri.contains("/notification") && uri.contains("/send"))) {
             return true;
         }
 

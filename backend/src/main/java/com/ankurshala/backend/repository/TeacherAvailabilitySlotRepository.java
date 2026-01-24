@@ -4,6 +4,7 @@ import com.ankurshala.backend.entity.TeacherAvailabilitySlot;
 import com.ankurshala.backend.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
@@ -24,4 +25,15 @@ public interface TeacherAvailabilitySlotRepository extends JpaRepository<Teacher
     List<TeacherAvailabilitySlot> findByTeacherAndTimeRange(@Param("teacher") User teacher,
                                                            @Param("from") LocalDateTime from,
                                                            @Param("to") LocalDateTime to);
+
+    @Query("SELECT COUNT(s) FROM TeacherAvailabilitySlot s " +
+           "WHERE s.isAvailable = true AND s.startTime <= :startTime AND s.endTime >= :endTime")
+    long countAvailableSlots(@Param("startTime") LocalDateTime startTime,
+                             @Param("endTime") LocalDateTime endTime);
+
+    @Query("SELECT s FROM TeacherAvailabilitySlot s " +
+           "WHERE s.isAvailable = true AND s.startTime >= :startTime " +
+           "ORDER BY s.startTime ASC")
+    List<TeacherAvailabilitySlot> findNextAvailableSlots(@Param("startTime") LocalDateTime startTime,
+                                                         Pageable pageable);
 }

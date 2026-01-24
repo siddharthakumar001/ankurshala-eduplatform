@@ -262,3 +262,5 @@ app:
       /public/teachers/search:
         limit: 30
         window-seconds: 60  # 30 searches per minute
+  legacy-rate-limit:
+    enabled: false

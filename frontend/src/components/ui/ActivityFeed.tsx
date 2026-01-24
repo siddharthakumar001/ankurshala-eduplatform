@@ -98,7 +98,7 @@ export default function ActivityFeed({
             onClick={onViewAll}
             className="text-sm text-ankur-primary hover:text-ankur-primary-dark font-medium"
           >
-            View all activity >
+            View all activity &gt;
           </button>
         </div>
       )}

@@ -117,6 +117,7 @@ interface FeePreviewModalProps {
   feeAmount: number;
   finalAmount: number;
   reason: string;
+  currency?: string;
   isLoading?: boolean;
 }
 
@@ -129,10 +130,12 @@ export function FeePreviewModal({
   feeAmount,
   finalAmount,
   reason,
+  currency = 'INR',
   isLoading = false,
 }: FeePreviewModalProps) {
   const isRefund = finalAmount > originalAmount;
   const refundAmount = isRefund ? finalAmount - originalAmount : 0;
+  const formatCurrency = (value: number) => `${currency} ${value.toFixed(0)}`;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

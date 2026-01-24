@@ -134,6 +134,21 @@ public class StudentBookingController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/availability/next")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<List<AvailableSlotResponse>> getNextAvailableSlots(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
+            @RequestParam int durationMinutes,
+            @RequestParam(required = false) String timezone,
+            @RequestParam(defaultValue = "3") int limit,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        log.info("Getting next available slots for student {} from {}", userPrincipal.getId(), start);
+
+        List<AvailableSlotResponse> slots = bookingService.getNextAvailableSlots(start, durationMinutes, timezone, limit);
+        return ResponseEntity.ok(slots);
+    }
+
     @PostMapping("/{id}/fee-preview")
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<FeePreviewResponse> getFeePreview(

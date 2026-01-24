@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -27,6 +28,7 @@ import java.util.Map;
 @Slf4j
 @Component
 @Order(1) // Execute before security filters
+@ConditionalOnProperty(prefix = "app.legacy-rate-limit", name = "enabled", havingValue = "true")
 public class RateLimitingFilter implements Filter {
 
     @Autowired
@@ -44,8 +46,8 @@ public class RateLimitingFilter implements Filter {
         
         String requestURI = httpRequest.getRequestURI();
         
-        // Skip rate limiting for health checks and static resources
-        if (shouldSkipRateLimit(requestURI)) {
+        // Skip rate limiting for health checks, static resources, and non-transactional requests
+        if (shouldSkipRateLimit(requestURI, httpRequest.getMethod())) {
             chain.doFilter(request, response);
             return;
         }
@@ -82,7 +84,11 @@ public class RateLimitingFilter implements Filter {
         chain.doFilter(request, response);
     }
 
-    private boolean shouldSkipRateLimit(String requestURI) {
+    private boolean shouldSkipRateLimit(String requestURI, String method) {
+        if ("GET".equalsIgnoreCase(method)) {
+            return true;
+        }
+
         return requestURI.startsWith("/api/actuator/") ||
                requestURI.equals("/api/csrf") ||
                requestURI.startsWith("/api/test/") ||

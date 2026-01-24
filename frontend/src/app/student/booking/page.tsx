@@ -10,8 +10,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { StudentRoute } from '@/components/route-guard'
-import { contentService, SubjectDropdown, ChapterDropdown, TopicDropdown, TopicDetail } from '@/services/contentService'
-import { bookingService, BookingQuote } from '@/services/bookingService'
+import { contentService, SubjectDropdown, TopicDropdown, TopicDetail } from '@/services/contentService'
+import { bookingService, BookingQuote, AvailableSlot } from '@/services/bookingService'
 import { studentAPI } from '@/lib/apiClient'
 import { toast } from 'sonner'
 import { 
@@ -25,6 +25,10 @@ import {
   ArrowLeft,
   ArrowRight
 } from 'lucide-react'
+
+interface TopicOption extends TopicDropdown {
+  chapterName?: string
+}
 
 // Two-component pattern: StudentRoute wraps inner content to ensure auth before API calls
 export default function StudentBookingPage() {
@@ -50,7 +54,6 @@ function BookingContent() {
   
   // Form data
   const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(null)
-  const [selectedChapterId, setSelectedChapterId] = useState<number | null>(null)
   const [selectedTopicId, setSelectedTopicId] = useState<number | null>(null)
   const [selectedTopic, setSelectedTopic] = useState<TopicDetail | null>(null)
   const [selectedDate, setSelectedDate] = useState<string>('')
@@ -60,10 +63,16 @@ function BookingContent() {
   
   // API data
   const [subjects, setSubjects] = useState<SubjectDropdown[]>([])
-  const [chapters, setChapters] = useState<ChapterDropdown[]>([])
-  const [topics, setTopics] = useState<TopicDropdown[]>([])
+  const [topics, setTopics] = useState<TopicOption[]>([])
   const [bookingQuote, setBookingQuote] = useState<BookingQuote | null>(null)
   const [studentGradeId, setStudentGradeId] = useState<number | null>(null)
+  const [subjectsLoading, setSubjectsLoading] = useState(false)
+  const [topicsLoading, setTopicsLoading] = useState(false)
+  const [subjectsNotice, setSubjectsNotice] = useState('')
+  const [topicsNotice, setTopicsNotice] = useState('')
+  const [availabilityNotice, setAvailabilityNotice] = useState<string | null>(null)
+  const [availabilitySlots, setAvailabilitySlots] = useState<AvailableSlot[]>([])
+  const [availabilityLoading, setAvailabilityLoading] = useState(false)
 
   // Load student profile to get gradeId
   useEffect(() => {
@@ -95,13 +104,54 @@ function BookingContent() {
     }
   }, [studentGradeId])
 
+  useEffect(() => {
+    if (!selectedTopic) return
+    const expectedMinutes = selectedTopic.expectedMinutes || 60
+    setDurationMinutes(Math.min(expectedMinutes, 60))
+  }, [selectedTopic])
+
+  useEffect(() => {
+    setAvailabilityNotice(null)
+    setAvailabilitySlots([])
+  }, [selectedTopicId, selectedDate, selectedTime])
+
+  const loadNextAvailableSlots = async () => {
+    if (!selectedDate || !selectedTime || !durationMinutes) {
+      return
+    }
+
+    try {
+      setAvailabilityLoading(true)
+      const slots = await bookingService.getNextAvailableSlots({
+        startTime: buildStartTime(),
+        durationMinutes,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        limit: 3
+      })
+      setAvailabilitySlots(slots)
+    } catch (error) {
+      console.error('Failed to load next available slots:', error)
+      setAvailabilitySlots([])
+    } finally {
+      setAvailabilityLoading(false)
+    }
+  }
+
   const loadSubjects = async (gradeId: number) => {
     try {
+      setSubjectsLoading(true)
+      setSubjectsNotice('')
       const subjectsList = await contentService.getSubjectsByGrade(gradeId)
       setSubjects(subjectsList)
+      if (subjectsList.length === 0) {
+        setSubjectsNotice('Content for your grade is coming soon.')
+      }
     } catch (error) {
       console.error('Failed to load subjects:', error)
-      toast.error('Failed to load subjects')
+      setSubjects([])
+      setSubjectsNotice('Content for your grade is coming soon.')
+    } finally {
+      setSubjectsLoading(false)
     }
   }
 
@@ -112,13 +162,11 @@ function BookingContent() {
       const path = await contentService.getTopicFullPath(topicId)
       
       setSelectedSubjectId(path.subject.id)
-      setSelectedChapterId(path.chapter.id)
       setSelectedTopicId(topicId)
       setSelectedTopic(topicDetail)
       
       // Load related data
-      await loadChapters(path.subject.id)
-      await loadTopics(path.chapter.id)
+      await loadTopicsForSubject(path.subject.id)
     } catch (error: any) {
       toast.error('Failed to load topic details')
       console.error(error)
@@ -127,30 +175,50 @@ function BookingContent() {
     }
   }
 
-  const loadChapters = async (subjectId: number) => {
+  const loadTopicsForSubject = async (subjectId: number) => {
     try {
+      setTopicsLoading(true)
+      setTopicsNotice('')
       const chapterList = await contentService.getChaptersBySubject(subjectId)
-      setChapters(chapterList)
-    } catch (error) {
-      console.error('Failed to load chapters:', error)
-    }
-  }
 
-  const loadTopics = async (chapterId: number) => {
-    try {
-      const topicList = await contentService.getTopicsByChapter(chapterId)
-      setTopics(topicList)
+      if (chapterList.length === 0) {
+        setTopics([])
+        setTopicsNotice('Topics for this subject are coming soon.')
+        return
+      }
+
+      const topicGroups = await Promise.all(
+        chapterList.map(async (chapter) => {
+          const chapterTopics = await contentService.getTopicsByChapter(chapter.id)
+          return chapterTopics.map((topic) => ({
+            ...topic,
+            chapterName: chapter.name
+          }))
+        })
+      )
+
+      const flattened = topicGroups.flat()
+      setTopics(flattened)
+      if (flattened.length === 0) {
+        setTopicsNotice('Topics for this subject are coming soon.')
+      }
     } catch (error) {
       console.error('Failed to load topics:', error)
+      setTopics([])
+      setTopicsNotice('Topics for this subject are coming soon.')
+    } finally {
+      setTopicsLoading(false)
     }
   }
 
-  const handleChapterChange = async (chapterId: string) => {
-    const id = parseInt(chapterId)
-    setSelectedChapterId(id)
+  const handleSubjectChange = async (subjectId: string) => {
+    const id = parseInt(subjectId)
+    setSelectedSubjectId(id)
     setSelectedTopicId(null)
     setSelectedTopic(null)
-    await loadTopics(id)
+    setBookingQuote(null)
+    setStep(1)
+    await loadTopicsForSubject(id)
   }
 
   const handleTopicChange = async (topicId: string) => {
@@ -159,6 +227,8 @@ function BookingContent() {
     try {
       const topicDetail = await contentService.getTopicById(id)
       setSelectedTopic(topicDetail)
+      setBookingQuote(null)
+      setStep(1)
     } catch (error) {
       toast.error('Failed to load topic details')
     }
@@ -174,6 +244,8 @@ function BookingContent() {
 
     setIsLoading(true)
     setError(null)
+    setAvailabilityNotice(null)
+    setAvailabilitySlots([])
 
     try {
       const quote = await bookingService.getQuote({
@@ -188,10 +260,15 @@ function BookingContent() {
       }
 
       setBookingQuote(quote)
+      setAvailabilityNotice(null)
       setStep(2)
     } catch (err: any) {
-      const message = err.response?.data?.message || 'Failed to get booking quote'
+      const message = err.response?.data?.message || 'Failed to calculate price range'
       setError(message)
+      if (message.toLowerCase().includes('no teachers')) {
+        setAvailabilityNotice(message)
+        loadNextAvailableSlots()
+      }
       toast.error(message)
     } finally {
       setIsLoading(false)
@@ -206,6 +283,8 @@ function BookingContent() {
 
     setIsLoading(true)
     setError(null)
+    setAvailabilityNotice(null)
+    setAvailabilitySlots([])
 
     try {
       await bookingService.createBooking({
@@ -217,15 +296,15 @@ function BookingContent() {
       })
 
       toast.success('Booking request submitted successfully!')
+      setAvailabilityNotice(null)
       setStep(3)
-      
-      // Redirect to calendar after 2 seconds
-      setTimeout(() => {
-        router.push('/student/calendar')
-      }, 2000)
     } catch (err: any) {
       const message = err.response?.data?.message || 'Failed to create booking'
       setError(message)
+      if (message.toLowerCase().includes('no teachers')) {
+        setAvailabilityNotice(message)
+        loadNextAvailableSlots()
+      }
       toast.error(message)
     } finally {
       setIsLoading(false)
@@ -250,11 +329,11 @@ function BookingContent() {
   const today = new Date().toISOString().split('T')[0]
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-4xl">
-        <div className="page-header flex items-center justify-between mb-6">
+    <div className="space-y-6">
+        <div className="page-header flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white">Book a Class</h1>
-            <p className="text-white/80">Schedule a session with expert teachers</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-white">Book a Class</h1>
+            <p className="text-sm text-white/80 mt-1">Choose a topic, pick a time, and we will match a teacher</p>
           </div>
           <Badge variant="outline" className="border-white/40 text-white">
             Step {step} of 3
@@ -319,41 +398,53 @@ function BookingContent() {
               )}
 
               {/* Manual Topic Selection (if not from discover) */}
-              {!selectedTopic && chapters.length > 0 && (
+              {!selectedTopic && (
                 <>
                   <div>
-                    <Label htmlFor="chapter" className="dark:text-gray-300">Chapter *</Label>
-                    <Select onValueChange={handleChapterChange} value={selectedChapterId?.toString() || ''}>
+                    <Label htmlFor="subject" className="dark:text-gray-300">Subject *</Label>
+                    <Select onValueChange={handleSubjectChange} value={selectedSubjectId?.toString() || ''}>
                       <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                        <SelectValue placeholder="Select a chapter" />
+                        <SelectValue placeholder={subjectsLoading ? 'Loading subjects...' : 'Select a subject'} />
                       </SelectTrigger>
                       <SelectContent className="dark:bg-gray-700">
-                        {chapters.map((chapter) => (
-                          <SelectItem key={chapter.id} value={chapter.id.toString()}>
-                            {chapter.name}
+                        {subjects.map((subject) => (
+                          <SelectItem key={subject.id} value={subject.id.toString()}>
+                            {subject.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    {!subjectsLoading && subjects.length === 0 && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {subjectsNotice || 'Content for your grade is coming soon.'}
+                      </p>
+                    )}
                   </div>
 
-                  {selectedChapterId && topics.length > 0 && (
-                    <div>
-                      <Label htmlFor="topic" className="dark:text-gray-300">Topic *</Label>
-                      <Select onValueChange={handleTopicChange} value={selectedTopicId?.toString() || ''}>
-                        <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                          <SelectValue placeholder="Select a topic" />
-                        </SelectTrigger>
-                        <SelectContent className="dark:bg-gray-700">
-                          {topics.map((topic) => (
-                            <SelectItem key={topic.id} value={topic.id.toString()}>
-                              {topic.title}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
+                  <div>
+                    <Label htmlFor="topic" className="dark:text-gray-300">Topic *</Label>
+                    <Select
+                      onValueChange={handleTopicChange}
+                      value={selectedTopicId?.toString() || ''}
+                      disabled={!selectedSubjectId || topicsLoading || topics.length === 0}
+                    >
+                      <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <SelectValue placeholder={topicsLoading ? 'Loading topics...' : 'Select a topic'} />
+                      </SelectTrigger>
+                      <SelectContent className="dark:bg-gray-700">
+                        {topics.map((topic) => (
+                          <SelectItem key={topic.id} value={topic.id.toString()}>
+                            {topic.title}{topic.chapterName ? ` - ${topic.chapterName}` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {!topicsLoading && selectedSubjectId && topics.length === 0 && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {topicsNotice || 'Topics for this subject are coming soon.'}
+                      </p>
+                    )}
+                  </div>
                 </>
               )}
 
@@ -397,22 +488,57 @@ function BookingContent() {
 
               <div>
                 <Label htmlFor="duration" className="dark:text-gray-300">Session Duration *</Label>
-                <select
+                <input
                   id="duration"
-                  value={durationMinutes}
-                  onChange={(e) => setDurationMinutes(parseInt(e.target.value))}
-                  className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                >
-                  <option value={30}>30 minutes</option>
-                  <option value={45}>45 minutes</option>
-                  <option value={60}>60 minutes</option>
-                  <option value={90}>90 minutes</option>
-                  <option value={120}>120 minutes</option>
-                </select>
+                  value={selectedTopic ? `${durationMinutes} minutes` : 'Select a topic to see duration'}
+                  readOnly
+                  className="w-full px-3 py-2 border rounded-md bg-white/70 dark:bg-slate-900/70 dark:border-white/10 dark:text-white"
+                />
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  A teacher will be matched based on availability and expertise.
+                  Duration is set by the topic and capped at 60 minutes.
                 </p>
               </div>
+
+              {availabilityNotice && (
+                <div className="rounded-lg border border-amber-200/70 bg-amber-50/70 px-4 py-3 text-amber-900 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 mt-0.5" />
+                    <div>
+                      <p className="font-medium">No teachers available for this slot</p>
+                      <p className="text-sm opacity-90">{availabilityNotice}</p>
+                      <p className="text-xs mt-1 opacity-80">Try another date or time to continue.</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 rounded-md bg-white/70 dark:bg-slate-900/60 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-200">
+                      Next available slots
+                    </p>
+                    {availabilityLoading ? (
+                      <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-200 mt-2">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Checking upcoming times...
+                      </div>
+                    ) : availabilitySlots.length > 0 ? (
+                      <div className="mt-2 space-y-1 text-sm">
+                        {availabilitySlots.map((slot, index) => {
+                          const start = new Date(slot.startTime)
+                          const end = new Date(slot.endTime)
+                          return (
+                            <div key={`${slot.startTime}-${index}`} className="flex items-center justify-between text-amber-900 dark:text-amber-100">
+                              <span>{start.toLocaleDateString()} · {start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              <span className="text-xs opacity-70">to {end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-xs text-amber-700 dark:text-amber-200">
+                        No upcoming slots found yet. Please try again later.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Notes */}
               <div>
@@ -436,11 +562,11 @@ function BookingContent() {
                   {isLoading ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Getting Quote...
+                      Calculating Price...
                     </>
                   ) : (
                     <>
-                      Get Quote
+                      See Price Range
                       <ArrowRight className="h-4 w-4 ml-2" />
                     </>
                   )}
@@ -456,10 +582,10 @@ function BookingContent() {
             <CardHeader>
               <CardTitle className="flex items-center dark:text-white">
                 <CheckCircle className="h-5 w-5 mr-2 text-green-500" />
-                Review Booking Details
+                Review & Confirm
               </CardTitle>
               <CardDescription className="dark:text-gray-400">
-                Please review your booking before confirming
+                Confirm to notify teachers and lock your slot
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -488,12 +614,15 @@ function BookingContent() {
                 <div className="flex items-center justify-between p-4 bg-blue-50/70 dark:bg-blue-900/20 rounded-lg border border-blue-100/60 dark:border-blue-900/40">
                   <div className="flex items-center text-gray-700 dark:text-gray-300">
                     <DollarSign className="h-5 w-5 mr-2 text-blue-500" />
-                    <span className="font-medium">Estimated Price</span>
+                    <span className="font-medium">Estimated Price Range</span>
                   </div>
                   <span className="text-xl font-bold text-blue-600 dark:text-blue-400">
                     {bookingQuote.price.currency} {bookingQuote.price.min} - {bookingQuote.price.max}
                   </span>
                 </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Pricing adjusts with topic complexity, teacher experience, and availability.
+                </p>
 
                 {notes && (
                   <div className="p-4 bg-white/70 dark:bg-slate-900/70 rounded-lg border border-white/30 dark:border-white/10">
@@ -542,7 +671,10 @@ function BookingContent() {
               <CheckCircle className="h-16 w-16 mx-auto text-green-500 mb-4" />
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Booking Request Submitted!</h2>
               <p className="text-gray-600 dark:text-gray-400 mb-6">
-                Your booking request has been sent to the teacher. You'll be notified once it's confirmed.
+                We have notified available teachers. The first to accept will take your class, and you will see the teacher details instantly.
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                If no teacher accepts this slot, we will ask you to pick another time.
               </p>
               <div className="flex justify-center gap-4">
                 <Button

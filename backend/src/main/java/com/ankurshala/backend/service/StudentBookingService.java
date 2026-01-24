@@ -10,12 +10,15 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -50,10 +53,13 @@ public class StudentBookingService {
     private static final int BUFFER_MINUTES = 15;
     private static final int MIN_SESSION_MINUTES = 30;
     private static final int MAX_SESSION_MINUTES = 120;
+    private static final BigDecimal DEFAULT_HOURLY_RATE = new BigDecimal("500");
+    private static final BigDecimal RANGE_LOWER_MULTIPLIER = new BigDecimal("0.90");
+    private static final BigDecimal RANGE_UPPER_MULTIPLIER = new BigDecimal("1.15");
 
     public BookingQuoteResponse getBookingQuote(BookingQuoteRequest request, UserPrincipal userPrincipal) {
         log.info("Getting booking quote for topic {} at {}", request.getTopicId(), request.getStartTime());
-        
+
         // Validate topic exists
         Topic topic = topicRepository.findById(request.getTopicId())
                 .orElseThrow(() -> new IllegalArgumentException("Topic not found"));
@@ -61,12 +67,13 @@ public class StudentBookingService {
         // Convert timezone if provided
         LocalDateTime startTime = convertToUTC(request.getStartTime(), request.getTimezone());
         LocalDateTime endTime = startTime.plusMinutes(request.getDurationMinutes());
-        
+
         // Check for conflicts
         User student = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Student not found"));
 
         ensureNoOutstandingDues(student);
+        ensureTeachersAvailable(startTime, endTime);
 
         List<BookingStatus> conflictingStatuses = Arrays.asList(
                 BookingStatus.PENDING,
@@ -81,33 +88,14 @@ public class StudentBookingService {
                 .collect(Collectors.toList());
 
         boolean bufferOk = conflictingBookings.isEmpty();
-        
-        // Get pricing
-        PricingRuleDto pricingRule = pricingService.resolvePricingRule(
-                topic.getBoardId(), null, topic.getSubjectId(), 
-                topic.getChapter().getId(), topic.getId());
-        
-        final BigDecimal priceMin;
-        final BigDecimal priceMax;
-        final Long ruleId;
-        
-        if (pricingRule != null) {
-            BigDecimal hourlyRate = pricingRule.getHourlyRate();
-            BigDecimal sessionHours = BigDecimal.valueOf(request.getDurationMinutes()).divide(BigDecimal.valueOf(60), 2, java.math.RoundingMode.HALF_UP);
-            priceMin = hourlyRate.multiply(sessionHours);
-            priceMax = priceMin; // For now, min and max are the same
-            ruleId = pricingRule.getId();
-        } else {
-            priceMin = BigDecimal.ZERO;
-            priceMax = BigDecimal.ZERO;
-            ruleId = null;
-        }
+
+        PriceQuote priceQuote = calculatePrice(topic, request.getDurationMinutes(), startTime);
         
         return new BookingQuoteResponse() {{
             setExpectedMinutes(topic.getExpectedTimeMins());
             setEndTime(endTime);
             setBufferOk(bufferOk);
-            setPrice(new BookingQuoteResponse.PriceInfo("INR", priceMin, priceMax, ruleId));
+            setPrice(new BookingQuoteResponse.PriceInfo("INR", priceQuote.min, priceQuote.max, priceQuote.ruleId));
         }};
     }
 
@@ -130,6 +118,9 @@ public class StudentBookingService {
         // Check for conflicts
         User student = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Student not found"));
+
+        ensureNoOutstandingDues(student);
+        ensureTeachersAvailable(startTime, endTime);
         
         List<BookingStatus> conflictingStatuses = Arrays.asList(
                 BookingStatus.PENDING,
@@ -146,31 +137,15 @@ public class StudentBookingService {
         if (!conflictingBookings.isEmpty()) {
             throw new IllegalArgumentException("Time slot conflicts with existing booking");
         }
-        
-        // Get pricing
-        PricingRuleDto pricingRule = pricingService.resolvePricingRule(
-                topic.getBoardId(), null, topic.getSubjectId(), 
-                topic.getChapter().getId(), topic.getId());
-        
-        BigDecimal priceMin = BigDecimal.ZERO;
-        BigDecimal priceMax = BigDecimal.ZERO;
-        PricingRule pricingRuleEntity = null;
-        
-        if (pricingRule != null) {
-            BigDecimal hourlyRate = pricingRule.getHourlyRate();
-            BigDecimal sessionHours = BigDecimal.valueOf(request.getDurationMinutes()).divide(BigDecimal.valueOf(60), 2, java.math.RoundingMode.HALF_UP);
-            priceMin = hourlyRate.multiply(sessionHours);
-            priceMax = priceMin;
-            pricingRuleEntity = new PricingRule();
-            pricingRuleEntity.setId(pricingRule.getId());
-        }
+
+        PriceQuote priceQuote = calculatePrice(topic, request.getDurationMinutes(), startTime);
         
         // Create booking
         Booking booking = new Booking(student, topic, 
                 startTime.atZone(ZoneId.systemDefault()), 
                 endTime.atZone(ZoneId.systemDefault()), 
-                request.getDurationMinutes(), priceMin, priceMax);
-        booking.setPricingRule(pricingRuleEntity);
+                request.getDurationMinutes(), priceQuote.min, priceQuote.max);
+        booking.setPricingRule(priceQuote.ruleEntity);
         booking.setStudentNotes(request.getStudentNotes());
         booking.setAcceptanceToken(UUID.randomUUID().toString());
         
@@ -324,6 +299,23 @@ public class StudentBookingService {
         return convertToBookingResponse(booking);
     }
 
+    public List<AvailableSlotResponse> getNextAvailableSlots(LocalDateTime startTime,
+                                                             int durationMinutes,
+                                                             String timezone,
+                                                             int limit) {
+        LocalDateTime normalizedStart = convertToUTC(startTime, timezone);
+        int pageSize = Math.max(limit * 3, 10);
+
+        List<TeacherAvailabilitySlot> slots = teacherAvailabilitySlotRepository
+                .findNextAvailableSlots(normalizedStart, PageRequest.of(0, pageSize));
+
+        return slots.stream()
+                .filter(slot -> Duration.between(slot.getStartTime(), slot.getEndTime()).toMinutes() >= durationMinutes)
+                .map(slot -> new AvailableSlotResponse(slot.getStartTime(), slot.getEndTime()))
+                .limit(limit)
+                .collect(Collectors.toList());
+    }
+
     public FeePreviewResponse getFeePreview(Long bookingId, FeePreviewRequest request, UserPrincipal userPrincipal) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new IllegalArgumentException("Booking not found"));
@@ -337,12 +329,14 @@ public class StudentBookingService {
         String reason = "";
         boolean waived = false;
         
-        if ("CANCEL".equals(request.getAction())) {
-            fee = booking.getCancellationFee();
-            reason = "Cancellation fee";
-        } else if ("RESCHEDULE".equals(request.getAction())) {
-            fee = booking.getRescheduleFee();
-            reason = "Reschedule fee";
+        if ("CANCEL".equalsIgnoreCase(request.getAction())) {
+            FeeResult feeResult = calculateCancellationFee(booking);
+            fee = feeResult.fee;
+            reason = feeResult.reason;
+        } else if ("RESCHEDULE".equalsIgnoreCase(request.getAction())) {
+            FeeResult feeResult = calculateRescheduleFee(booking);
+            fee = feeResult.fee;
+            reason = feeResult.reason;
         }
         
         // Check for fee waivers (not implemented yet)
@@ -566,6 +560,126 @@ public class StudentBookingService {
                            booking.getStartTs().isAfter(now.minusMinutes(30)));
         
         return response;
+    }
+
+    private void ensureTeachersAvailable(LocalDateTime startTime, LocalDateTime endTime) {
+        long totalSlots = teacherAvailabilitySlotRepository.count();
+        if (totalSlots == 0) {
+            return;
+        }
+
+        long availableSlots = teacherAvailabilitySlotRepository.countAvailableSlots(startTime, endTime);
+        if (availableSlots == 0) {
+            throw new IllegalArgumentException("No teachers are available for the selected time. Please try another slot.");
+        }
+    }
+
+    private PriceQuote calculatePrice(Topic topic, int durationMinutes, LocalDateTime startTime) {
+        PricingRuleDto pricingRule = pricingService.resolvePricingRule(
+                topic.getBoardId(), null, topic.getSubjectId(),
+                topic.getChapter().getId(), topic.getId());
+
+        BigDecimal hourlyRate = DEFAULT_HOURLY_RATE;
+        Long ruleId = null;
+        PricingRule pricingRuleEntity = null;
+        if (pricingRule != null && pricingRule.getHourlyRate() != null) {
+            hourlyRate = pricingRule.getHourlyRate();
+            ruleId = pricingRule.getId();
+            pricingRuleEntity = new PricingRule();
+            pricingRuleEntity.setId(ruleId);
+        }
+
+        BigDecimal sessionHours = BigDecimal.valueOf(durationMinutes)
+                .divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
+        BigDecimal basePrice = hourlyRate.multiply(sessionHours);
+        BigDecimal surgeMultiplier = resolveUrgencyMultiplier(startTime);
+        BigDecimal adjustedPrice = basePrice.multiply(surgeMultiplier);
+
+        BigDecimal priceMin = adjustedPrice.multiply(RANGE_LOWER_MULTIPLIER).setScale(0, RoundingMode.HALF_UP);
+        BigDecimal priceMax = adjustedPrice.multiply(RANGE_UPPER_MULTIPLIER).setScale(0, RoundingMode.HALF_UP);
+        if (priceMin.compareTo(BigDecimal.ZERO) < 0) {
+            priceMin = BigDecimal.ZERO;
+        }
+        if (priceMax.compareTo(priceMin) < 0) {
+            priceMax = priceMin;
+        }
+
+        return new PriceQuote(priceMin, priceMax, ruleId, pricingRuleEntity);
+    }
+
+    private BigDecimal resolveUrgencyMultiplier(LocalDateTime startTime) {
+        long minutesUntil = Duration.between(LocalDateTime.now(ZoneId.of("UTC")), startTime).toMinutes();
+        if (minutesUntil <= 120) {
+            return new BigDecimal("1.30");
+        }
+        if (minutesUntil <= 360) {
+            return new BigDecimal("1.20");
+        }
+        if (minutesUntil <= 1440) {
+            return new BigDecimal("1.10");
+        }
+        return BigDecimal.ONE;
+    }
+
+    private static final class PriceQuote {
+        private final BigDecimal min;
+        private final BigDecimal max;
+        private final Long ruleId;
+        private final PricingRule ruleEntity;
+
+        private PriceQuote(BigDecimal min, BigDecimal max, Long ruleId, PricingRule ruleEntity) {
+            this.min = min;
+            this.max = max;
+            this.ruleId = ruleId;
+            this.ruleEntity = ruleEntity;
+        }
+    }
+
+    private FeeResult calculateCancellationFee(Booking booking) {
+        ZonedDateTime now = ZonedDateTime.now();
+        long minutesUntil = Duration.between(now, booking.getStartTs()).toMinutes();
+        BigDecimal basePrice = Optional.ofNullable(booking.getPriceMin()).orElse(BigDecimal.ZERO);
+
+        if (minutesUntil <= 120) {
+            BigDecimal fee = maxFee(basePrice, new BigDecimal("0.20"), new BigDecimal("50"));
+            return new FeeResult(fee, "Late cancellation within 2 hours");
+        }
+        if (minutesUntil <= 1440) {
+            BigDecimal fee = maxFee(basePrice, new BigDecimal("0.10"), new BigDecimal("25"));
+            return new FeeResult(fee, "Cancellation within 24 hours");
+        }
+        return new FeeResult(BigDecimal.ZERO, "No cancellation fee");
+    }
+
+    private FeeResult calculateRescheduleFee(Booking booking) {
+        ZonedDateTime now = ZonedDateTime.now();
+        long minutesUntil = Duration.between(now, booking.getStartTs()).toMinutes();
+        BigDecimal basePrice = Optional.ofNullable(booking.getPriceMin()).orElse(BigDecimal.ZERO);
+
+        if (minutesUntil <= 120) {
+            BigDecimal fee = maxFee(basePrice, new BigDecimal("0.15"), new BigDecimal("100"));
+            return new FeeResult(fee, "Late reschedule within 2 hours");
+        }
+        if (minutesUntil <= 1440) {
+            BigDecimal fee = maxFee(basePrice, new BigDecimal("0.05"), new BigDecimal("50"));
+            return new FeeResult(fee, "Reschedule within 24 hours");
+        }
+        return new FeeResult(BigDecimal.ZERO, "No reschedule fee");
+    }
+
+    private BigDecimal maxFee(BigDecimal basePrice, BigDecimal percent, BigDecimal minimum) {
+        BigDecimal fee = basePrice.multiply(percent).setScale(0, RoundingMode.HALF_UP);
+        return fee.compareTo(minimum) < 0 ? minimum : fee;
+    }
+
+    private static final class FeeResult {
+        private final BigDecimal fee;
+        private final String reason;
+
+        private FeeResult(BigDecimal fee, String reason) {
+            this.fee = fee;
+            this.reason = reason;
+        }
     }
 
     private void ensureNoOutstandingDues(User student) {

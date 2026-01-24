@@ -3,11 +3,12 @@
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { StudentRoute } from '@/components/route-guard'
-import { bookingService, BookingResponse } from '@/services/bookingService'
+import { bookingService, BookingResponse, FeePreviewResponse } from '@/services/bookingService'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
+import { FeePreviewModal } from '@/components/ui/confirmation-modal'
 import { toast } from 'sonner'
 import {
   Calendar,
@@ -32,6 +33,11 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
   const [rescheduling, setRescheduling] = useState(false)
   const [joining, setJoining] = useState(false)
   const [cancelling, setCancelling] = useState(false)
+  const [feePreview, setFeePreview] = useState<FeePreviewResponse | null>(null)
+  const [feeAction, setFeeAction] = useState<'RESCHEDULE' | 'CANCEL' | null>(null)
+  const [feeModalOpen, setFeeModalOpen] = useState(false)
+  const [feePreviewLoading, setFeePreviewLoading] = useState(false)
+  const [pendingCancelReason, setPendingCancelReason] = useState('')
 
   useEffect(() => {
     const loadBooking = async () => {
@@ -74,7 +80,7 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
     }
   }
 
-  const handleReschedule = async () => {
+  const performReschedule = async () => {
     if (!rescheduleDate || !rescheduleTime) {
       toast.error('Select a new date and time')
       return
@@ -116,12 +122,15 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
     }
   }
 
-  const handleCancel = async () => {
-    const reason = prompt('Please provide a reason for cancellation.')
-    if (!reason) return
+  const performCancel = async () => {
+    if (!pendingCancelReason) {
+      toast.error('Please provide a reason for cancellation.')
+      return
+    }
+
     try {
       setCancelling(true)
-      await bookingService.cancelBooking(bookingId, { reason })
+      await bookingService.cancelBooking(bookingId, { reason: pendingCancelReason })
       toast.success('Booking cancelled')
       const data = await bookingService.getBooking(bookingId)
       setBooking(data)
@@ -130,6 +139,52 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
       toast.error('Failed to cancel booking')
     } finally {
       setCancelling(false)
+      setPendingCancelReason('')
+    }
+  }
+
+  const requestFeePreview = async (action: 'RESCHEDULE' | 'CANCEL') => {
+    try {
+      setFeePreviewLoading(true)
+      const preview = await bookingService.getFeePreview(bookingId, { action })
+      setFeePreview(preview)
+      setFeeAction(action)
+      setFeeModalOpen(true)
+    } catch (error) {
+      console.error('Failed to load fee preview:', error)
+      toast.error('Failed to load fee preview')
+    } finally {
+      setFeePreviewLoading(false)
+    }
+  }
+
+  const handleReschedule = async () => {
+    if (!canModify) {
+      return
+    }
+    if (!rescheduleDate || !rescheduleTime) {
+      toast.error('Select a new date and time')
+      return
+    }
+    await requestFeePreview('RESCHEDULE')
+  }
+
+  const handleCancel = async () => {
+    const reason = prompt('Please provide a reason for cancellation.')
+    if (!reason) return
+
+    setPendingCancelReason(reason)
+    await requestFeePreview('CANCEL')
+  }
+
+  const handleFeeConfirm = async () => {
+    setFeeModalOpen(false)
+    if (feeAction === 'RESCHEDULE') {
+      await performReschedule()
+      return
+    }
+    if (feeAction === 'CANCEL') {
+      await performCancel()
     }
   }
 
@@ -156,6 +211,22 @@ function BookingDetailContent({ bookingId }: { bookingId: number }) {
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-4xl">
+      <FeePreviewModal
+        isOpen={feeModalOpen}
+        onClose={() => {
+          setFeeModalOpen(false)
+          setFeePreview(null)
+          setFeeAction(null)
+        }}
+        onConfirm={handleFeeConfirm}
+        action={feeAction || 'CANCEL'}
+        originalAmount={booking?.priceMin || 0}
+        feeAmount={feePreview?.fee || 0}
+        finalAmount={Math.max((booking?.priceMin || 0) - (feePreview?.fee || 0), 0)}
+        reason={feePreview?.reason || 'Fee details'}
+        currency={feePreview?.currency || booking?.priceCurrency || 'INR'}
+        isLoading={feePreviewLoading || rescheduling || cancelling}
+      />
       <div className="page-header flex items-center gap-3 mb-6">
         <Button variant="ghost" size="icon" onClick={() => router.back()} className="text-white hover:text-white">
           <ArrowLeft className="h-5 w-5" />

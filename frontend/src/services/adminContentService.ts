@@ -82,6 +82,9 @@ export interface TopicDto {
   chapterName?: string
   subjectName?: string
   boardId: number
+  boardName?: string
+  gradeId?: number
+  gradeName?: string
   subjectId: number
   active: boolean
   createdAt: string

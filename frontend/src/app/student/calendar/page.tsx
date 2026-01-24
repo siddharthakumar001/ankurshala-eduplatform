@@ -24,9 +24,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { bookingService, CalendarEvent } from '@/services/bookingService';
+import { bookingService, CalendarEvent, BookingResponse, FeePreviewResponse } from '@/services/bookingService';
 import { toast } from 'sonner';
 import { StudentRoute } from '@/components/route-guard';
+import { FeePreviewModal } from '@/components/ui/confirmation-modal';
 
 // Two-component pattern: prevents API calls before auth is verified
 export default function StudentCalendarPage() {
@@ -43,6 +44,11 @@ function CalendarContent() {
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [isLoading, setIsLoading] = useState(true);
   const [cancelling, setCancelling] = useState<number | null>(null);
+  const [feePreview, setFeePreview] = useState<FeePreviewResponse | null>(null);
+  const [feeModalOpen, setFeeModalOpen] = useState(false);
+  const [feePreviewLoading, setFeePreviewLoading] = useState(false);
+  const [feeBooking, setFeeBooking] = useState<BookingResponse | null>(null);
+  const [pendingCancelReason, setPendingCancelReason] = useState('');
 
   useEffect(() => {
     loadCalendarEvents();
@@ -132,10 +138,37 @@ function CalendarContent() {
     }
 
     try {
-      setCancelling(booking.id);
-      await bookingService.cancelBooking(booking.id, { reason });
+      setFeePreviewLoading(true);
+      const [preview, details] = await Promise.all([
+        bookingService.getFeePreview(booking.id, { action: 'CANCEL' }),
+        bookingService.getBooking(booking.id)
+      ]);
+      setFeePreview(preview);
+      setFeeBooking(details);
+      setPendingCancelReason(reason);
+      setFeeModalOpen(true);
+    } catch (error: any) {
+      console.error('Failed to cancel booking:', error);
+      toast.error(error.response?.data?.message || 'Failed to cancel booking');
+    } finally {
+      setFeePreviewLoading(false);
+    }
+  };
+
+  const handleFeeConfirm = async () => {
+    if (!feeBooking || !pendingCancelReason) {
+      setFeeModalOpen(false);
+      return;
+    }
+
+    try {
+      setCancelling(feeBooking.id);
+      await bookingService.cancelBooking(feeBooking.id, { reason: pendingCancelReason });
       toast.success('Booking cancelled successfully');
-      loadCalendarEvents(); // Refresh the calendar
+      setFeeModalOpen(false);
+      setPendingCancelReason('');
+      setFeeBooking(null);
+      loadCalendarEvents();
     } catch (error: any) {
       console.error('Failed to cancel booking:', error);
       toast.error(error.response?.data?.message || 'Failed to cancel booking');
@@ -160,6 +193,23 @@ function CalendarContent() {
 
   return (
     <div className="space-y-6">
+        <FeePreviewModal
+          isOpen={feeModalOpen}
+          onClose={() => {
+            setFeeModalOpen(false);
+            setFeePreview(null);
+            setFeeBooking(null);
+            setPendingCancelReason('');
+          }}
+          onConfirm={handleFeeConfirm}
+          action="CANCEL"
+          originalAmount={feeBooking?.priceMin || 0}
+          feeAmount={feePreview?.fee || 0}
+          finalAmount={Math.max((feeBooking?.priceMin || 0) - (feePreview?.fee || 0), 0)}
+          reason={feePreview?.reason || 'Fee details'}
+          currency={feePreview?.currency || feeBooking?.priceCurrency || 'INR'}
+          isLoading={feePreviewLoading || cancelling === feeBooking?.id}
+        />
         <div className="page-header">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>

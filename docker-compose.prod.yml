@@ -95,13 +95,8 @@ services:
 
   # -------- Backend (Spring) --------
   backend:
-    # Use pre-built image from GitHub Container Registry (or build locally if needed)
-    image: ankurshala/backend:${BACKEND_TAG:-prod}
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      args:
-        SPRING_PROFILES_ACTIVE: production
+    # Image pulled from Azure Container Registry
+    image: ankurshalaacr.azurecr.io/ankurshala/backend:latest
     container_name: ankurshala_backend_prod
     env_file:
       - .env-prod
@@ -156,14 +151,8 @@ services:
 
   # -------- Frontend (Next.js) --------
   frontend:
-    # Use pre-built image from GitHub Container Registry (or build locally if needed)
-    image: ankurshala/frontend:${FRONTEND_TAG:-prod}
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
-        NODE_ENV: production
+    # Image pulled from Azure Container Registry
+    image: ankurshalaacr.azurecr.io/ankurshala/frontend:latest
     container_name: ankurshala_frontend_prod
     env_file:
       - .env-prod
