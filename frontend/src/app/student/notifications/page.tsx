@@ -67,10 +67,6 @@ function NotificationsContent() {
   
   const router = useRouter()
 
-  useEffect(() => {
-    fetchNotificationData()
-  }, [])
-
   const fetchNotificationData = async () => {
     try {
       setLoading(true)
@@ -112,6 +108,11 @@ function NotificationsContent() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    fetchNotificationData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleMarkAsRead = async (notificationId: number) => {
     try {
