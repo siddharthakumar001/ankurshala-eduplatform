@@ -132,34 +132,24 @@ function HistoryContent() {
   }
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto px-4">
-        <div className="page-header">
-          <h1 className="text-3xl font-bold text-white">Booking History</h1>
-          <p className="text-white/80">View and manage your past bookings</p>
+    <div className="space-y-6 max-w-6xl mx-auto px-4 pb-10">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-sky-600 text-white shadow-lg">
+          <div className="absolute inset-0 bg-white/10 blur-3xl" />
+          <div className="relative px-6 py-6 sm:px-8 sm:py-7 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <p className="text-sm uppercase tracking-[0.18em] text-white/80">Student Workspace</p>
+              <h1 className="text-3xl font-bold mt-1">Booking History</h1>
+              <p className="text-white/80 mt-1">View, manage, and revisit your completed or upcoming sessions.</p>
+            </div>
+            <div className="grid grid-cols-3 gap-3 w-full sm:w-auto">
+              <MetricCard label="Total" value={totalElements} tone="white" />
+              <MetricCard label="Completed" value={completedCount} tone="emerald" />
+              <MetricCard label="Confirmed" value={confirmedCount} tone="sky" />
+            </div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <Card className="glass-panel">
-            <CardHeader className="pb-3">
-              <CardDescription className="text-slate-500 dark:text-slate-300">Total Bookings</CardDescription>
-              <CardTitle className="text-3xl text-slate-900 dark:text-white">{totalElements}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card className="glass-panel">
-            <CardHeader className="pb-3">
-              <CardDescription className="text-slate-500 dark:text-slate-300">Completed</CardDescription>
-              <CardTitle className="text-3xl text-emerald-500">{completedCount}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card className="glass-panel">
-            <CardHeader className="pb-3">
-              <CardDescription className="text-slate-500 dark:text-slate-300">Confirmed</CardDescription>
-              <CardTitle className="text-3xl text-sky-500">{confirmedCount}</CardTitle>
-            </CardHeader>
-          </Card>
-        </div>
-
-        <Card className="glass-panel border border-white/40 mb-6">
+        <Card className="glass-panel border border-white/40 mb-4">
           <CardContent className="pt-6">
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="relative flex-1">
@@ -246,6 +236,12 @@ function HistoryContent() {
                           <span>{booking.studentNotes}</span>
                         </div>
                       )}
+                      {booking.cancelReason && (
+                        <div className="flex items-start text-sm text-red-600 dark:text-red-300 mt-2">
+                          <FileText className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
+                          <span>{booking.cancelReason}</span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex flex-col gap-2 sm:ml-4">
@@ -304,5 +300,22 @@ function HistoryContent() {
           </div>
         )}
       </div>
+  )
+}
+
+type MetricCardTone = 'white' | 'emerald' | 'sky'
+
+function MetricCard({ label, value, tone }: { label: string; value: number; tone: MetricCardTone }) {
+  const toneClasses: Record<MetricCardTone, string> = {
+    white: 'bg-white/15 text-white',
+    emerald: 'bg-emerald-500/30 text-white',
+    sky: 'bg-sky-500/30 text-white'
+  }
+
+  return (
+    <div className={`rounded-2xl px-4 py-3 backdrop-blur-sm border border-white/20 ${toneClasses[tone]}`}>
+      <p className="text-xs uppercase tracking-wide text-white/80">{label}</p>
+      <p className="text-2xl font-semibold">{value}</p>
+    </div>
   )
 }

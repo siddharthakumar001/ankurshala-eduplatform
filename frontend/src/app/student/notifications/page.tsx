@@ -63,6 +63,7 @@ function NotificationsContent() {
   const [settings, setSettings] = useState<StudentNotificationSettings | null>(null)
   const [unreadCount, setUnreadCount] = useState(0)
   const [markingAsRead, setMarkingAsRead] = useState<number | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   
   const router = useRouter()
 
@@ -73,6 +74,7 @@ function NotificationsContent() {
   const fetchNotificationData = async () => {
     try {
       setLoading(true)
+      setErrorMessage(null)
       
       // Fetch notifications
       const notificationsData = await studentAPI.getNotifications()
@@ -104,7 +106,8 @@ function NotificationsContent() {
       
     } catch (error) {
       console.error('Error fetching notification data:', error)
-      toast.error('Failed to load notifications')
+      setErrorMessage('Unable to load notifications right now. Please refresh or try again shortly.')
+      toast.error('Notifications temporarily unavailable')
     } finally {
       setLoading(false)
     }
@@ -213,20 +216,21 @@ function NotificationsContent() {
 
   return (
     <div className="min-h-screen bg-transparent py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Header */}
-          <div className="mb-8">
-            <div className="page-header flex justify-between items-center">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-sky-600 text-white shadow-lg">
+            <div className="absolute inset-0 bg-white/10 blur-3xl" />
+            <div className="relative px-6 py-6 sm:px-8 sm:py-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold text-white">Notifications</h1>
-                <p className="text-white/80">Stay updated with your learning journey</p>
+                <p className="text-sm uppercase tracking-[0.18em] text-white/80">Student Workspace</p>
+                <h1 className="text-3xl font-bold mt-1">Notifications</h1>
+                <p className="text-white/80 mt-1">Stay updated with your learning journey.</p>
               </div>
               <div className="flex gap-2">
                 {unreadCount > 0 && (
                   <Button
                     variant="outline"
                     onClick={handleMarkAllAsRead}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 text-white border-white/40 bg-white/10"
                   >
                     <CheckCheck className="h-4 w-4" />
                     Mark All Read
@@ -235,7 +239,7 @@ function NotificationsContent() {
                 <Button
                   variant="outline"
                   onClick={() => setActiveTab('settings')}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 text-white border-white/40 bg-white/10"
                 >
                   <Settings className="h-4 w-4" />
                   Settings
@@ -243,6 +247,23 @@ function NotificationsContent() {
               </div>
             </div>
           </div>
+
+          {errorMessage && (
+            <Card className="glass-panel border border-white/40">
+              <CardContent className="py-4 flex items-center gap-3 text-amber-700">
+                <AlertCircle className="h-5 w-5" />
+                <div>
+                  <p className="font-medium">Unable to load notifications</p>
+                  <p className="text-sm text-amber-700/80">{errorMessage}</p>
+                </div>
+                <div className="ml-auto">
+                  <Button variant="outline" size="sm" className="btn-outline" onClick={fetchNotificationData}>
+                    Retry
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Main Content Tabs */}
           <div className="space-y-6">

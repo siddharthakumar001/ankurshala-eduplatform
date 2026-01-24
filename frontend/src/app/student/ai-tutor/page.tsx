@@ -92,6 +92,8 @@ function AITutorPageContent() {
     error: synthesisError
   } = useSpeechSynthesis()
 
+  const languageInfo = getLanguageInfo(selectedLanguage)
+
   useEffect(() => {
     const topicIdParam = searchParams.get('topicId')
     if (topicIdParam) {
@@ -414,18 +416,35 @@ function AITutorPageContent() {
   }
 
   return (
-    <div className="space-y-6" data-testid="ai-tutor-page">
-      <div className="max-w-5xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="page-header" data-testid="ai-tutor-header">
-          <h1 className="text-3xl font-bold text-white mb-2">AI Tutor</h1>
-          <p className="text-white/80">Ask questions, get explanations, and learn interactively</p>
-          <Badge variant="outline" className="mt-3 border-white/40 bg-white/10 text-white">
-            <Sparkles className="h-3 w-3 mr-1" />
-            Personalized learning assistant
-          </Badge>
+    <div className="space-y-6 max-w-6xl mx-auto px-4 pb-10" data-testid="ai-tutor-page">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-sky-600 text-white shadow-lg">
+        <div className="absolute inset-0 bg-white/10 blur-3xl" />
+        <div className="relative px-6 py-6 sm:px-8 sm:py-8 space-y-3" data-testid="ai-tutor-header">
+          <div className="flex flex-wrap items-center gap-2 text-sm uppercase tracking-[0.14em] text-white/80">
+            <span>Student Workspace</span>
+            <span className="opacity-70">•</span>
+            <span>AI Companion</span>
+          </div>
+          <div className="flex flex-col gap-3">
+            <h1 className="text-3xl font-bold">AI Tutor</h1>
+            <p className="text-white/80">Ask questions, get explanations, and learn interactively.</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <Badge className="bg-white/20 text-white border border-white/30 px-3 py-1 rounded-full">
+                <Sparkles className="h-3 w-3 mr-1" />
+                Personalized learning assistant
+              </Badge>
+              <Badge variant="outline" className="border-white/30 text-white bg-white/10">
+                Voice {isListening ? 'On' : 'Off'}
+              </Badge>
+              <Badge variant="outline" className="border-white/30 text-white bg-white/10">
+                Language: {languageInfo.englishName}
+              </Badge>
+            </div>
+          </div>
         </div>
+      </div>
 
+      <div className="max-w-5xl mx-auto space-y-6">
         <Card className="glass-panel border border-white/40" data-testid="ai-tutor-chat-container">
           <CardHeader>
             <div className="flex items-center justify-between">

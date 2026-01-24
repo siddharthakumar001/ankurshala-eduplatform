@@ -252,17 +252,20 @@ function ProfileContent() {
 
   return (
     <div className="min-h-screen bg-transparent py-8" data-testid="student-profile-root">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Stage-1 FE complete: Header with navigation */}
-        <div className="page-header mb-8 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-white">Student Profile</h1>
-            <p className="text-white/80">Welcome, {user?.name}</p>
-          </div>
-          <div className="space-x-4">
-            <Button variant="outline" onClick={handleLogout}>
-              Logout
-            </Button>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-sky-600 text-white shadow-lg">
+          <div className="absolute inset-0 bg-white/10 blur-3xl" />
+          <div className="relative px-6 py-6 sm:px-8 sm:py-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <p className="text-sm uppercase tracking-[0.18em] text-white/80">Student Workspace</p>
+              <h1 className="text-3xl font-bold mt-1">Student Profile</h1>
+              <p className="text-white/80 mt-1">Welcome, {user?.name}</p>
+            </div>
+            <div className="space-x-3">
+              <Button variant="outline" className="text-white border-white/40 bg-white/10" onClick={handleLogout}>
+                Logout
+              </Button>
+            </div>
           </div>
         </div>
 

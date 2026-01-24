@@ -1,7 +1,7 @@
 # Test configuration for backend
 spring:
   datasource:
-    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;INIT=RUNSCRIPT FROM 'classpath:init_h2.sql'
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;NON_KEYWORDS=YEAR;INIT=RUNSCRIPT FROM 'classpath:init_h2.sql'
     driver-class-name: org.h2.Driver
     username: sa
     password: 
@@ -21,8 +21,7 @@ spring:
 
   sql:
     init:
-      mode: always
-      schema-locations: classpath:schema-test.sql
+      mode: never
 
   flyway:
     enabled: false
@@ -30,6 +29,17 @@ spring:
   ai:
     openai:
       api-key: test-key
+
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
+
+  data:
+    redis:
+      repositories:
+        enabled: false
 
   kafka:
     bootstrap-servers: localhost:9092
@@ -51,6 +61,8 @@ logging:
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
 
 app:
+  cache:
+    enabled: false
   features:
     ai:
       enabled: false
@@ -61,3 +73,8 @@ app:
   booking:
     buffer-minutes: 15
     timezone-default: Asia/Kolkata
+    use-redis-locks: false
+  legacy-rate-limit:
+    enabled: false
+  rate-limit:
+    enabled: false

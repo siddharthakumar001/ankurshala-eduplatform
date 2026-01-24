@@ -92,6 +92,7 @@ function PaymentContent() {
   const [payments, setPayments] = useState<StudentPayment[]>([])
   const [paymentMethods, setPaymentMethods] = useState<StudentPaymentMethod[]>([])
   const [processingPayment, setProcessingPayment] = useState<number | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   
   const user = useAuthStore((state) => state.user)
   const router = useRouter()
@@ -103,6 +104,7 @@ function PaymentContent() {
   const fetchPaymentData = async () => {
     try {
       setLoading(true)
+      setErrorMessage(null)
       
       // Fetch billing summary
       const summaryResponse = await api.get('/student/payments/summary')
@@ -118,7 +120,8 @@ function PaymentContent() {
       
     } catch (error) {
       console.error('Error fetching payment data:', error)
-      toast.error('Failed to load payment data')
+      setErrorMessage('We could not load your payment data right now. Please refresh or try again in a moment.')
+      toast.error('Payments are temporarily unavailable. Retrying later usually resolves this.')
     } finally {
       setLoading(false)
     }
@@ -180,6 +183,23 @@ function PaymentContent() {
     })
   }
 
+type MetricTone = 'emerald' | 'amber' | 'red' | 'white'
+
+function MetricPill({ label, value, tone = 'white' }: { label: string; value: string; tone?: MetricTone }) {
+  const toneClasses: Record<MetricTone, string> = {
+    white: 'bg-white/15 text-white',
+    emerald: 'bg-emerald-500/30 text-white',
+    amber: 'bg-amber-500/30 text-white',
+    red: 'bg-red-500/30 text-white'
+  }
+  return (
+    <div className={`rounded-2xl px-4 py-3 backdrop-blur-sm border border-white/20 ${toneClasses[tone]}`}>
+      <p className="text-xs uppercase tracking-wide text-white/80">{label}</p>
+      <p className="text-lg font-semibold">{value}</p>
+    </div>
+  )
+}
+
   const getPaymentStatusBadge = (status: string) => {
     switch (status) {
       case 'PAID':
@@ -225,12 +245,42 @@ function PaymentContent() {
 
   return (
     <div className="min-h-screen bg-transparent py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Header */}
-          <div className="page-header mb-8">
-            <h1 className="text-3xl font-bold text-white">Payments & Billing</h1>
-            <p className="text-white/80">Manage your payments and billing information</p>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+          {/* Hero */}
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-sky-600 text-white shadow-lg">
+            <div className="absolute inset-0 bg-white/10 blur-3xl" />
+            <div className="relative px-6 py-6 sm:px-8 sm:py-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <p className="text-sm uppercase tracking-[0.18em] text-white/80">Student Workspace</p>
+                <h1 className="text-3xl font-bold mt-1">Payments & Billing</h1>
+                <p className="text-white/80 mt-1">Manage your payments, wallet and billing preferences.</p>
+              </div>
+              {billingSummary && (
+                <div className="grid grid-cols-3 gap-3 w-full sm:w-auto">
+                  <MetricPill label="Total" value={formatCurrency(billingSummary.totalAmount)} />
+                  <MetricPill label="Pending" value={formatCurrency(billingSummary.pendingAmount)} tone="amber" />
+                  <MetricPill label="Overdue" value={formatCurrency(billingSummary.overdueAmount)} tone="red" />
+                </div>
+              )}
+            </div>
           </div>
+
+          {errorMessage && (
+            <Card className="glass-panel border border-white/40">
+              <CardContent className="py-4 flex items-center gap-3 text-amber-700">
+                <AlertCircle className="h-5 w-5" />
+                <div>
+                  <p className="font-medium">Payments are temporarily unavailable.</p>
+                  <p className="text-sm text-amber-700/80">{errorMessage}</p>
+                </div>
+                <div className="ml-auto">
+                  <Button variant="outline" size="sm" className="btn-outline" onClick={fetchPaymentData}>
+                    Retry
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Billing Summary Cards */}
           {billingSummary && (
