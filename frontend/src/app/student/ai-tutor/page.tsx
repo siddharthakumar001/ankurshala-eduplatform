@@ -7,7 +7,7 @@ import { studentAPI } from '@/lib/apiClient'
 import { useToast } from '@/hooks/use-toast'
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis'
-import { getLanguageInfo, getSupportedLanguages, INDIAN_LANGUAGES } from '@/lib/indianLanguages'
+import { getLanguageInfo, getSupportedLanguages } from '@/lib/indianLanguages'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -160,8 +160,8 @@ function AITutorPageContent() {
     }
   }, [synthesisError, toast])
 
-  const normalizeSuggestedActions = (actions: any[] | undefined) => {
-    if (!actions || actions.length === 0) return []
+  const normalizeSuggestedActions = (actions: any | undefined) => {
+    if (!Array.isArray(actions) || actions.length === 0) return []
 
     return actions.map((action) => {
       const actionType = action.type || action.actionType
